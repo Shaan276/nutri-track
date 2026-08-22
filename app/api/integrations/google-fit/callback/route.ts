@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import { GoogleFitService } from "@/lib/services/integrations/google-fit.service";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +24,14 @@ export async function GET(req: Request) {
         const decoded = JSON.parse(Buffer.from(stateStr, "base64url").toString("utf-8"));
         targetUserId = decoded.userId;
       } catch {}
+    }
+
+    if (!targetUserId) {
+      // Fallback: resolve admin user so connection is never orphaned
+      const admin = await prisma.user.findFirst({
+        where: { email: "piyushpilkhwal74@gmail.com" },
+      });
+      targetUserId = admin?.id;
     }
 
     if (!targetUserId) {

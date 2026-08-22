@@ -68,7 +68,7 @@ export class GoogleSheetsClient {
         keyColumnIndex: keyColumnIndex !== undefined ? keyColumnIndex : 0,
       });
 
-      // Post to Apps Script web app endpoint with redirect following and strict 5-second timeout
+      // Post to Apps Script web app endpoint with redirect following and 20-second timeout for Google Cloud cold start
       const response = await fetch(webhookUrl, {
         method: "POST",
         headers: {
@@ -76,7 +76,7 @@ export class GoogleSheetsClient {
         },
         body: bodyPayload,
         redirect: "follow",
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(20000),
       });
 
       const responseText = await response.text();
@@ -91,7 +91,7 @@ export class GoogleSheetsClient {
 
       return {
         success: isSuccess,
-        rowsAppended: dataRows.length,
+        rowsAppended: isSuccess ? dataRows.length : 0,
         isLiveConnection: true,
         connectionMode: "APPS_SCRIPT_WEBHOOK",
         message: isSuccess
@@ -106,15 +106,15 @@ export class GoogleSheetsClient {
     } catch (err: any) {
       console.warn(`[Webhook Sync] Transmission notice for tab '${sheetName}':`, err.message);
       return {
-        success: true, // Non-fatal for application
-        rowsAppended: dataRows.length,
-        isLiveConnection: true,
+        success: false,
+        rowsAppended: 0,
+        isLiveConnection: false,
         connectionMode: "APPS_SCRIPT_WEBHOOK",
-        message: `[Live Webhook Sync Attempted] Payload formatted for '${sheetName}' (${dataRows.length} rows).`,
+        message: `Failed to write to Google Sheet tab '${sheetName}': ${err.message}`,
         details: {
           sheetName,
           columnsCount: headerRow.length,
-          rowsCount: dataRows.length,
+          rowsCount: 0,
         },
       };
     }
