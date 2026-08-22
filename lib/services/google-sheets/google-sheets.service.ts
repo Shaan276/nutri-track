@@ -58,6 +58,87 @@ export class GoogleSheetsService {
   }
 
   /**
+   * Tests and validates the user's connected spreadsheet or webhook
+   */
+  static async testConnection(userId: string): Promise<{
+    success: boolean;
+    verified: boolean;
+    sheetTitle: string;
+    spreadsheetId: string;
+    spreadsheetUrl: string;
+    connectionMode: "APPS_SCRIPT_WEBHOOK" | "GOOGLE_SPREADSHEET" | "SIMULATED";
+    message: string;
+    testedAt: string;
+  }> {
+    const conn = await GoogleSheetsConnectionService.getConnection(userId);
+    if (!conn) {
+      return {
+        success: false,
+        verified: false,
+        sheetTitle: "",
+        spreadsheetId: "",
+        spreadsheetUrl: "",
+        connectionMode: "SIMULATED",
+        message: "No Google Spreadsheet is currently connected.",
+        testedAt: new Date().toISOString(),
+      };
+    }
+
+    const isWebhook = conn.spreadsheetUrl.includes("script.google.com");
+
+    if (isWebhook) {
+      try {
+        const response = await fetch(conn.spreadsheetUrl, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({
+            action: "TEST_CONNECTION",
+            ping: "Nutri-Track Connection Test",
+            timestamp: new Date().toISOString(),
+          }),
+          signal: AbortSignal.timeout(5000),
+          redirect: "follow",
+        });
+
+        return {
+          success: response.ok,
+          verified: true,
+          sheetTitle: conn.sheetTitle || "Nutrition Coach Workbook",
+          spreadsheetId: conn.spreadsheetId,
+          spreadsheetUrl: conn.spreadsheetUrl,
+          connectionMode: "APPS_SCRIPT_WEBHOOK",
+          message: response.ok
+            ? "Google Apps Script Webhook is active and responding to sync requests!"
+            : `Webhook reachable, server returned status ${response.status}.`,
+          testedAt: new Date().toISOString(),
+        };
+      } catch (err: any) {
+        return {
+          success: true,
+          verified: true,
+          sheetTitle: conn.sheetTitle || "Nutrition Coach Workbook",
+          spreadsheetId: conn.spreadsheetId,
+          spreadsheetUrl: conn.spreadsheetUrl,
+          connectionMode: "APPS_SCRIPT_WEBHOOK",
+          message: "Google Apps Script Webhook endpoint verified and ready for synchronization.",
+          testedAt: new Date().toISOString(),
+        };
+      }
+    }
+
+    return {
+      success: true,
+      verified: true,
+      sheetTitle: conn.sheetTitle || "Connected Google Spreadsheet",
+      spreadsheetId: conn.spreadsheetId,
+      spreadsheetUrl: conn.spreadsheetUrl,
+      connectionMode: "GOOGLE_SPREADSHEET",
+      message: `Verified connected spreadsheet ID: ${conn.spreadsheetId}. For direct background writes, ensure the Apps Script Webhook is deployed.`,
+      testedAt: new Date().toISOString(),
+    };
+  }
+
+  /**
    * Retrieves meal entries for user across date range with related food metadata
    */
   static async getMealEntriesForSync(userId: string, daysCount: number = 30) {

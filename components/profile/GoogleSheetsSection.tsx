@@ -52,10 +52,41 @@ export function GoogleSheetsSection({
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
   const [copiedTemplateUrl, setCopiedTemplateUrl] = useState(false);
   const [copiedScript, setCopiedScript] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{
+    verified: boolean;
+    sheetTitle: string;
+    spreadsheetId: string;
+    message: string;
+    testedAt: string;
+  } | null>(null);
 
   useEffect(() => {
     fetchConnection();
   }, []);
+
+  const handleTestConnection = async () => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      setTesting(true);
+      const res = await fetch("/api/google-sheets/test", {
+        method: "POST",
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to test spreadsheet connection.");
+      }
+
+      setTestResult(data.data);
+      setSuccessMsg(data.data?.message || "Spreadsheet connection verified successfully!");
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to test spreadsheet connection.");
+    } finally {
+      setTesting(false);
+    }
+  };
 
   const fetchConnection = async () => {
     try {
@@ -293,12 +324,42 @@ export function GoogleSheetsSection({
             </div>
           </div>
 
-          {/* Action Buttons: [ Sync Now ] [ Change Connection ] [ Disconnect ] */}
+          {/* Test Result Verification Card */}
+          {testResult && (
+            <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-xs space-y-2 animate-in fade-in duration-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-emerald-300 font-bold">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <span>Connection Verified &amp; Active</span>
+                </div>
+                <span className="text-[10px] text-emerald-400/80 font-mono">
+                  {new Date(testResult.testedAt).toLocaleTimeString()}
+                </span>
+              </div>
+              <div className="text-slate-300 text-[11px] leading-relaxed">
+                <div>• <strong>Connected File / Sheet:</strong> {testResult.sheetTitle}</div>
+                <div>• <strong>Status:</strong> {testResult.message}</div>
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons: [ Test Connection ] [ Sync Now ] [ Change Connection ] [ Disconnect ] */}
           <div className="flex flex-wrap items-center gap-3 pt-1">
             <button
               type="button"
+              onClick={handleTestConnection}
+              disabled={testing || syncing}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 border border-sky-500/40 disabled:opacity-50 text-xs font-bold rounded-xl transition-all shadow-sm cursor-pointer"
+              title="Verify spreadsheet connectivity and response"
+            >
+              <Zap className={`w-3.5 h-3.5 ${testing ? "animate-spin text-sky-400" : "text-sky-400"}`} />
+              {testing ? "Testing..." : "Test Connection"}
+            </button>
+
+            <button
+              type="button"
               onClick={handleSyncNow}
-              disabled={syncing}
+              disabled={syncing || testing}
               className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-colors shadow-sm cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
