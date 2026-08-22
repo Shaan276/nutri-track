@@ -69,7 +69,7 @@ export class GoogleFitService {
    */
   static async refreshAccessToken(conn: any): Promise<string | null> {
     if (!conn.refreshToken || conn.refreshToken.startsWith("mock_")) {
-      return conn.accessToken;
+      return conn.accessToken || null;
     }
 
     try {
@@ -108,11 +108,11 @@ export class GoogleFitService {
       } else {
         const errData = await tokenRes.json().catch(() => ({}));
         console.warn("Failed to refresh Google token, response:", errData);
-        return null;
+        return conn.accessToken || null;
       }
     } catch (err: any) {
       console.warn("Google token refresh error:", err.message);
-      return null;
+      return conn.accessToken || null;
     }
   }
 
@@ -389,15 +389,19 @@ export class GoogleFitService {
         } else {
           const errStatus = fitRes.status;
           const errBody = await fitRes.text().catch(() => "");
-          console.warn(`Google Fitness API returned status ${errStatus}:`, errBody);
-
-          let googleMsg = "Google permissions have expired. Please re-authenticate your Google Account.";
+          let googleMsg = `Google API error (HTTP ${errStatus}): ${fitRes.statusText || "Unauthorized"}`;
           try {
             const parsedErr = JSON.parse(errBody);
             if (parsedErr?.error?.message) {
-              googleMsg = parsedErr.error.message;
+              googleMsg = `Google: ${parsedErr.error.message}`;
+            } else if (typeof parsedErr?.error === "string") {
+              googleMsg = `Google: ${parsedErr.error}`;
             }
-          } catch {}
+          } catch {
+            if (errBody && errBody.length < 200) {
+              googleMsg = `Google: ${errBody}`;
+            }
+          }
 
           if (errStatus === 401 || errStatus === 403) {
             return {
