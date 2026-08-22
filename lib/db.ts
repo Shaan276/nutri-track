@@ -5211,7 +5211,7 @@ const postgresDbClient = {
         updatedAt: r.updated_at,
       };
     },
-    findMany: async ({ where }: { where?: any }) => {
+    findMany: async ({ where }: { where?: any } = {}) => {
       const pool = await getPool();
       let q = "SELECT * FROM integration_connections WHERE 1=1";
       const params: any[] = [];

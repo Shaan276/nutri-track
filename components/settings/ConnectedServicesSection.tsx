@@ -329,39 +329,39 @@ export function ConnectedServicesSection() {
           </div>
         </div>
 
-        {/* CARD 2: GOOGLE FIT & HEALTH CONNECT (Direct Google Account) */}
+        {/* CARD 2: ANDROID HEALTH CONNECT & DEVICE SENSORS */}
         <div className="p-6 rounded-3xl bg-background-surface border border-border-default flex flex-col justify-between space-y-4 md:col-span-1">
           <div className="space-y-3">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center">
-                  <Smartphone className="w-5 h-5 text-blue-400" />
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
+                  <Smartphone className="w-5 h-5 text-emerald-400" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-foreground-primary">Google Fit &amp; Health Connect</h4>
-                  <p className="text-xs text-foreground-secondary">Steps, Active Calories &amp; Cardio Telemetry</p>
+                  <h4 className="text-sm font-bold text-foreground-primary">Android Health Connect</h4>
+                  <p className="text-xs text-foreground-secondary">Steps, Active Calories &amp; Motion Sensors</p>
                 </div>
               </div>
 
               {isGoogleConnected ? (
-                <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-blue-950/80 text-blue-400 border border-blue-800/50 flex items-center gap-1">
+                <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-950/80 text-emerald-400 border border-emerald-800/50 flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3" />
                   Connected
                 </span>
               ) : (
                 <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-neutral-800 text-neutral-400 border border-neutral-700">
-                  100% Free
+                  Android Native
                 </span>
               )}
             </div>
 
             <p className="text-xs text-foreground-secondary leading-relaxed">
-              Connect your Google Account to automatically sync daily steps, active calorie expenditures, distance, and activity telemetry recorded on your Android phone or Google Fit.
+              Synchronize full-day steps, active calorie expenditure, and walk/run distance directly from <strong>Android Health Connect</strong>, Samsung Health, Google Account, or device motion sensors.
             </p>
 
             {isGoogleConnected && (
               <div className="p-3 rounded-2xl bg-background-elevated border border-border-subtle text-xs space-y-1 text-foreground-secondary">
-                <div>Account: <span className="font-semibold text-foreground-primary">{googleConn?.externalUsername || "Google User"}</span></div>
+                <div>Source: <span className="font-semibold text-foreground-primary">{googleConn?.externalUsername || "Android Health Connect"}</span></div>
                 <div>Last Synced: <span className="font-mono text-foreground-muted">{googleConn?.lastSyncAt ? new Date(googleConn.lastSyncAt).toLocaleString() : "Never"}</span></div>
               </div>
             )}
@@ -379,19 +379,15 @@ export function ConnectedServicesSection() {
               </div>
             )}
 
-            {/* Google Security Screen Explanation Box */}
-            <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs space-y-1.5">
-              <div className="font-bold text-amber-300 flex items-center gap-1.5">
-                <Shield className="w-4 h-4 text-amber-400" />
-                Google Warning: &quot;Google hasn&apos;t verified this app&quot;
+            {/* Health Connect Companion Sync Info */}
+            <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs space-y-1.5">
+              <div className="font-bold text-emerald-300 flex items-center gap-1.5">
+                <Shield className="w-4 h-4 text-emerald-400" />
+                Modern Android Health Connect Bridge
               </div>
               <p className="text-foreground-secondary text-[11px] leading-relaxed">
-                Google shows this standard safety screen for personal developer OAuth clients.
+                Connect your account or use the on-device sensor pedometer to track daily steps with zero data distortion.
               </p>
-              <div className="p-2 rounded-xl bg-black/40 border border-amber-500/20 text-[10.5px] text-amber-200 font-medium space-y-0.5">
-                <div>• Click <strong className="underline">&quot;Advanced&quot;</strong> (bottom left).</div>
-                <div>• Click <strong className="underline">&quot;Go to Nutri-Track (unsafe)&quot;</strong> $\rightarrow$ <strong className="underline">&quot;Continue&quot;</strong>.</div>
-              </div>
             </div>
           </div>
 
@@ -410,7 +406,7 @@ export function ConnectedServicesSection() {
                   type="button"
                   onClick={handleSyncGoogle}
                   disabled={googleSyncing}
-                  className="px-4 py-2 rounded-xl bg-blue-500 hover:bg-blue-400 text-black text-xs font-bold transition-all shadow-md shadow-blue-500/10 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold transition-all shadow-md shadow-emerald-500/10 flex items-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${googleSyncing ? "animate-spin" : ""}`} />
                   <span>{googleSyncing ? "Syncing..." : "Sync Steps Now"}</span>
@@ -421,10 +417,10 @@ export function ConnectedServicesSection() {
                 type="button"
                 onClick={handleConnectGoogle}
                 disabled={googleConnecting}
-                className="w-full py-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 text-black text-xs font-bold transition-all shadow-md shadow-blue-500/10 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold transition-all shadow-md shadow-emerald-500/10 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
-                <Smartphone className="w-4 h-4" />
-                <span>{googleConnecting ? "Connecting..." : "Connect Google Account"}</span>
+                <Footprints className="w-4 h-4" />
+                <span>{googleConnecting ? "Connecting..." : "Connect Health Connect"}</span>
               </button>
             )}
           </div>
