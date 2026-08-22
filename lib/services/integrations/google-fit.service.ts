@@ -388,7 +388,17 @@ export class GoogleFitService {
           }
         } else {
           const errStatus = fitRes.status;
-          console.warn(`Google Fitness API returned status ${errStatus}`);
+          const errBody = await fitRes.text().catch(() => "");
+          console.warn(`Google Fitness API returned status ${errStatus}:`, errBody);
+
+          let googleMsg = "Google permissions have expired. Please re-authenticate your Google Account.";
+          try {
+            const parsedErr = JSON.parse(errBody);
+            if (parsedErr?.error?.message) {
+              googleMsg = parsedErr.error.message;
+            }
+          } catch {}
+
           if (errStatus === 401 || errStatus === 403) {
             return {
               success: false,
@@ -398,7 +408,7 @@ export class GoogleFitService {
               importedDistanceKm: 0,
               date: todayStr,
               records: [],
-              message: "Google permissions have expired. Please re-authenticate your Google Account.",
+              message: googleMsg,
               lastSyncedAt: conn.lastSyncAt ? new Date(conn.lastSyncAt).toISOString() : "",
             };
           }
