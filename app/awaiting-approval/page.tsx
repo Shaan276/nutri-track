@@ -14,6 +14,26 @@ export default function AwaitingApprovalPage() {
 
   const status = (session?.user as any)?.accountStatus || "PENDING_APPROVAL";
 
+  // Automatically check for approval in the background
+  React.useEffect(() => {
+    const checkApproval = async () => {
+      try {
+        const updated = await update();
+        const newStatus = (updated?.user as any)?.accountStatus;
+        if (newStatus === "APPROVED" || (updated?.user as any)?.role === "ADMIN") {
+          router.push("/app");
+        }
+      } catch (e) {
+        console.error("Auto approval check error:", e);
+      }
+    };
+
+    // Check immediately and every 3 seconds
+    checkApproval();
+    const interval = setInterval(checkApproval, 3000);
+    return () => clearInterval(interval);
+  }, [update, router]);
+
   const handleRefresh = async () => {
     setIsRefreshing(true);
     setRefreshMessage(null);

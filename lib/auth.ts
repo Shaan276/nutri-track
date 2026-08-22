@@ -106,6 +106,25 @@ export const authOptions: NextAuthOptions = {
         token.role = (user as any).role || "USER";
         token.accountStatus = (user as any).accountStatus || "PENDING_APPROVAL";
       }
+
+      // Live status sync: Refresh user's actual approval status from the database
+      if (token?.id || token?.email) {
+        try {
+          const freshUser = token.id
+            ? await prisma.user.findUnique({ where: { id: token.id as string } })
+            : await prisma.user.findUnique({ where: { email: (token.email as string).toLowerCase().trim() } });
+
+          if (freshUser) {
+            token.role = (freshUser.role as any) || "USER";
+            token.accountStatus = (freshUser.accountStatus as any) || "PENDING_APPROVAL";
+            token.username = freshUser.username;
+            token.name = freshUser.name;
+          }
+        } catch (err) {
+          console.error("JWT live user refresh error:", err);
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {
