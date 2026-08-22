@@ -7038,14 +7038,38 @@ const isRealPostgresConfigured = Boolean(
     !effectiveDatabaseUrl.includes("placeholder"))
 );
 
+function wrapWithModelAliases(client: any): any {
+  if (!client) return client;
+  return new Proxy(client, {
+    get(target, prop, receiver) {
+      if (typeof prop === "string") {
+        if (prop in target) {
+          return Reflect.get(target, prop, receiver);
+        }
+        if (prop === "aiConversation") return target.aIConversation || target.aiConversation;
+        if (prop === "aiMessage") return target.aIMessage || target.aiMessage;
+        if (prop === "aiMemory") return target.aIMemory || target.aiMemory;
+        if (prop === "aIConversation") return target.aiConversation || target.aIConversation;
+        if (prop === "aIMessage") return target.aiMessage || target.aIMessage;
+        if (prop === "aIMemory") return target.aiMemory || target.aIMemory;
+        if (prop === "weeklyPlan") return target.WeeklyPlan || target.weeklyPlan;
+        if (prop === "weeklyPlanItem") return target.WeeklyPlanItem || target.weeklyPlanItem;
+      }
+      return Reflect.get(target, prop, receiver);
+    },
+  });
+}
+
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined };
 
-export const prisma: PrismaClient = isRealPostgresConfigured
+const rawPrisma = isRealPostgresConfigured
   ? (globalForPrisma.prisma ??
       (globalForPrisma.prisma = new PrismaClient({
         log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
       })))
   : (postgresDbClient as unknown as PrismaClient);
+
+export const prisma: PrismaClient = wrapWithModelAliases(rawPrisma);
 
 export default prisma;
 
