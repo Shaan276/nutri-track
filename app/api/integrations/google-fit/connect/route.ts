@@ -19,7 +19,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const redirectUri = searchParams.get("redirect_uri") || undefined;
 
-    const authUrl = GoogleFitService.getAuthorizationUrl(session.user.id, redirectUri);
+    const authUrl = await GoogleFitService.getAuthorizationUrl(session.user.id, redirectUri);
 
     return NextResponse.json({
       status: "success",

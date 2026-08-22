@@ -1,11 +1,13 @@
 import { prisma } from "@/lib/db";
+import { SystemSettingsService } from "@/lib/services/admin/system-settings.service";
 
 export class GoogleFitService {
   /**
    * Generates Google OAuth 2.0 Authorization URL with Google Fit / Health Connect scopes
    */
-  static getAuthorizationUrl(userId: string, redirectUri?: string): string {
-    const clientId = process.env.GOOGLE_CLIENT_ID || "google_client_id_placeholder";
+  static async getAuthorizationUrl(userId: string, redirectUri?: string): Promise<string> {
+    const defaultClientId = process.env.GOOGLE_CLIENT_ID || "google_client_id_placeholder";
+    const clientId = await SystemSettingsService.getSetting("GOOGLE_CLIENT_ID", defaultClientId);
     const appUrl = process.env.NEXTAUTH_URL || "https://nutri-track-henna.vercel.app";
     const callback = redirectUri || `${appUrl}/api/integrations/google-fit/callback`;
 
@@ -35,8 +37,10 @@ export class GoogleFitService {
    * Handles OAuth callback and exchanges auth code for access token
    */
   static async handleCallback(userId: string, code: string): Promise<any> {
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const defaultClientId = process.env.GOOGLE_CLIENT_ID || "";
+    const defaultClientSecret = process.env.GOOGLE_CLIENT_SECRET || "";
+    const clientId = await SystemSettingsService.getSetting("GOOGLE_CLIENT_ID", defaultClientId);
+    const clientSecret = await SystemSettingsService.getSetting("GOOGLE_CLIENT_SECRET", defaultClientSecret);
     const appUrl = process.env.NEXTAUTH_URL || "https://nutri-track-henna.vercel.app";
     const redirectUri = `${appUrl}/api/integrations/google-fit/callback`;
 
