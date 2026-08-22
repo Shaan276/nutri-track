@@ -56,9 +56,32 @@ export function LiveHealthSnapshotDrawer({
           </button>
         </div>
         {isOpen && (
-          <div className="flex-1 flex items-center justify-center p-6 text-center text-xs text-neutral-500">
-            <RefreshCw className="w-4 h-4 animate-spin text-neutral-400 mr-2" />
-            Loading live health context...
+          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-xs text-neutral-400 space-y-3">
+            {isLoading ? (
+              <>
+                <RefreshCw className="w-5 h-5 animate-spin text-emerald-400 mx-auto" />
+                <span>Loading live health metrics...</span>
+              </>
+            ) : (
+              <>
+                <Activity className="w-8 h-8 text-neutral-600 mx-auto" />
+                <div>
+                  <p className="font-bold text-neutral-300">Live Health Context</p>
+                  <p className="text-[11px] text-neutral-500 mt-1">
+                    Your daily calories, hydration, workouts, and activity will appear here in real-time.
+                  </p>
+                </div>
+                {onRefresh && (
+                  <button
+                    onClick={onRefresh}
+                    className="px-3 py-1.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-neutral-800 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Refresh Snapshot</span>
+                  </button>
+                )}
+              </>
+            )}
           </div>
         )}
       </div>

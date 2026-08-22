@@ -211,10 +211,26 @@ export function AICoachClient() {
   // 6. Send User Message
   const handleSendMessage = async (textToSend?: string) => {
     const text = (textToSend || inputText).trim();
-    if (!text || isLoading || !activeConvId) return;
+    if (!text || isLoading) return;
 
     setInputText("");
     setErrorMessage(null);
+
+    // Auto-resolve or create active conversation if not ready yet
+    let convIdToUse = activeConvId;
+    if (!convIdToUse) {
+      try {
+        const convRes = await fetch("/api/ai/conversations", { method: "POST" });
+        if (convRes.ok) {
+          const newConv = await convRes.json();
+          convIdToUse = newConv.id;
+          setActiveConvId(newConv.id);
+          setConversations((prev) => [newConv, ...prev]);
+        }
+      } catch {
+        // Fallback
+      }
+    }
 
     // Optimistically add user message
     const tempUserMsg: MessageItem = {
@@ -231,7 +247,7 @@ export function AICoachClient() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          conversationId: activeConvId,
+          conversationId: convIdToUse,
           message: text,
         }),
       });
@@ -250,9 +266,9 @@ export function AICoachClient() {
       });
 
       // Update conversation title if provided
-      if (data.conversationTitle) {
+      if (data.conversationTitle && convIdToUse) {
         setConversations((prev) =>
-          prev.map((c) => (c.id === activeConvId ? { ...c, title: data.conversationTitle } : c))
+          prev.map((c) => (c.id === convIdToUse ? { ...c, title: data.conversationTitle } : c))
         );
       }
 
@@ -260,7 +276,15 @@ export function AICoachClient() {
       loadHealthSnapshot();
     } catch (err: any) {
       console.error("Send message error:", err);
-      setErrorMessage(err.message || "Something went wrong. Please try again.");
+      // Append friendly assistant message so the user is never left hanging
+      const fallbackAssistantMsg: MessageItem = {
+        id: `err_${Date.now()}`,
+        role: "assistant",
+        content:
+          "🤖 **AI Coach is currently unavailable at the moment.**\n\nPlease configure an active OpenAI API key in the [Admin Settings](/admin/settings) or contact the administrator.\n\nIn the meantime, you can track your nutrition, hydration, workouts, and runs directly from your Dashboard!",
+        createdAt: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, fallbackAssistantMsg]);
     } finally {
       setIsLoading(false);
       setTimeout(() => inputRef.current?.focus(), 50);

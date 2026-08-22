@@ -116,6 +116,9 @@ export class AIClient {
   ): Promise<{ content: string; tool_calls?: any[]; tokensUsed?: number }> {
     const maxRetries = 3;
 
+    // Sync custom keys from database system settings if present
+    await keyManager.syncWithDatabase();
+
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       const activeKeyInfo = keyManager.getActiveKey();
 
@@ -123,7 +126,7 @@ export class AIClient {
         // All developer keys exhausted or unavailable
         return {
           content:
-            "The AI Coach service is temporarily operating at peak capacity across all API developer keys. Please try again in a few moments or log your metrics directly in your journal.",
+            "🤖 AI Coach is currently unavailable at the moment. Please configure an active OpenAI API key in the Admin Settings (/admin/settings) or contact the administrator. In the meantime, you can log your meals, hydration, workouts, and runs directly on your Dashboard!",
         };
       }
 
@@ -190,7 +193,7 @@ export class AIClient {
 
     return {
       content:
-        "The AI Coach is currently unavailable. Please verify your internet connection or try again in a few moments.",
+        "🤖 AI Coach is currently unavailable at the moment. Please configure an active OpenAI API key in the Admin Settings (/admin/settings) or contact the administrator. In the meantime, you can log your meals, hydration, workouts, and runs directly on your Dashboard!",
     };
   }
 

@@ -272,47 +272,68 @@ export class HealthContextService {
     }));
 
     // 10. Connected Integrations (Tokens are never exposed)
-    const connections = await pool.integrationConnection.findMany({
-      where: { userId },
-    });
-    const integrations = connections.map((c: any) => ({
-      provider: c.provider,
-      status: c.status,
-      lastSyncAt: c.lastSyncAt ? new Date(c.lastSyncAt).toISOString() : null,
-    }));
+    const integrations: any[] = [];
+    try {
+      if (typeof pool.integrationConnection?.findMany === "function") {
+        const connections = await pool.integrationConnection.findMany({
+          where: { userId },
+        });
+        for (const c of connections) {
+          integrations.push({
+            provider: c.provider,
+            status: c.status,
+            lastSyncAt: c.lastSyncAt ? new Date(c.lastSyncAt).toISOString() : null,
+          });
+        }
+      }
 
-    // Check Google Sheets legacy table if not in integration connections
-    const googleSheet = await pool.googleSheetConnection.findUnique({
-      where: { userId },
-    });
-    if (googleSheet && !integrations.some((i: any) => i.provider === "GOOGLE_SHEETS")) {
-      integrations.push({
-        provider: "GOOGLE_SHEETS",
-        status: googleSheet.status || "CONNECTED",
-        lastSyncAt: googleSheet.lastSyncAt ? new Date(googleSheet.lastSyncAt).toISOString() : null,
-      });
+      // Check Google Sheets legacy table if not in integration connections
+      if (typeof pool.googleSheetConnection?.findUnique === "function") {
+        const googleSheet = await pool.googleSheetConnection.findUnique({
+          where: { userId },
+        });
+        if (googleSheet && !integrations.some((i: any) => i.provider === "GOOGLE_SHEETS")) {
+          integrations.push({
+            provider: "GOOGLE_SHEETS",
+            status: googleSheet.status || "CONNECTED",
+            lastSyncAt: googleSheet.lastSyncAt ? new Date(googleSheet.lastSyncAt).toISOString() : null,
+          });
+        }
+      }
+    } catch (e) {
+      console.warn("Integrations context fallback:", e);
     }
 
-    const stepTarget = settings.profile.dailyStepTarget || 10000;
+    const stepTarget = settings.profile?.dailyStepTarget || 10000;
     const stepPercentage = Math.min(100, Math.round((todaySteps / stepTarget) * 100));
 
     // 11. Goals & Active Target Snapshot
-    const userGoals = await pool.goal.findMany({ where: { userId } });
-    const activeGoals = userGoals.filter((g: any) => g.status === "ACTIVE");
-    const completedGoals = userGoals.filter((g: any) => g.status === "COMPLETED");
-    let featuredGoal = null;
-    if (activeGoals.length > 0) {
-      const top = activeGoals[0];
-      const progressPercentage = Math.min(100, Math.round(((top.currentValue || 0) / (top.targetValue || 1)) * 100));
-      const remainingAmount = Math.max(0, Number(top.targetValue) - Number(top.currentValue || 0));
-      featuredGoal = {
-        name: top.name,
-        category: top.category,
-        progressPercentage,
-        remainingAmount,
-        unit: top.unit,
-        daysRemaining: 0,
-      };
+    let featuredGoal: any = null;
+    let activeGoalsCount = 0;
+    let completedGoalsCount = 0;
+    try {
+      if (typeof pool.goal?.findMany === "function") {
+        const userGoals = await pool.goal.findMany({ where: { userId } });
+        const activeGoals = userGoals.filter((g: any) => g.status === "ACTIVE");
+        const completedGoals = userGoals.filter((g: any) => g.status === "COMPLETED");
+        activeGoalsCount = activeGoals.length;
+        completedGoalsCount = completedGoals.length;
+        if (activeGoals.length > 0) {
+          const top = activeGoals[0];
+          const progressPercentage = Math.min(100, Math.round(((top.currentValue || 0) / (top.targetValue || 1)) * 100));
+          const remainingAmount = Math.max(0, Number(top.targetValue) - Number(top.currentValue || 0));
+          featuredGoal = {
+            name: top.name,
+            category: top.category,
+            progressPercentage,
+            remainingAmount,
+            unit: top.unit,
+            daysRemaining: 0,
+          };
+        }
+      }
+    } catch (e) {
+      console.warn("Goals context fallback:", e);
     }
 
     return {
@@ -390,8 +411,8 @@ export class HealthContextService {
       integrations,
 
       goals: {
-        activeGoalsCount: activeGoals.length,
-        completedGoalsCount: completedGoals.length,
+        activeGoalsCount,
+        completedGoalsCount,
         featuredGoal,
       },
     };

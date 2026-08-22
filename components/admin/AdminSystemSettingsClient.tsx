@@ -256,11 +256,109 @@ export function AdminSystemSettingsClient({ initialSettings }: AdminSystemSettin
             )}
           </div>
 
-          {/* Model Selection & Base URL */}
+          {/* Top 3 AI Models Recommendation */}
+          <div className="p-6 rounded-2xl bg-background-surface border border-border-subtle space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-bold uppercase tracking-wider text-foreground-secondary flex items-center gap-2">
+                  <Bot className="w-4 h-4 text-brand-400" />
+                  Top 3 Recommended AI Models for Nutri-Track
+                </h2>
+                <p className="text-xs text-foreground-muted mt-0.5">
+                  Select the AI engine that best matches your speed, reasoning, and cost requirements.
+                </p>
+              </div>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-400 font-bold border border-brand-500/30">
+                1-Click Model Switch
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+              {/* Option 1: GPT-4o-mini */}
+              <div
+                onClick={() => handleInputChange("AI_MODEL", "gpt-4o-mini")}
+                className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-3 ${
+                  (settings.AI_MODEL || "gpt-4o-mini") === "gpt-4o-mini"
+                    ? "bg-brand-500/10 border-brand-500 shadow-md shadow-brand-500/10"
+                    : "bg-background-elevated border-border-subtle hover:border-border-default"
+                }`}
+              >
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-foreground-primary">1. GPT-4o-mini</span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300">
+                      ⚡ Ultra Fast
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-foreground-secondary">
+                    Best for real-time chat, instant Indian dish deconstruction, and daily macro calculations.
+                  </p>
+                </div>
+                <div className="pt-2 border-t border-border-subtle/60 flex items-center justify-between text-[10px] text-foreground-muted">
+                  <span>Latency: ~400ms</span>
+                  <span className="font-bold text-brand-400">Default & Economical</span>
+                </div>
+              </div>
+
+              {/* Option 2: GPT-4o */}
+              <div
+                onClick={() => handleInputChange("AI_MODEL", "gpt-4o")}
+                className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-3 ${
+                  settings.AI_MODEL === "gpt-4o"
+                    ? "bg-brand-500/10 border-brand-500 shadow-md shadow-brand-500/10"
+                    : "bg-background-elevated border-border-subtle hover:border-border-default"
+                }`}
+              >
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-foreground-primary">2. GPT-4o Flagship</span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300">
+                      🧠 Deep Logic
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-foreground-secondary">
+                    Best for complex workout periodization, progressive overload plans, and metabolic audits.
+                  </p>
+                </div>
+                <div className="pt-2 border-t border-border-subtle/60 flex items-center justify-between text-[10px] text-foreground-muted">
+                  <span>Latency: ~850ms</span>
+                  <span className="font-bold text-purple-400">High Intelligence</span>
+                </div>
+              </div>
+
+              {/* Option 3: Claude 3.5 Sonnet / Gemini */}
+              <div
+                onClick={() => handleInputChange("AI_MODEL", "claude-3-5-sonnet")}
+                className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-3 ${
+                  settings.AI_MODEL === "claude-3-5-sonnet"
+                    ? "bg-brand-500/10 border-brand-500 shadow-md shadow-brand-500/10"
+                    : "bg-background-elevated border-border-subtle hover:border-border-default"
+                }`}
+              >
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-foreground-primary">3. Claude 3.5 Sonnet</span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300">
+                      📜 Long Context
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-foreground-secondary">
+                    Best for analyzing 30-day longitudinal health histories and writing comprehensive meal guides.
+                  </p>
+                </div>
+                <div className="pt-2 border-t border-border-subtle/60 flex items-center justify-between text-[10px] text-foreground-muted">
+                  <span>Latency: ~750ms</span>
+                  <span className="font-bold text-amber-400">Detailed Explanations</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Model Parameters & Endpoints */}
           <div className="p-6 rounded-2xl bg-background-surface border border-border-subtle space-y-5">
             <h2 className="text-sm font-bold uppercase tracking-wider text-foreground-secondary flex items-center gap-2">
               <Bot className="w-4 h-4 text-brand-400" />
-              Model Parameters
+              Model Parameters & Endpoints
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -275,8 +373,8 @@ export function AdminSystemSettingsClient({ initialSettings }: AdminSystemSettin
                 >
                   <option value="gpt-4o-mini">gpt-4o-mini (Recommended - Ultra Fast & Cost Efficient)</option>
                   <option value="gpt-4o">gpt-4o (High Intelligence & Vision)</option>
-                  <option value="gpt-4-turbo">gpt-4-turbo (Legacy)</option>
                   <option value="claude-3-5-sonnet">claude-3-5-sonnet (Via Proxy)</option>
+                  <option value="gpt-4-turbo">gpt-4-turbo (Legacy)</option>
                 </select>
                 <p className="text-[11px] text-foreground-muted">
                   Used for daily meal advice, macro breakdowns, and contextual chat responses.
@@ -294,6 +392,7 @@ export function AdminSystemSettingsClient({ initialSettings }: AdminSystemSettin
                 >
                   <option value="gpt-4o">gpt-4o (Recommended for Weekly Blueprints)</option>
                   <option value="gpt-4o-mini">gpt-4o-mini</option>
+                  <option value="claude-3-5-sonnet">claude-3-5-sonnet</option>
                 </select>
                 <p className="text-[11px] text-foreground-muted">
                   Used for synthesizing 7-day training schedules and complex nutritional retrospectives.
@@ -318,12 +417,22 @@ export function AdminSystemSettingsClient({ initialSettings }: AdminSystemSettin
             </div>
           </div>
 
-          {/* OpenAI API Key Inputs */}
+          {/* OpenAI API Key Inputs with 90% Limit Threshold Indicator */}
           <div className="p-6 rounded-2xl bg-background-surface border border-border-subtle space-y-5">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-foreground-secondary flex items-center gap-2">
-              <Key className="w-4 h-4 text-brand-400" />
-              OpenAI API Keys & Automated Failover
-            </h2>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h2 className="text-sm font-bold uppercase tracking-wider text-foreground-secondary flex items-center gap-2">
+                  <Key className="w-4 h-4 text-brand-400" />
+                  OpenAI API Keys & Automated 3-Key Failover
+                </h2>
+                <p className="text-xs text-foreground-muted mt-0.5">
+                  Automatic failover rotates to Standby keys when Tier 1 encounters 429 limits or exceeds 90% capacity.
+                </p>
+              </div>
+              <span className="text-[10px] px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold self-start">
+                🛡️ &gt;90% Preemptive Failover Active
+              </span>
+            </div>
 
             <div className="space-y-4">
               {/* Primary Key */}
