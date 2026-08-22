@@ -213,10 +213,13 @@ export class GoogleFitService {
     // 1. If connected with real Google OAuth Access Token, query Google Fitness REST API
     if (token && !token.startsWith("mock_")) {
       try {
-        // Query the last 48 hours to account for local timezone offsets
-        const startTimeMillis = Date.now() - 48 * 3600 * 1000;
-        const endTimeMillis = Date.now();
+        // Calculate exact start of today in local time (00:00:00.000) to capture WHOLE DAY's total steps
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+        const startTimeMillis = startOfToday.getTime();
+        const endTimeMillis = now.getTime();
 
+        // 1A. Standard Aggregate Query for full day
         const fitRes = await fetch("https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate", {
           method: "POST",
           headers: {
@@ -226,8 +229,6 @@ export class GoogleFitService {
           body: JSON.stringify({
             aggregateBy: [
               { dataTypeName: "com.google.step_count.delta" },
-              { dataSourceId: "derived:com.google.step_count.delta:com.google.android.gms:estimated_steps" },
-              { dataSourceId: "derived:com.google.step_count.delta:com.google.android.gms:merge_step_deltas" },
               { dataTypeName: "com.google.calories.expended" },
               { dataTypeName: "com.google.distance.delta" },
             ],
@@ -261,6 +262,29 @@ export class GoogleFitService {
                       }
                     }
                   }
+                }
+              }
+            }
+          }
+        }
+
+        // 1B. Direct Raw Dataset Query Fallback (captures estimated steps directly from Android phone)
+        if (finalSteps === 0) {
+          const startNano = BigInt(startTimeMillis) * BigInt(1000000);
+          const endNano = BigInt(endTimeMillis) * BigInt(1000000);
+          const rawUrl = `https://www.googleapis.com/fitness/v1/users/me/dataSources/derived:com.google.step_count.delta:com.google.android.gms:estimated_steps/datasets/${startNano}-${endNano}`;
+
+          const rawRes = await fetch(rawUrl, {
+            headers: { Authorization: `Bearer ${token}` },
+            signal: AbortSignal.timeout(6000),
+          });
+
+          if (rawRes.ok) {
+            const rawData = await rawRes.json();
+            if (rawData.point && rawData.point.length > 0) {
+              for (const pt of rawData.point) {
+                if (pt.value && pt.value.length > 0) {
+                  finalSteps += Number(pt.value[0].intVal) || 0;
                 }
               }
             }
