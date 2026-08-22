@@ -25,6 +25,18 @@ export class GoogleSheetsConnectionService {
 
     if (!conn) return null;
 
+    // Auto-recover if stuck in SYNCING state for more than 20 seconds
+    let currentSyncStatus = conn.syncStatus;
+    if (currentSyncStatus === "SYNCING" && Date.now() - new Date(conn.updatedAt).getTime() > 20000) {
+      currentSyncStatus = "IDLE";
+      try {
+        await prisma.googleSheetConnection.update({
+          where: { userId },
+          data: { syncStatus: "IDLE" },
+        });
+      } catch {}
+    }
+
     return {
       id: conn.id,
       userId: conn.userId,
@@ -32,7 +44,7 @@ export class GoogleSheetsConnectionService {
       spreadsheetUrl: conn.spreadsheetUrl,
       sheetTitle: conn.sheetTitle,
       status: conn.status as any,
-      syncStatus: conn.syncStatus as any,
+      syncStatus: currentSyncStatus as any,
       lastSyncedAt: conn.lastSyncedAt ? conn.lastSyncedAt.toISOString() : null,
       createdAt: conn.createdAt.toISOString(),
       updatedAt: conn.updatedAt.toISOString(),

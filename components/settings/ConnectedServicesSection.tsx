@@ -253,143 +253,54 @@ export function ConnectedServicesSection() {
           </div>
         </div>
 
-        {/* CARD 2: ADIDAS RUNNING */}
-        <div className="p-6 rounded-3xl bg-background-surface border border-border-default flex flex-col justify-between space-y-4">
-          <div className="space-y-3">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-neutral-800 border border-neutral-700 flex items-center justify-center">
-                  <Activity className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-foreground-primary">Adidas Running</h4>
-                  <p className="text-xs text-foreground-secondary">Runtastic Activity Tracking</p>
-                </div>
-              </div>
-              <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-neutral-800 text-neutral-400 border border-neutral-700">
-                Public API Restricted
-              </span>
-            </div>
-
-            <p className="text-xs text-foreground-secondary leading-relaxed">
-              Adidas Running (formerly Runtastic) retired open developer API registrations. In adherence to strict data accuracy, Nutri-Track does not scrape accounts or prompt for passwords.
-            </p>
-
-            <div className="p-3 rounded-2xl bg-background-elevated border border-border-subtle text-xs text-foreground-muted space-y-1">
-              <div className="font-semibold text-foreground-secondary">Available Workflows:</div>
-              <div>• Manual Activity Logging in the Activities module</div>
-              <div>• Standard GPX/TCX workout export/import support</div>
-            </div>
-          </div>
-
-          <div className="pt-2 border-t border-border-subtle flex items-center justify-between">
-            <span className="text-[11px] text-foreground-muted">Manual logging available</span>
-            <Link
-              href="/activities"
-              className="px-3 py-1.5 rounded-xl bg-background-elevated hover:bg-neutral-800 border border-border-subtle text-xs font-semibold text-foreground-primary transition-colors cursor-pointer"
-            >
-              Log Activity
-            </Link>
-          </div>
-        </div>
-
-        {/* CARD 3: GARMIN & SMARTWATCHES */}
-        <div className="p-6 rounded-3xl bg-background-surface border border-border-default flex flex-col justify-between space-y-4">
-          <div className="space-y-3">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center">
-                  <Activity className="w-5 h-5 text-sky-400" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-foreground-primary">Garmin Connect</h4>
-                  <p className="text-xs text-foreground-secondary">Smartwatch &amp; Heart Rate Telemetry</p>
-                </div>
-              </div>
-              <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-neutral-800 text-sky-400 border border-sky-500/30">
-                Coming Soon
-              </span>
-            </div>
-
-            <p className="text-xs text-foreground-secondary leading-relaxed">
-              Garmin Connect enterprise webhook architecture is prepared. Direct workout synchronization with heart rate zones, VO2 max, and cadence will be active in an upcoming update.
-            </p>
-          </div>
-
-          <div className="pt-2 border-t border-border-subtle flex items-center justify-between">
-            <span className="text-[11px] text-foreground-muted">Architecture Ready</span>
-            <span className="text-xs text-slate-500 font-medium">Enterprise Pipeline</span>
-          </div>
-        </div>
-
-        {/* CARD 4: GOOGLE FIT & APPLE HEALTH */}
-        <div className="p-6 rounded-3xl bg-background-surface border border-border-default flex flex-col justify-between space-y-4">
-          <div className="space-y-3">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center">
-                  <Smartphone className="w-5 h-5 text-rose-400" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-foreground-primary">Google Fit &amp; Apple Health</h4>
-                  <p className="text-xs text-foreground-secondary">Mobile Native Health Bridges</p>
-                </div>
-              </div>
-              <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-neutral-800 text-rose-400 border border-rose-500/30">
-                Coming Soon
-              </span>
-            </div>
-
-            <p className="text-xs text-foreground-secondary leading-relaxed">
-              Direct mobile Health Connect and Apple Health sync require native application packaging. In PWA mode, you can log manual steps or sync cardio through Strava.
-            </p>
-          </div>
-
-          <div className="pt-2 border-t border-border-subtle flex items-center justify-between">
-            <span className="text-[11px] text-foreground-muted">PWA Compatible</span>
-            <span className="text-xs text-slate-500 font-medium">Native Bridge Pipeline</span>
-          </div>
-        </div>
-
-        {/* CARD 5: STEPS & MOBILE HEALTH PROVIDER */}
+        {/* CARD 2: GOOGLE FIT & HEALTH CONNECT (Direct Google Account) */}
         <div className="p-6 rounded-3xl bg-background-surface border border-border-default flex flex-col justify-between space-y-4 md:col-span-2">
-          <div className="space-y-3">
-            <div className="flex items-start justify-between">
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
-                  <Footprints className="w-5 h-5 text-emerald-400" />
+                <div className="w-10 h-10 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center">
+                  <Smartphone className="w-5 h-5 text-blue-400" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-foreground-primary">Steps &amp; Mobile Health Architecture</h4>
-                  <p className="text-xs text-foreground-secondary">Automatic Pedometer &amp; Provider Step Ingestion</p>
+                  <h4 className="text-sm font-bold text-foreground-primary">Google Fit &amp; Health Connect</h4>
+                  <p className="text-xs text-foreground-secondary">Direct Google Account Steps, Active Calories &amp; Cardio Sync</p>
                 </div>
               </div>
-              <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-950/80 text-emerald-400 border border-emerald-800/50">
-                Ready &amp; Supported
+              <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-blue-950/80 text-blue-400 border border-blue-800/50 self-start">
+                Google Cloud OAuth
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-              <div className="p-4 rounded-2xl bg-background-elevated border border-border-subtle space-y-1.5">
-                <div className="text-xs font-bold text-foreground-primary flex items-center gap-1.5">
-                  <Smartphone className="w-4 h-4 text-sky-400" />
-                  Automatic Collection
-                </div>
-                <p className="text-[11px] text-foreground-secondary leading-relaxed">
-                  Steps are automatically collected when synced from connected activity providers (e.g. Strava running sessions) or future Android Health Connect mobile bridges.
-                </p>
-              </div>
+            <p className="text-xs text-foreground-secondary leading-relaxed">
+              Connect your Google Account to automatically sync daily steps, active calorie expenditures, distance, and activity telemetry recorded on your Android phone, smartwatch, or Google Fit app.
+            </p>
 
-              <div className="p-4 rounded-2xl bg-background-elevated border border-border-subtle space-y-1.5">
-                <div className="text-xs font-bold text-foreground-primary flex items-center gap-1.5">
-                  <Footprints className="w-4 h-4 text-emerald-400" />
-                  Manual Step Fallback
-                </div>
-                <p className="text-[11px] text-foreground-secondary leading-relaxed">
-                  Laptop browsers cannot physically count body steps. You can set daily step targets and log manual steps in Settings or Activities without double-counting.
-                </p>
+            {/* Google Security Screen Explanation Box */}
+            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs space-y-2">
+              <div className="font-bold text-amber-300 flex items-center gap-1.5">
+                <Shield className="w-4 h-4 text-amber-400" />
+                Why does Google say &quot;Google hasn&apos;t verified this app&quot; or &quot;Google doesn&apos;t know if this is secure&quot;?
+              </div>
+              <p className="text-foreground-secondary text-[11px] leading-relaxed">
+                Google automatically shows this standard safety warning on all newly configured personal developer OAuth apps. Your data is 100% private to your own Nutri-Track instance and never shared with third parties.
+              </p>
+              <div className="p-2.5 rounded-xl bg-black/40 border border-amber-500/20 text-[11px] text-amber-200 font-medium space-y-1">
+                <div><span className="font-bold text-amber-300">Step 1:</span> On the Google sign-in screen, click <strong className="underline">&quot;Advanced&quot;</strong> (or <em>Show Details</em> at the bottom left).</div>
+                <div><span className="font-bold text-amber-300">Step 2:</span> Click <strong className="underline">&quot;Go to Nutri-Track (unsafe)&quot;</strong>.</div>
+                <div><span className="font-bold text-amber-300">Step 3:</span> Check the fitness data boxes and click <strong className="underline">&quot;Continue&quot;</strong> to complete the sync!</div>
               </div>
             </div>
+          </div>
+
+          <div className="pt-2 border-t border-border-subtle flex items-center justify-between">
+            <span className="text-[11px] text-foreground-muted">PWA &amp; Webhook Supported</span>
+            <Link
+              href="/api/auth/signin"
+              className="px-4 py-2 rounded-xl bg-blue-500 hover:bg-blue-400 text-black text-xs font-bold transition-all shadow-md shadow-blue-500/10 flex items-center gap-2 cursor-pointer"
+            >
+              <Smartphone className="w-4 h-4" />
+              <span>Connect Google Account</span>
+            </Link>
           </div>
         </div>
       </div>

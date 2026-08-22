@@ -8,8 +8,8 @@ export interface ModelConfig {
 }
 
 export const AI_MODEL_CONFIG: ModelConfig = {
-  defaultModel: process.env.AI_MODEL || "gpt-4o-mini",
-  reasoningModel: process.env.AI_REASONING_MODEL || "gpt-4o",
+  defaultModel: process.env.AI_MODEL || "gpt-5-preview",
+  reasoningModel: process.env.AI_REASONING_MODEL || "gpt-5-preview",
   baseUrl: process.env.AI_BASE_URL || "https://api.openai.com/v1",
   maxOutputTokens: 1500,
   temperature: 0.7,

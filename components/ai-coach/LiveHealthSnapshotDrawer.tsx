@@ -22,6 +22,8 @@ export interface LiveHealthSnapshotDrawerProps {
   isLoading?: boolean;
   onRefresh?: () => void;
   onDeleteMemory?: (id: string) => void;
+  isMobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
 export function LiveHealthSnapshotDrawer({
@@ -29,6 +31,8 @@ export function LiveHealthSnapshotDrawer({
   isLoading = false,
   onRefresh,
   onDeleteMemory,
+  isMobileOpen = false,
+  onCloseMobile,
 }: LiveHealthSnapshotDrawerProps) {
   const [isOpen, setIsOpen] = useState(true);
 
@@ -92,22 +96,33 @@ export function LiveHealthSnapshotDrawer({
     snapshot;
 
   return (
-    <div
-      className={`hidden lg:flex flex-col border-l border-neutral-800 bg-neutral-950 transition-all duration-300 ${
-        isOpen ? "w-80" : "w-12"
-      }`}
-    >
-      {/* Drawer Header Toggle */}
-      <div className="flex items-center justify-between p-3 border-b border-neutral-800 bg-neutral-900/50">
-        {isOpen && (
-          <div className="space-y-0.5">
-            <div className="flex items-center gap-2">
-              <Activity className="w-4 h-4 text-emerald-400" />
-              <span className="text-xs font-semibold uppercase tracking-wider text-neutral-300">
-                Live Health Snapshot
-              </span>
-            </div>
-            {snapshot.generatedAt && (
+    <>
+      {/* Mobile Drawer Overlay Backdrop */}
+      {isMobileOpen && (
+        <div
+          onClick={onCloseMobile}
+          className="fixed inset-0 bg-black/70 z-40 lg:hidden backdrop-blur-sm transition-opacity"
+        />
+      )}
+
+      <div
+        className={`${
+          isMobileOpen
+            ? "fixed inset-y-0 right-0 z-50 w-80 max-w-[90vw] flex flex-col bg-neutral-950 border-l border-neutral-800 shadow-2xl"
+            : "hidden lg:flex flex-col border-l border-neutral-800 bg-neutral-950 transition-all duration-300"
+        } ${!isMobileOpen && (isOpen ? "w-80" : "w-12")}`}
+      >
+        {/* Drawer Header Toggle */}
+        <div className="flex items-center justify-between p-3 border-b border-neutral-800 bg-neutral-900/50">
+          {(isOpen || isMobileOpen) && (
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <Activity className="w-4 h-4 text-emerald-400" />
+                <span className="text-xs font-semibold uppercase tracking-wider text-neutral-300">
+                  Live Health Snapshot
+                </span>
+              </div>
+              {snapshot.generatedAt && (
               <p className="text-[10px] text-neutral-500 font-mono pl-6">
                 Updated {new Date(snapshot.generatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
               </p>
@@ -423,5 +438,6 @@ export function LiveHealthSnapshotDrawer({
         </div>
       )}
     </div>
+    </>
   );
 }

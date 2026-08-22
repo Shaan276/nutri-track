@@ -65,6 +65,7 @@ export function AICoachClient() {
   // Live health metrics snapshot
   const [healthSnapshot, setHealthSnapshot] = useState<any>(null);
   const [isSnapshotLoading, setIsSnapshotLoading] = useState(false);
+  const [isSnapshotOpenMobile, setIsSnapshotOpenMobile] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -72,7 +73,8 @@ export function AICoachClient() {
   const loadHealthSnapshot = async () => {
     try {
       setIsSnapshotLoading(true);
-      const res = await fetch("/api/health-context/snapshot");
+      const localDate = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD in user's local timezone
+      const res = await fetch(`/api/health-context/snapshot?date=${localDate}`);
       if (res.ok) {
         const data = await res.json();
         setHealthSnapshot(data.data || null);
@@ -453,6 +455,15 @@ export function AICoachClient() {
             </button>
 
             <button
+              onClick={() => setIsSnapshotOpenMobile(true)}
+              className="py-1.5 px-2.5 rounded-lg text-xs bg-sky-950/40 hover:bg-sky-900/60 text-sky-300 border border-sky-800/50 flex items-center gap-1.5 transition-colors lg:hidden"
+              title="View Live Health Context Snapshot"
+            >
+              <Activity className="w-3.5 h-3.5 text-sky-400" />
+              <span className="font-medium">Snapshot</span>
+            </button>
+
+            <button
               onClick={handleNewConversation}
               className="py-1.5 px-3 rounded-lg text-xs bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-neutral-800 flex items-center gap-1.5 transition-colors"
             >
@@ -610,6 +621,8 @@ export function AICoachClient() {
         isLoading={isSnapshotLoading}
         onRefresh={loadHealthSnapshot}
         onDeleteMemory={handleDeleteMemory}
+        isMobileOpen={isSnapshotOpenMobile}
+        onCloseMobile={() => setIsSnapshotOpenMobile(false)}
       />
 
       {/* 4. AI Memories Hub Modal */}

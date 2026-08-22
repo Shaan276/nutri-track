@@ -3,6 +3,8 @@ import "./globals.css";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { OfflineIndicator } from "@/components/pwa/OfflineIndicator";
+import { NavigationLoadingOverlay } from "@/components/ui/NavigationLoadingOverlay";
+import { Suspense } from "react";
 
 export const viewport: Viewport = {
   themeColor: "#0E121A",
@@ -39,6 +41,9 @@ export default function RootLayout({
         <AuthProvider>
           <QueryProvider>
             <OfflineIndicator />
+            <Suspense fallback={null}>
+              <NavigationLoadingOverlay />
+            </Suspense>
             {children}
           </QueryProvider>
         </AuthProvider>
