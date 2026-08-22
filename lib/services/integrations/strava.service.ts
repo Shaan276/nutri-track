@@ -223,11 +223,11 @@ export class StravaService {
    */
   public static mapActivityType(stravaType: string): {
     activityType: "RUN" | "WALK" | "CYCLING" | "HIIT" | "WORKOUT" | "OTHER";
-    runningType?: "EASY_RUN" | "TEMPO_RUN" | "LONG_RUN" | "RECOVERY_RUN";
+    runningType?: "EASY" | "TEMPO" | "LONG" | "RECOVERY" | "INTERVAL" | "RACE" | "OTHER";
   } {
     const lower = (stravaType || "").toLowerCase();
     if (lower.includes("run") || lower.includes("trailrun")) {
-      return { activityType: "RUN", runningType: "EASY_RUN" };
+      return { activityType: "RUN", runningType: "EASY" };
     }
     if (lower.includes("walk") || lower.includes("hike")) {
       return { activityType: "WALK" };

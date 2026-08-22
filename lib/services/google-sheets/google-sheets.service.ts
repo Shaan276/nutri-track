@@ -306,133 +306,94 @@ export class GoogleSheetsService {
       const sheetsSyncedList: string[] = [];
       const webhookUrl = conn.spreadsheetUrl.includes("script.google.com") ? conn.spreadsheetUrl : undefined;
 
-      // 1. Synchronize "Food Log" Sheet
+      // Prepare all sheet rows in parallel
       const foodLogRows = WorkbookMapper.mapMealEntriesToFoodLogRows(mealEntries);
-      await GoogleSheetsClient.syncTabularData({
-        spreadsheetId: conn.spreadsheetId,
-        webhookUrl,
-        sheetName: WORKBOOK_SHEET_SCHEMAS.FOOD_LOG.sheetName,
-        headerRow: WORKBOOK_SHEET_SCHEMAS.FOOD_LOG.headers,
-        dataRows: foodLogRows,
-        keyColumnIndex: 0, // Entry ID
-      });
-      sheetsDetail[WORKBOOK_SHEET_SCHEMAS.FOOD_LOG.sheetName] = {
-        rowsCount: foodLogRows.length,
-        columnsCount: WORKBOOK_SHEET_SCHEMAS.FOOD_LOG.headers.length,
-      };
-      sheetsSyncedList.push(WORKBOOK_SHEET_SCHEMAS.FOOD_LOG.sheetName);
-
-      // 2. Synchronize "Micronutrients" Sheet
       const microRows = WorkbookMapper.mapMealEntriesToMicronutrientRows(mealEntries);
-      await GoogleSheetsClient.syncTabularData({
-        spreadsheetId: conn.spreadsheetId,
-        webhookUrl,
-        sheetName: WORKBOOK_SHEET_SCHEMAS.MICRONUTRIENTS.sheetName,
-        headerRow: WORKBOOK_SHEET_SCHEMAS.MICRONUTRIENTS.headers,
-        dataRows: microRows,
-        keyColumnIndex: 0, // Entry ID
-      });
-      sheetsDetail[WORKBOOK_SHEET_SCHEMAS.MICRONUTRIENTS.sheetName] = {
-        rowsCount: microRows.length,
-        columnsCount: WORKBOOK_SHEET_SCHEMAS.MICRONUTRIENTS.headers.length,
-      };
-      sheetsSyncedList.push(WORKBOOK_SHEET_SCHEMAS.MICRONUTRIENTS.sheetName);
-
-      // 3. Synchronize "Amino Acids" Sheet
       const aminoRows = WorkbookMapper.mapMealEntriesToAminoAcidRows(mealEntries);
-      await GoogleSheetsClient.syncTabularData({
-        spreadsheetId: conn.spreadsheetId,
-        webhookUrl,
-        sheetName: WORKBOOK_SHEET_SCHEMAS.AMINO_ACIDS.sheetName,
-        headerRow: WORKBOOK_SHEET_SCHEMAS.AMINO_ACIDS.headers,
-        dataRows: aminoRows,
-        keyColumnIndex: 0, // Entry ID
-      });
-      sheetsDetail[WORKBOOK_SHEET_SCHEMAS.AMINO_ACIDS.sheetName] = {
-        rowsCount: aminoRows.length,
-        columnsCount: WORKBOOK_SHEET_SCHEMAS.AMINO_ACIDS.headers.length,
-      };
-      sheetsSyncedList.push(WORKBOOK_SHEET_SCHEMAS.AMINO_ACIDS.sheetName);
-
-      // 4. Synchronize "Other Nutrients" Sheet
       const otherRows = WorkbookMapper.mapMealEntriesToOtherNutrientRows(mealEntries);
-      await GoogleSheetsClient.syncTabularData({
-        spreadsheetId: conn.spreadsheetId,
-        webhookUrl,
-        sheetName: WORKBOOK_SHEET_SCHEMAS.OTHER_NUTRIENTS.sheetName,
-        headerRow: WORKBOOK_SHEET_SCHEMAS.OTHER_NUTRIENTS.headers,
-        dataRows: otherRows,
-        keyColumnIndex: 0, // Entry ID
-      });
-      sheetsDetail[WORKBOOK_SHEET_SCHEMAS.OTHER_NUTRIENTS.sheetName] = {
-        rowsCount: otherRows.length,
-        columnsCount: WORKBOOK_SHEET_SCHEMAS.OTHER_NUTRIENTS.headers.length,
-      };
-      sheetsSyncedList.push(WORKBOOK_SHEET_SCHEMAS.OTHER_NUTRIENTS.sheetName);
-
-      // 5. Synchronize "Daily Summary" Sheet
       const dailyRows = WorkbookMapper.mapDailySummaryRows(dailySummaries);
-      await GoogleSheetsClient.syncTabularData({
-        spreadsheetId: conn.spreadsheetId,
-        webhookUrl,
-        sheetName: WORKBOOK_SHEET_SCHEMAS.DAILY_SUMMARY.sheetName,
-        headerRow: WORKBOOK_SHEET_SCHEMAS.DAILY_SUMMARY.headers,
-        dataRows: dailyRows,
-        keyColumnIndex: 0, // Date
-      });
-      sheetsDetail[WORKBOOK_SHEET_SCHEMAS.DAILY_SUMMARY.sheetName] = {
-        rowsCount: dailyRows.length,
-        columnsCount: WORKBOOK_SHEET_SCHEMAS.DAILY_SUMMARY.headers.length,
-      };
-      sheetsSyncedList.push(WORKBOOK_SHEET_SCHEMAS.DAILY_SUMMARY.sheetName);
-
-      // 6. Synchronize "Food Database" Sheet
       const foodDbRows = WorkbookMapper.mapFoodsToFoodDatabaseRows(foods);
-      await GoogleSheetsClient.syncTabularData({
-        spreadsheetId: conn.spreadsheetId,
-        webhookUrl,
-        sheetName: WORKBOOK_SHEET_SCHEMAS.FOOD_DATABASE.sheetName,
-        headerRow: WORKBOOK_SHEET_SCHEMAS.FOOD_DATABASE.headers,
-        dataRows: foodDbRows,
-        keyColumnIndex: 0, // Food ID
-      });
-      sheetsDetail[WORKBOOK_SHEET_SCHEMAS.FOOD_DATABASE.sheetName] = {
-        rowsCount: foodDbRows.length,
-        columnsCount: WORKBOOK_SHEET_SCHEMAS.FOOD_DATABASE.headers.length,
-      };
-      sheetsSyncedList.push(WORKBOOK_SHEET_SCHEMAS.FOOD_DATABASE.sheetName);
-
-      // 7. Synchronize "Nutrition Targets" Sheet
       const targetRows = WorkbookMapper.mapTargetsToNutritionTargetRows();
-      await GoogleSheetsClient.syncTabularData({
-        spreadsheetId: conn.spreadsheetId,
-        webhookUrl,
-        sheetName: WORKBOOK_SHEET_SCHEMAS.NUTRITION_TARGETS.sheetName,
-        headerRow: WORKBOOK_SHEET_SCHEMAS.NUTRITION_TARGETS.headers,
-        dataRows: targetRows,
-        keyColumnIndex: 0, // Nutrient Key
-      });
-      sheetsDetail[WORKBOOK_SHEET_SCHEMAS.NUTRITION_TARGETS.sheetName] = {
-        rowsCount: targetRows.length,
-        columnsCount: WORKBOOK_SHEET_SCHEMAS.NUTRITION_TARGETS.headers.length,
-      };
-      sheetsSyncedList.push(WORKBOOK_SHEET_SCHEMAS.NUTRITION_TARGETS.sheetName);
-
-      // 8. Synchronize "Nutrient Dictionary" Sheet
       const dictRows = WorkbookMapper.mapNutrientDictionaryRows();
-      await GoogleSheetsClient.syncTabularData({
-        spreadsheetId: conn.spreadsheetId,
-        webhookUrl,
-        sheetName: WORKBOOK_SHEET_SCHEMAS.NUTRIENT_DICTIONARY.sheetName,
-        headerRow: WORKBOOK_SHEET_SCHEMAS.NUTRIENT_DICTIONARY.headers,
-        dataRows: dictRows,
-        keyColumnIndex: 0, // Nutrient Key
-      });
-      sheetsDetail[WORKBOOK_SHEET_SCHEMAS.NUTRIENT_DICTIONARY.sheetName] = {
-        rowsCount: dictRows.length,
-        columnsCount: WORKBOOK_SHEET_SCHEMAS.NUTRIENT_DICTIONARY.headers.length,
-      };
-      sheetsSyncedList.push(WORKBOOK_SHEET_SCHEMAS.NUTRIENT_DICTIONARY.sheetName);
+
+      // Synchronize all 8 workbook sheets concurrently to prevent 504 serverless timeouts
+      await Promise.all([
+        GoogleSheetsClient.syncTabularData({
+          spreadsheetId: conn.spreadsheetId,
+          webhookUrl,
+          sheetName: WORKBOOK_SHEET_SCHEMAS.FOOD_LOG.sheetName,
+          headerRow: WORKBOOK_SHEET_SCHEMAS.FOOD_LOG.headers,
+          dataRows: foodLogRows,
+          keyColumnIndex: 0,
+        }),
+        GoogleSheetsClient.syncTabularData({
+          spreadsheetId: conn.spreadsheetId,
+          webhookUrl,
+          sheetName: WORKBOOK_SHEET_SCHEMAS.MICRONUTRIENTS.sheetName,
+          headerRow: WORKBOOK_SHEET_SCHEMAS.MICRONUTRIENTS.headers,
+          dataRows: microRows,
+          keyColumnIndex: 0,
+        }),
+        GoogleSheetsClient.syncTabularData({
+          spreadsheetId: conn.spreadsheetId,
+          webhookUrl,
+          sheetName: WORKBOOK_SHEET_SCHEMAS.AMINO_ACIDS.sheetName,
+          headerRow: WORKBOOK_SHEET_SCHEMAS.AMINO_ACIDS.headers,
+          dataRows: aminoRows,
+          keyColumnIndex: 0,
+        }),
+        GoogleSheetsClient.syncTabularData({
+          spreadsheetId: conn.spreadsheetId,
+          webhookUrl,
+          sheetName: WORKBOOK_SHEET_SCHEMAS.OTHER_NUTRIENTS.sheetName,
+          headerRow: WORKBOOK_SHEET_SCHEMAS.OTHER_NUTRIENTS.headers,
+          dataRows: otherRows,
+          keyColumnIndex: 0,
+        }),
+        GoogleSheetsClient.syncTabularData({
+          spreadsheetId: conn.spreadsheetId,
+          webhookUrl,
+          sheetName: WORKBOOK_SHEET_SCHEMAS.DAILY_SUMMARY.sheetName,
+          headerRow: WORKBOOK_SHEET_SCHEMAS.DAILY_SUMMARY.headers,
+          dataRows: dailyRows,
+          keyColumnIndex: 0,
+        }),
+        GoogleSheetsClient.syncTabularData({
+          spreadsheetId: conn.spreadsheetId,
+          webhookUrl,
+          sheetName: WORKBOOK_SHEET_SCHEMAS.FOOD_DATABASE.sheetName,
+          headerRow: WORKBOOK_SHEET_SCHEMAS.FOOD_DATABASE.headers,
+          dataRows: foodDbRows,
+          keyColumnIndex: 0,
+        }),
+        GoogleSheetsClient.syncTabularData({
+          spreadsheetId: conn.spreadsheetId,
+          webhookUrl,
+          sheetName: WORKBOOK_SHEET_SCHEMAS.NUTRITION_TARGETS.sheetName,
+          headerRow: WORKBOOK_SHEET_SCHEMAS.NUTRITION_TARGETS.headers,
+          dataRows: targetRows,
+          keyColumnIndex: 0,
+        }),
+        GoogleSheetsClient.syncTabularData({
+          spreadsheetId: conn.spreadsheetId,
+          webhookUrl,
+          sheetName: WORKBOOK_SHEET_SCHEMAS.NUTRIENT_DICTIONARY.sheetName,
+          headerRow: WORKBOOK_SHEET_SCHEMAS.NUTRIENT_DICTIONARY.headers,
+          dataRows: dictRows,
+          keyColumnIndex: 0,
+        }),
+      ]);
+
+      sheetsSyncedList.push(
+        WORKBOOK_SHEET_SCHEMAS.FOOD_LOG.sheetName,
+        WORKBOOK_SHEET_SCHEMAS.MICRONUTRIENTS.sheetName,
+        WORKBOOK_SHEET_SCHEMAS.AMINO_ACIDS.sheetName,
+        WORKBOOK_SHEET_SCHEMAS.OTHER_NUTRIENTS.sheetName,
+        WORKBOOK_SHEET_SCHEMAS.DAILY_SUMMARY.sheetName,
+        WORKBOOK_SHEET_SCHEMAS.FOOD_DATABASE.sheetName,
+        WORKBOOK_SHEET_SCHEMAS.NUTRITION_TARGETS.sheetName,
+        WORKBOOK_SHEET_SCHEMAS.NUTRIENT_DICTIONARY.sheetName
+      );
 
       const now = new Date();
       await GoogleSheetsConnectionService.updateSyncMetadata(userId, "SUCCESS", now);

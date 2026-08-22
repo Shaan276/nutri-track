@@ -73,7 +73,7 @@ export class GoogleSheetsClient {
         keyColumnIndex: keyColumnIndex !== undefined ? keyColumnIndex : 0,
       });
 
-      // Post to Apps Script web app endpoint with redirect following
+      // Post to Apps Script web app endpoint with redirect following and strict 5-second timeout
       const response = await fetch(webhookUrl, {
         method: "POST",
         headers: {
@@ -81,6 +81,7 @@ export class GoogleSheetsClient {
         },
         body: bodyPayload,
         redirect: "follow",
+        signal: AbortSignal.timeout(5000),
       });
 
       const responseText = await response.text();
