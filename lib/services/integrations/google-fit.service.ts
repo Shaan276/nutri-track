@@ -94,9 +94,9 @@ export class GoogleFitService {
     const appUrl = process.env.NEXTAUTH_URL || "https://nutri-track-henna.vercel.app";
     const redirectUri = `${appUrl}/api/integrations/google-fit/callback`;
 
-    let accessToken = "mock_google_fit_token";
-    let refreshToken = "mock_google_fit_refresh_token";
-    let externalUsername = "Google Fit User";
+    let accessToken = "";
+    let refreshToken = "";
+    let externalUsername = "Google User";
     let externalUserId = `gfit_${userId.slice(0, 8)}`;
 
     if (clientId && clientSecret && !code.startsWith("mock_")) {
@@ -111,13 +111,13 @@ export class GoogleFitService {
             redirect_uri: redirectUri,
             grant_type: "authorization_code",
           }),
-          signal: AbortSignal.timeout(6000),
+          signal: AbortSignal.timeout(10000),
         });
 
-        if (tokenRes.ok) {
-          const tokenData = await tokenRes.json();
+        const tokenData = await tokenRes.json();
+        if (tokenRes.ok && tokenData.access_token) {
           accessToken = tokenData.access_token;
-          refreshToken = tokenData.refresh_token || refreshToken;
+          refreshToken = tokenData.refresh_token || "";
 
           // Fetch user info from Google
           const userRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
@@ -129,10 +129,17 @@ export class GoogleFitService {
             externalUsername = userInfo.name || userInfo.email || externalUsername;
             externalUserId = userInfo.id || externalUserId;
           }
+        } else {
+          console.error("Google OAuth token exchange failed:", JSON.stringify(tokenData));
+          throw new Error(tokenData.error_description || tokenData.error || "Google token exchange failed");
         }
-      } catch (err) {
-        console.error("Failed to exchange Google OAuth code:", err);
+      } catch (err: any) {
+        console.error("Failed to exchange Google OAuth code:", err.message);
+        throw err;
       }
+    } else {
+      accessToken = "mock_google_fit_token";
+      refreshToken = "mock_google_fit_refresh_token";
     }
 
     // Save integration in Neon DB

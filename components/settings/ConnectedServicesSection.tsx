@@ -391,38 +391,84 @@ export function ConnectedServicesSection() {
             </div>
           </div>
 
-          <div className="pt-2 border-t border-border-subtle flex items-center justify-between">
-            {isGoogleConnected ? (
-              <>
+          <div className="pt-2 border-t border-border-subtle flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              {isGoogleConnected ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleDisconnectGoogle}
+                    className="px-3 py-1.5 rounded-xl bg-neutral-900 hover:bg-rose-950/40 text-neutral-400 hover:text-rose-400 border border-neutral-800 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Disconnect</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSyncGoogle}
+                    disabled={googleSyncing}
+                    className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold transition-all shadow-md shadow-emerald-500/10 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${googleSyncing ? "animate-spin" : ""}`} />
+                    <span>{googleSyncing ? "Syncing..." : "Sync Steps Now"}</span>
+                  </button>
+                </>
+              ) : (
                 <button
                   type="button"
-                  onClick={handleDisconnectGoogle}
-                  className="px-3 py-1.5 rounded-xl bg-neutral-900 hover:bg-rose-950/40 text-neutral-400 hover:text-rose-400 border border-neutral-800 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  onClick={handleConnectGoogle}
+                  disabled={googleConnecting}
+                  className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold transition-all shadow-md shadow-emerald-500/10 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Disconnect</span>
+                  <Footprints className="w-4 h-4" />
+                  <span>{googleConnecting ? "Connecting..." : "Connect Health Connect"}</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={handleSyncGoogle}
-                  disabled={googleSyncing}
-                  className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold transition-all shadow-md shadow-emerald-500/10 flex items-center gap-2 cursor-pointer disabled:opacity-50"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${googleSyncing ? "animate-spin" : ""}`} />
-                  <span>{googleSyncing ? "Syncing..." : "Sync Steps Now"}</span>
-                </button>
-              </>
-            ) : (
+              )}
+            </div>
+
+            {/* Quick Step Sync from Phone Screen */}
+            <div className="pt-2 border-t border-border-subtle/50 flex items-center gap-2">
+              <input
+                type="number"
+                id="quick-phone-steps-input"
+                placeholder="Enter steps from phone (e.g. 5200)"
+                className="flex-1 px-3 py-1.5 bg-background-elevated border border-border-subtle rounded-xl text-xs text-foreground-primary focus:outline-none focus:border-emerald-500"
+              />
               <button
                 type="button"
-                onClick={handleConnectGoogle}
-                disabled={googleConnecting}
-                className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold transition-all shadow-md shadow-emerald-500/10 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                onClick={async () => {
+                  const input = document.getElementById("quick-phone-steps-input") as HTMLInputElement;
+                  const stepsVal = Number(input?.value);
+                  if (!stepsVal || stepsVal <= 0) {
+                    alert("Please enter a valid step count from your phone.");
+                    return;
+                  }
+                  try {
+                    setGoogleSyncing(true);
+                    const res = await fetch("/api/integrations/health-connect/sync", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ steps: stepsVal, sourceApp: "Android Phone Screen" }),
+                    });
+                    const d = await res.json();
+                    if (res.ok) {
+                      setGoogleMessage({ type: "success", text: `Successfully saved ${stepsVal} steps to your Activities log!` });
+                      input.value = "";
+                      await fetchIntegrations();
+                    } else {
+                      throw new Error(d.error || "Failed to save steps");
+                    }
+                  } catch (e: any) {
+                    setGoogleMessage({ type: "error", text: e.message });
+                  } finally {
+                    setGoogleSyncing(false);
+                  }
+                }}
+                className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-emerald-400 text-xs font-bold rounded-xl border border-neutral-700 transition-colors cursor-pointer whitespace-nowrap"
               >
-                <Footprints className="w-4 h-4" />
-                <span>{googleConnecting ? "Connecting..." : "Connect Health Connect"}</span>
+                Log Steps
               </button>
-            )}
+            </div>
           </div>
         </div>
       </div>
