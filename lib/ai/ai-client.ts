@@ -86,8 +86,6 @@ export class AIClient {
             content: JSON.stringify(toolResult),
           });
         }
-        // Brief pause between tool execution and synthesis to respect burst rate limits
-        await new Promise((r) => setTimeout(r, 1000));
         continue;
       }
 
@@ -117,7 +115,7 @@ export class AIClient {
     model: string,
     allowTools: boolean
   ): Promise<{ content: string; tool_calls?: any[]; tokensUsed?: number }> {
-    const maxRetries = 5;
+    const maxRetries = 4;
 
     // Sync custom keys from database system settings if present
     await keyManager.syncWithDatabase();
@@ -127,7 +125,13 @@ export class AIClient {
 
     const isGemini = cleanBaseUrl.includes("googleapis.com");
     const candidateModels = isGemini
-      ? Array.from(new Set([model === "gemini-2.5-flash" ? "gemini-3.5-flash" : model, "gemini-3.5-flash", "gemini-3.7-flash", "gemini-flash-latest"].filter(Boolean)))
+      ? Array.from(new Set([
+          model || "gemini-flash-lite-latest",
+          "gemini-flash-lite-latest",
+          "gemini-3.1-flash-lite",
+          "gemini-3.5-flash-lite",
+          "gemini-flash-latest",
+        ].filter(Boolean)))
       : Array.from(new Set([model, "gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"].filter(Boolean)));
 
     for (const currentModel of candidateModels) {
