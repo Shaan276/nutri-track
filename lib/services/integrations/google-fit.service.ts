@@ -205,13 +205,7 @@ export class GoogleFitService {
       }
     }
 
-    // 2. If sandbox test mode, use realistic demo activity values
-    if (finalSteps === 0 && conn.accessToken?.startsWith("mock_")) {
-      finalSteps = 6450;
-      finalCalories = 280;
-      finalDistanceKm = 4.8;
-    }
-
+    // Strictly preserve actual measured values (never fabricate or mock step metrics)
     const todayStr = new Date().toISOString().split("T")[0];
 
     // 3. Persist into ActivityLog so steps appear in Activities tab and Dashboard
