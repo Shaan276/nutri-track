@@ -17,7 +17,7 @@ export interface KeyState {
 export class AIKeyManager {
   private static instance: AIKeyManager;
   private keyStates: KeyState[] = [];
-  private cooldownDurationMs = 5 * 60 * 1000; // 5 minutes cooldown on 429
+  private cooldownDurationMs = 3 * 1000; // 3 seconds cooldown on 429
   private mockMode = false;
   private customKeys: Record<number, string> = {};
 

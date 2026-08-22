@@ -86,7 +86,8 @@ export class AIClient {
             content: JSON.stringify(toolResult),
           });
         }
-        // Continue loop to allow model to synthesize final answer from tool results
+        // Brief pause between tool execution and synthesis to respect burst rate limits
+        await new Promise((r) => setTimeout(r, 1000));
         continue;
       }
 
@@ -116,7 +117,7 @@ export class AIClient {
     model: string,
     allowTools: boolean
   ): Promise<{ content: string; tool_calls?: any[]; tokensUsed?: number }> {
-    const maxRetries = 3;
+    const maxRetries = 5;
 
     // Sync custom keys from database system settings if present
     await keyManager.syncWithDatabase();
@@ -124,8 +125,10 @@ export class AIClient {
     const baseUrl = await SystemSettingsService.getSetting("AI_BASE_URL", AI_MODEL_CONFIG.baseUrl);
     const cleanBaseUrl = (baseUrl || "https://api.openai.com/v1").replace(/\/+$/, "");
 
-    // Model fallback sequence
-    const candidateModels = Array.from(new Set([model, "gemini-2.5-flash", "gemini-1.5-flash", "gpt-4o-mini", "gpt-4o"]));
+    const isGemini = cleanBaseUrl.includes("googleapis.com");
+    const candidateModels = isGemini
+      ? Array.from(new Set([model, "gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite", "gemini-3.7-flash", "gemini-3.5-flash"].filter(Boolean)))
+      : Array.from(new Set([model, "gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"].filter(Boolean)));
 
     for (const currentModel of candidateModels) {
       for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -167,9 +170,10 @@ export class AIClient {
           });
 
           if (res.status === 429) {
-            console.warn(`[AIClient] Key ${activeKeyInfo.label} rate limited on ${currentModel} (HTTP 429). Rotating to standby key or fallback model...`);
-            keyManager.recordRateLimit(activeKeyInfo.index);
-            continue; // Retry with next key in priority
+            const waitMs = Math.min(6000, 1500 * (attempt + 1));
+            console.warn(`[AIClient] Rate limited on ${currentModel} (HTTP 429). Retrying after ${waitMs}ms (attempt ${attempt + 1}/${maxRetries})...`);
+            await new Promise((r) => setTimeout(r, waitMs));
+            continue; // Retry with next attempt
           }
 
           if (res.status === 401 || res.status === 402 || res.status === 403) {

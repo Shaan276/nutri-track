@@ -157,7 +157,14 @@ export class AIToolRegistry {
           carbohydrates = 0,
           fat = 0,
           fiber = 0,
+          iron,
+          calcium,
+          potassium,
+          sodium,
+          zinc,
+          vitaminC,
           category = "RECIPE",
+          notes,
         } = args;
 
         const createdFood = await FoodService.createFood(userId, {
@@ -170,11 +177,18 @@ export class AIToolRegistry {
           carbohydrates: Number(carbohydrates),
           fat: Number(fat),
           fiber: Number(fiber),
+          iron: iron !== undefined ? Number(iron) : undefined,
+          calcium: calcium !== undefined ? Number(calcium) : undefined,
+          potassium: potassium !== undefined ? Number(potassium) : undefined,
+          sodium: sodium !== undefined ? Number(sodium) : undefined,
+          zinc: zinc !== undefined ? Number(zinc) : undefined,
+          vitaminC: vitaminC !== undefined ? Number(vitaminC) : undefined,
+          notes,
         });
 
         return {
           success: true,
-          message: `Saved recipe "${name}" to your Food Database! (${calories} kcal, ${protein}g protein per ${servingSize} ${servingUnit}) 🍳📖`,
+          message: `Saved recipe "${name}" to your Food Database! (${calories} kcal, ${protein}g protein, ${carbohydrates}g carbs, ${fat}g fat per ${servingSize} ${servingUnit}) 🍳📖✨`,
           recipeId: createdFood.id,
         };
       }

@@ -20,22 +20,34 @@ export const AI_COACH_SYSTEM_PROMPT = `You are the Nutri-Track AI Coach — an e
 
 HOW TO TALK AND INTERACT:
 1. WARM, HUMAN, & EMPATHETIC:
-   - Talk like a supportive, uplifting personal coach and friend who genuinely cares about the user's health journey! 🤗✨
-   - Always use lively, relevant emojis to make conversations engaging and friendly (e.g., 🥗, 🥑, 🏃‍♂️, 💪, 💧, 🌟, 👏, 🎯, ✨, 🔥, 🍳).
-   - Celebrate achievements, validate efforts, and show compassionate understanding when life gets busy. Never be cold, clinical, or robotic.
+   - Talk like an enthusiastic, caring personal coach and nutritionist who genuinely cares about the user's wellness! 🤗✨
+   - Always use lively, relevant emojis naturally in every conversation (e.g., 🥗, 🥑, 🏃‍♂️, 💪, 💧, 🌟, 👏, 🎯, ✨, 🔥, 🍳, 🥣, 🍗).
+   - Celebrate achievements, validate daily efforts, and show supportive encouragement. Never be cold, clinical, or robotic.
 
-2. FULL READ & WRITE CAPABILITY ACROSS THE ENTIRE APP:
-   - You have direct tools to access and edit data in the user's Nutri-Track account!
-   - When a user shares a meal, recipe, snack, water intake, run, or workout, YOU CAN LOG IT IMMEDIATELY using your tools!
-   - If they tell you: "Log 2 eggs and toast for breakfast" or "I just drank 500ml water" or "Save this protein smoothie recipe" -> Execute the tool (log_meal, log_hydration, create_recipe_in_database, log_activity) and confirm happily with exact macros! 🍳🥗💪
+2. AUTOMATIC RECIPE & INGREDIENT NUTRITION CALCULATION (CRITICAL):
+   - When the user gives you raw ingredients (e.g. "100g besan, 50g paneer, 1 tomato, 1 onion, 1 tsp ghee" for a Chilla or any recipe/meal) without specifying calories or macros, **YOU MUST CALCULATE THE NUTRITIONAL TOTALS YOURSELF using your extensive nutritional biochemistry and food composition knowledge!**
+   - **NEVER ask the user to provide calories, protein, carbs, or fat** for their food or ingredients. You are the AI nutritionist!
+   - Calculate:
+     • Total Calories (kcal)
+     • Protein (g), Carbohydrates (g), Fat (g), Dietary Fiber (g)
+     • Key Micronutrients & Minerals (Iron, Calcium, Potassium, Zinc, Vitamin C, Vitamin A, etc.)
+   - Immediately execute the appropriate tool:
+     • \`create_recipe_in_database\` to save it permanently into their Recipe Database!
+     • \`log_meal\` to log it to Breakfast/Lunch/Dinner/Snack if they ate it!
+   - Present a clear, mouth-watering ingredient breakdown with exact macros and micronutrient highlights! 🥗🍳✨
 
-3. GROUNDED IN REAL DATA & NO NEGATIVE JUDGMENTS:
-   - Ground insights in the user's real Nutri-Track numbers.
-   - If meals/water aren't logged yet today, treat it as a neutral, fresh start (e.g. "You haven't logged any meals yet today — let's fuel up with something delicious! 🥑✨").
+3. FULL READ & WRITE CAPABILITY ACROSS THE ENTIRE APP:
+   - You have direct tools to access and edit data in the user's Nutri-Track account:
+     • \`log_meal\`: Logs food/recipe to any meal section.
+     • \`create_recipe_in_database\`: Saves custom recipes into their Food Database with full macros & micronutrients.
+     • \`log_hydration\`: Logs water and beverages.
+     • \`log_activity\`: Logs workouts and runs.
+     • \`update_user_goals\`: Adjusts target calories, protein, hydration, or steps.
+   - When the user asks you to log, save, or update anything, execute the tool immediately and confirm happily!
 
 4. STRUCTURE & FORMATTING:
-   - Use clean, readable markdown with bold text and bullet points.
-   - Summarize calories and macros clearly (e.g., **Calories: 380 kcal** | **Protein: 25g** | **Carbs: 40g** | **Fat: 12g**).
+   - Use clean, structured markdown with bold headings and bullet points.
+   - Always display macro summaries clearly (e.g., **Calories: 380 kcal** | **Protein: 24g** | **Carbs: 35g** | **Fat: 12g** | **Fiber: 6g**).
 `;
 
 export interface ToolDefinition {
@@ -56,13 +68,13 @@ export const AI_COACH_TOOLS: ToolDefinition[] = [
     type: "function",
     function: {
       name: "log_meal",
-      description: "Logs a food item, meal, or custom recipe directly into the user's Nutri-Track food journal for Breakfast, Lunch, Dinner, or Snack.",
+      description: "Logs a food item, meal, or custom recipe directly into the user's Nutri-Track food journal for Breakfast, Lunch, Dinner, or Snack. Calculate the calories and macros from ingredients if not provided.",
       parameters: {
         type: "object",
         properties: {
           foodName: {
             type: "string",
-            description: "Name of the food or recipe (e.g. 'Avocado Toast with 2 Poached Eggs', 'Paneer Butter Masala with 2 Rotis').",
+            description: "Name of the food or recipe (e.g. 'Paneer Besan Chilla with Mint Chutney', 'Avocado Toast with 2 Poached Eggs').",
           },
           mealType: {
             type: "string",
@@ -71,11 +83,11 @@ export const AI_COACH_TOOLS: ToolDefinition[] = [
           },
           calories: {
             type: "number",
-            description: "Estimated or exact total calories (kcal) for this meal.",
+            description: "Estimated or exact total calories (kcal) for this meal calculated from ingredients.",
           },
           protein: {
             type: "number",
-            description: "Protein in grams.",
+            description: "Protein in grams calculated from ingredients.",
           },
           carbohydrates: {
             type: "number",
@@ -95,7 +107,7 @@ export const AI_COACH_TOOLS: ToolDefinition[] = [
           },
           quantityUnit: {
             type: "string",
-            description: "Unit of measurement (e.g. 'serving', 'bowl', 'plate', 'g').",
+            description: "Unit of measurement (e.g. 'serving', 'piece', 'bowl', 'plate', 'g').",
           },
           date: {
             type: "string",
@@ -110,13 +122,13 @@ export const AI_COACH_TOOLS: ToolDefinition[] = [
     type: "function",
     function: {
       name: "create_recipe_in_database",
-      description: "Saves a new custom recipe or food item into the user's permanent Food Database for future reuse and search.",
+      description: "Saves a new custom recipe or food item into the user's permanent Food Database with calculated macros and micronutrients from raw ingredients.",
       parameters: {
         type: "object",
         properties: {
           name: {
             type: "string",
-            description: "Name of the recipe or food item.",
+            description: "Name of the recipe or food item (e.g. 'High-Protein Paneer Besan Chilla').",
           },
           servingSize: {
             type: "number",
@@ -124,31 +136,59 @@ export const AI_COACH_TOOLS: ToolDefinition[] = [
           },
           servingUnit: {
             type: "string",
-            description: "Serving unit (e.g. 'serving', 'bowl', 'portion', 'g').",
+            description: "Serving unit (e.g. 'chilla', 'serving', 'bowl', 'portion', 'g').",
           },
           calories: {
             type: "number",
-            description: "Calories per serving.",
+            description: "Total calories per serving calculated from raw ingredients.",
           },
           protein: {
             type: "number",
-            description: "Protein (g) per serving.",
+            description: "Protein (g) per serving calculated from raw ingredients.",
           },
           carbohydrates: {
             type: "number",
-            description: "Carbohydrates (g) per serving.",
+            description: "Carbohydrates (g) per serving calculated from raw ingredients.",
           },
           fat: {
             type: "number",
-            description: "Fat (g) per serving.",
+            description: "Fat (g) per serving calculated from raw ingredients.",
           },
           fiber: {
             type: "number",
-            description: "Fiber (g) per serving.",
+            description: "Fiber (g) per serving calculated from raw ingredients.",
+          },
+          iron: {
+            type: "number",
+            description: "Iron in mg (optional).",
+          },
+          calcium: {
+            type: "number",
+            description: "Calcium in mg (optional).",
+          },
+          potassium: {
+            type: "number",
+            description: "Potassium in mg (optional).",
+          },
+          sodium: {
+            type: "number",
+            description: "Sodium in mg (optional).",
+          },
+          zinc: {
+            type: "number",
+            description: "Zinc in mg (optional).",
+          },
+          vitaminC: {
+            type: "number",
+            description: "Vitamin C in mg (optional).",
           },
           category: {
             type: "string",
-            description: "Category (e.g. 'RECIPE', 'SNACKS', 'BREAKFAST', 'MEALS').",
+            description: "Category (e.g. 'RECIPE', 'BREAKFAST', 'SNACKS', 'MEALS').",
+          },
+          notes: {
+            type: "string",
+            description: "Ingredients list and cooking instructions summary.",
           },
         },
         required: ["name", "calories", "protein"],
