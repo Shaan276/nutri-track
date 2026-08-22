@@ -377,6 +377,15 @@ export function GoogleSheetsSection({
 
             <button
               type="button"
+              onClick={() => setShowScriptModal(true)}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 text-xs font-semibold rounded-xl border border-emerald-500/30 transition-colors cursor-pointer"
+            >
+              <Code2 className="w-3.5 h-3.5" />
+              View Apps Script Code
+            </button>
+
+            <button
+              type="button"
               onClick={() => setShowDisconnectModal(true)}
               disabled={saving}
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-rose-950/40 text-slate-300 hover:text-rose-400 text-xs font-semibold rounded-xl border border-slate-700 hover:border-rose-800/50 transition-colors cursor-pointer"
@@ -385,6 +394,18 @@ export function GoogleSheetsSection({
               Disconnect
             </button>
           </div>
+
+          {!isConnectedWebhook && (
+            <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200 flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <span className="font-bold text-amber-300">How to enable real-time sheet writes:</span>
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  Google blocks external write operations on standard sheet links. To have rows written directly into your Google Sheet tabs in real time: click <strong className="text-emerald-400">&quot;View Apps Script Code&quot;</strong>, paste the script into your sheet (<em className="text-slate-200">Extensions $\rightarrow$ Apps Script</em>), deploy as Web App, and click <strong className="text-slate-200">&quot;Change Connection&quot;</strong> to paste the Webhook URL!
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         /* Setup / Connect Form */
