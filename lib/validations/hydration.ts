@@ -16,22 +16,22 @@ export type BeverageType = z.infer<typeof BeverageTypeEnum>;
 
 export const beverageTypeDisplayNames: Record<BeverageType, string> = {
   WATER: "Water",
+  TEA: "Tea / Herbal Tea",
   MILK: "Milk",
   BUTTERMILK: "Buttermilk",
   LASSI: "Lassi",
-  TEA: "Tea / Herbal Tea",
   JUICE: "Fresh Juice",
   PROTEIN_SHAKE: "Protein Shake",
   ORS: "ORS / Electrolytes",
-  OTHER: "Other Beverage",
+  OTHER: "Coffee / Other",
 };
 
 export const beverageTypeIcons: Record<BeverageType, string> = {
   WATER: "💧",
+  TEA: "🍵",
   MILK: "🥛",
   BUTTERMILK: "🥛",
   LASSI: "🥤",
-  TEA: "🍵",
   JUICE: "🧃",
   PROTEIN_SHAKE: "🏋️",
   ORS: "⚡",

@@ -245,19 +245,97 @@ export class NutritionService {
   }
 
   /**
-   * Logs a food entry to a specific meal and date with snapshot calculation
+    * Logs a food entry to a specific meal and date with snapshot calculation
    */
   static async logFoodToMeal(userId: string, input: LogMealEntryInput) {
-    const { date, mealType, foodId, quantity, quantityUnit } = input;
+    const { date, mealType, foodId, customFood, ingredients, quantity = 100, quantityUnit = "g" } = input;
 
-    // 1. Fetch food ensuring access permissions
-    const food = await FoodService.getFoodById(foodId, userId);
-    if (!food) {
+    let targetFood: any = null;
+
+    if (foodId) {
+      targetFood = await FoodService.getFoodById(foodId, userId);
+    }
+
+    if (!targetFood && customFood?.name) {
+      // Check if food already exists for this user with same name
+      const existing = await prisma.food.findFirst({
+        where: {
+          name: { equals: customFood.name.trim(), mode: "insensitive" },
+          OR: [{ userId }, { isSystemFood: true }],
+        },
+      });
+
+      if (existing) {
+        targetFood = existing;
+      } else {
+        // Calculate macro values if ingredients provided
+        let calcCal = Number(customFood.calories || 0);
+        let calcProt = Number(customFood.protein || 0);
+        let calcCarb = Number(customFood.carbs || 0);
+        let calcFat = Number(customFood.fat || 0);
+
+        const ingredientList = customFood.ingredients || ingredients || [];
+        if (ingredientList.length > 0) {
+          calcCal = 0;
+          calcProt = 0;
+          calcCarb = 0;
+          calcFat = 0;
+          for (const ing of ingredientList) {
+            const factor = (ing.quantityG || 0) / 100;
+            calcCal += (ing.caloriesPer100g || 0) * factor;
+            calcProt += (ing.proteinPer100g || 0) * factor;
+            calcCarb += (ing.carbsPer100g || 0) * factor;
+            calcFat += (ing.fatPer100g || 0) * factor;
+          }
+        }
+
+        targetFood = await prisma.food.create({
+          data: {
+            userId,
+            name: customFood.name.trim(),
+            category: ((customFood as any).category as any) || "OTHER",
+            servingSize: 100,
+            servingUnit: "g",
+            calories: Math.round(calcCal * 10) / 10,
+            protein: Math.round(calcProt * 10) / 10,
+            carbohydrates: Math.round(calcCarb * 10) / 10,
+            fat: Math.round(calcFat * 10) / 10,
+            isSystemFood: false,
+          },
+        });
+      }
+    }
+
+    if (!targetFood) {
       throw new Error("FOOD_NOT_FOUND");
     }
 
     // 2. Compute nutrition snapshot
-    const snapshot = this.calculateNutritionSnapshot(food, quantity);
+    let snapshot = this.calculateNutritionSnapshot(targetFood, quantity);
+
+    // If explicit macro breakdown with ingredients was submitted, use exact calculation
+    const allIngredients = customFood?.ingredients || ingredients || [];
+    if (allIngredients.length > 0) {
+      let totCal = 0;
+      let totProt = 0;
+      let totCarb = 0;
+      let totFat = 0;
+      for (const ing of allIngredients) {
+        const factor = (ing.quantityG || 0) / 100;
+        totCal += (ing.caloriesPer100g || 0) * factor;
+        totProt += (ing.proteinPer100g || 0) * factor;
+        totCarb += (ing.carbsPer100g || 0) * factor;
+        totFat += (ing.fatPer100g || 0) * factor;
+      }
+      snapshot = {
+        calculatedCalories: Math.round(totCal * 10) / 10,
+        calculatedProtein: Math.round(totProt * 10) / 10,
+        calculatedCarbs: Math.round(totCarb * 10) / 10,
+        calculatedFat: Math.round(totFat * 10) / 10,
+        calculatedFiber: 0,
+        calculatedSugar: 0,
+      };
+    }
 
     // 3. Find or create MealLog for (userId, date, mealType)
     let mealLog = await prisma.mealLog.findFirst({
@@ -282,7 +360,7 @@ export class NutritionService {
     const entry = await prisma.mealEntry.create({
       data: {
         mealLogId: mealLog.id,
-        foodId,
+        foodId: targetFood.id,
         quantity,
         quantityUnit,
         calculatedCalories: snapshot.calculatedCalories,
