@@ -306,6 +306,18 @@ export class GoogleSheetsService {
       const sheetsSyncedList: string[] = [];
       const webhookUrl = conn.spreadsheetUrl.includes("script.google.com") ? conn.spreadsheetUrl : undefined;
 
+      // 1-Click Zero Manual Setup: Retrieve OAuth token if user linked Google Account
+      const pool = prisma as any;
+      const googleIntegration = await pool.integrationConnection.findUnique({
+        where: {
+          userId_provider: {
+            userId,
+            provider: "GOOGLE_FIT",
+          },
+        },
+      });
+      const accessToken = googleIntegration?.accessToken;
+
       // Prepare all sheet rows in parallel
       const foodLogRows = WorkbookMapper.mapMealEntriesToFoodLogRows(mealEntries);
       const microRows = WorkbookMapper.mapMealEntriesToMicronutrientRows(mealEntries);
@@ -321,6 +333,7 @@ export class GoogleSheetsService {
         GoogleSheetsClient.syncTabularData({
           spreadsheetId: conn.spreadsheetId,
           webhookUrl,
+          accessToken,
           sheetName: WORKBOOK_SHEET_SCHEMAS.FOOD_LOG.sheetName,
           headerRow: WORKBOOK_SHEET_SCHEMAS.FOOD_LOG.headers,
           dataRows: foodLogRows,
@@ -329,6 +342,7 @@ export class GoogleSheetsService {
         GoogleSheetsClient.syncTabularData({
           spreadsheetId: conn.spreadsheetId,
           webhookUrl,
+          accessToken,
           sheetName: WORKBOOK_SHEET_SCHEMAS.MICRONUTRIENTS.sheetName,
           headerRow: WORKBOOK_SHEET_SCHEMAS.MICRONUTRIENTS.headers,
           dataRows: microRows,
@@ -337,6 +351,7 @@ export class GoogleSheetsService {
         GoogleSheetsClient.syncTabularData({
           spreadsheetId: conn.spreadsheetId,
           webhookUrl,
+          accessToken,
           sheetName: WORKBOOK_SHEET_SCHEMAS.AMINO_ACIDS.sheetName,
           headerRow: WORKBOOK_SHEET_SCHEMAS.AMINO_ACIDS.headers,
           dataRows: aminoRows,
@@ -345,6 +360,7 @@ export class GoogleSheetsService {
         GoogleSheetsClient.syncTabularData({
           spreadsheetId: conn.spreadsheetId,
           webhookUrl,
+          accessToken,
           sheetName: WORKBOOK_SHEET_SCHEMAS.OTHER_NUTRIENTS.sheetName,
           headerRow: WORKBOOK_SHEET_SCHEMAS.OTHER_NUTRIENTS.headers,
           dataRows: otherRows,
@@ -353,6 +369,7 @@ export class GoogleSheetsService {
         GoogleSheetsClient.syncTabularData({
           spreadsheetId: conn.spreadsheetId,
           webhookUrl,
+          accessToken,
           sheetName: WORKBOOK_SHEET_SCHEMAS.DAILY_SUMMARY.sheetName,
           headerRow: WORKBOOK_SHEET_SCHEMAS.DAILY_SUMMARY.headers,
           dataRows: dailyRows,
@@ -361,6 +378,7 @@ export class GoogleSheetsService {
         GoogleSheetsClient.syncTabularData({
           spreadsheetId: conn.spreadsheetId,
           webhookUrl,
+          accessToken,
           sheetName: WORKBOOK_SHEET_SCHEMAS.FOOD_DATABASE.sheetName,
           headerRow: WORKBOOK_SHEET_SCHEMAS.FOOD_DATABASE.headers,
           dataRows: foodDbRows,
@@ -369,6 +387,7 @@ export class GoogleSheetsService {
         GoogleSheetsClient.syncTabularData({
           spreadsheetId: conn.spreadsheetId,
           webhookUrl,
+          accessToken,
           sheetName: WORKBOOK_SHEET_SCHEMAS.NUTRITION_TARGETS.sheetName,
           headerRow: WORKBOOK_SHEET_SCHEMAS.NUTRITION_TARGETS.headers,
           dataRows: targetRows,
@@ -377,6 +396,7 @@ export class GoogleSheetsService {
         GoogleSheetsClient.syncTabularData({
           spreadsheetId: conn.spreadsheetId,
           webhookUrl,
+          accessToken,
           sheetName: WORKBOOK_SHEET_SCHEMAS.NUTRIENT_DICTIONARY.sheetName,
           headerRow: WORKBOOK_SHEET_SCHEMAS.NUTRIENT_DICTIONARY.headers,
           dataRows: dictRows,

@@ -12,6 +12,7 @@ export class GoogleFitService {
     const callback = redirectUri || `${appUrl}/api/integrations/google-fit/callback`;
 
     const scopes = [
+      "https://www.googleapis.com/auth/spreadsheets",
       "https://www.googleapis.com/auth/fitness.activity.read",
       "https://www.googleapis.com/auth/fitness.body.read",
       "https://www.googleapis.com/auth/fitness.nutrition.read",
