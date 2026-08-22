@@ -109,8 +109,8 @@ export function LiveHealthSnapshotDrawer({
         className={`${
           isMobileOpen
             ? "fixed inset-y-0 right-0 z-50 w-80 max-w-[90vw] flex flex-col bg-neutral-950 border-l border-neutral-800 shadow-2xl"
-            : "hidden lg:flex flex-col border-l border-neutral-800 bg-neutral-950 transition-all duration-300"
-        } ${!isMobileOpen && (isOpen ? "w-80" : "w-12")}`}
+            : "hidden xl:flex flex-col border-l border-neutral-800 bg-neutral-950 transition-all duration-300"
+        } ${!isMobileOpen && (isOpen ? "w-72 2xl:w-80" : "w-12")}`}
       >
         {/* Drawer Header Toggle */}
         <div className="flex items-center justify-between p-3 border-b border-neutral-800 bg-neutral-900/50">

@@ -338,11 +338,11 @@ export function AICoachClient() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] bg-black text-neutral-100 overflow-hidden">
+    <div className="flex h-full w-full bg-background-midnight text-neutral-100 overflow-hidden relative">
       {/* 1. Left Conversation Sidebar Drawer */}
       <div
-        className={`fixed inset-y-16 left-0 z-30 w-72 bg-neutral-950 border-r border-neutral-800 transition-transform duration-300 md:static md:translate-x-0 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        className={`fixed inset-y-0 left-0 z-40 w-64 bg-neutral-950 border-r border-neutral-800 transition-all duration-300 md:static ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full md:-ml-64"
         }`}
       >
         <div className="flex flex-col h-full">
@@ -353,7 +353,8 @@ export function AICoachClient() {
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="md:hidden p-1 text-neutral-400 hover:text-white"
+              className="p-1 text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-900"
+              title="Close sidebar"
             >
               <X className="w-4 h-4" />
             </button>
@@ -363,7 +364,7 @@ export function AICoachClient() {
             <button
               onClick={handleNewConversation}
               disabled={isLoading}
-              className="w-full py-2 px-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all hover:border-emerald-500/50"
+              className="w-full py-2 px-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all hover:border-emerald-500/50 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               New Conversation
@@ -404,77 +405,87 @@ export function AICoachClient() {
 
           <div className="p-3 border-t border-neutral-800 text-[11px] text-neutral-500 flex items-center gap-1.5">
             <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            <span>Powered by <strong>gpt-4o-mini</strong> with 3-key fallback</span>
+            <span>Powered by <strong>Google Gemini Engine</strong></span>
           </div>
         </div>
       </div>
 
+      {/* Backdrop for mobile conversation sidebar */}
+      {sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 bg-black/60 z-30 md:hidden backdrop-blur-xs"
+        />
+      )}
+
       {/* 2. Center Main Chat Panel */}
-      <div className="flex-1 flex flex-col h-full bg-black min-w-0">
+      <div className="flex-1 flex flex-col h-full bg-black min-w-0 overflow-hidden">
         {/* Chat Header */}
-        <div className="h-14 border-b border-neutral-800 bg-neutral-950/80 backdrop-blur-md px-4 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
+        <div className="h-14 border-b border-neutral-800 bg-neutral-950/90 backdrop-blur-md px-3 sm:px-4 flex items-center justify-between gap-2 shrink-0">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             <button
-              onClick={() => setSidebarOpen(true)}
-              className="md:hidden p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-900"
+              onClick={() => setSidebarOpen((prev) => !prev)}
+              className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-900 shrink-0 cursor-pointer"
+              title="Toggle conversations sidebar"
             >
               <Menu className="w-5 h-5" />
             </button>
-            <div>
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="font-semibold text-sm text-white">
+                <h2 className="font-semibold text-xs sm:text-sm text-white truncate max-w-[140px] sm:max-w-xs md:max-w-md">
                   {conversations.find((c) => c.id === activeConvId)?.title || "AI Health & Fitness Coach"}
-                </span>
-                <span className="text-[10px] bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 px-2 py-0.5 rounded-full font-medium hidden sm:inline-block">
-                  Live Grounded
+                </h2>
+                <span className="text-[10px] bg-emerald-950/80 text-emerald-400 border border-emerald-800/40 px-2 py-0.5 rounded-full font-medium shrink-0 hidden sm:inline-flex items-center gap-1">
+                  <Sparkles className="w-2.5 h-2.5" /> Grounded
                 </span>
               </div>
-              <p className="text-[11px] text-neutral-400 hidden sm:block">
+              <p className="text-[11px] text-neutral-400 hidden xl:block truncate">
                 Personalized nutrition, running analysis & workout intelligence
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <button
               onClick={() => setIsWeeklyPlanModalOpen(true)}
-              className="py-1.5 px-2.5 rounded-lg text-xs bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-800/50 flex items-center gap-1.5 transition-colors"
+              className="py-1.5 px-2.5 rounded-lg text-xs bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-800/50 flex items-center gap-1.5 transition-colors cursor-pointer"
               title="View Weekly Health & Fitness Blueprint"
             >
               <Calendar className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="hidden sm:inline font-medium">Weekly Blueprint</span>
+              <span className="hidden lg:inline font-medium">Blueprint</span>
             </button>
 
             <button
               onClick={() => setIsMemoryModalOpen(true)}
-              className="py-1.5 px-2.5 rounded-lg text-xs bg-purple-950/40 hover:bg-purple-900/60 text-purple-300 border border-purple-800/50 flex items-center gap-1.5 transition-colors"
-              title="Manage AI Memories & Saved Constraints"
+              className="py-1.5 px-2.5 rounded-lg text-xs bg-purple-950/40 hover:bg-purple-900/60 text-purple-300 border border-purple-800/50 flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Manage AI Memories & Constraints"
             >
               <Brain className="w-3.5 h-3.5 text-purple-400" />
-              <span className="hidden sm:inline font-medium">Memories</span>
+              <span className="hidden lg:inline font-medium">Memories</span>
             </button>
 
             <button
               onClick={() => setIsSnapshotOpenMobile(true)}
-              className="py-1.5 px-2.5 rounded-lg text-xs bg-sky-950/40 hover:bg-sky-900/60 text-sky-300 border border-sky-800/50 flex items-center gap-1.5 transition-colors lg:hidden"
+              className="py-1.5 px-2.5 rounded-lg text-xs bg-sky-950/40 hover:bg-sky-900/60 text-sky-300 border border-sky-800/50 flex items-center gap-1.5 transition-colors cursor-pointer"
               title="View Live Health Context Snapshot"
             >
               <Activity className="w-3.5 h-3.5 text-sky-400" />
-              <span className="font-medium">Snapshot</span>
+              <span className="hidden md:inline font-medium">Snapshot</span>
             </button>
 
             <button
               onClick={handleNewConversation}
-              className="py-1.5 px-3 rounded-lg text-xs bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-neutral-800 flex items-center gap-1.5 transition-colors"
+              className="py-1.5 px-2.5 sm:px-3 rounded-lg text-xs bg-emerald-500 hover:bg-emerald-400 text-black font-semibold flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer"
+              title="Start New Conversation"
             >
-              <Plus className="w-3.5 h-3.5 text-emerald-400" />
+              <Plus className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">New Chat</span>
             </button>
           </div>
         </div>
 
         {/* Messages Scroll Area */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-4">
           {isInitialLoading ? (
             <div className="flex flex-col items-center justify-center h-64 text-neutral-500 gap-3">
               <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />

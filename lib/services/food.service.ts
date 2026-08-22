@@ -83,11 +83,28 @@ export class FoodService {
   static async createFood(userId: string, data: FoodInput) {
     const valOrNull = (v: any) => (v !== undefined && v !== null ? v : null);
 
+    const validCategories = [
+      "FRUITS",
+      "VEGETABLES",
+      "GRAINS_CEREALS",
+      "PULSES_LEGUMES",
+      "DAIRY",
+      "NUTS_SEEDS",
+      "OILS_FATS",
+      "BEVERAGES",
+      "SNACKS",
+      "SWEETS",
+      "SUPPLEMENTS",
+      "OTHER",
+    ];
+    const categoryStr = String(data.category || "").toUpperCase();
+    const safeCategory = validCategories.includes(categoryStr) ? (categoryStr as any) : "OTHER";
+
     return prisma.food.create({
       data: {
         userId,
         name: data.name,
-        category: data.category || "OTHER",
+        category: safeCategory,
         brand: data.brand || null,
         barcode: data.barcode || null,
         servingSize: data.servingSize,

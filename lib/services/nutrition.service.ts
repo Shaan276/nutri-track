@@ -289,11 +289,18 @@ export class NutritionService {
           }
         }
 
+        const validCategories = [
+          "FRUITS", "VEGETABLES", "GRAINS_CEREALS", "PULSES_LEGUMES", "DAIRY",
+          "NUTS_SEEDS", "OILS_FATS", "BEVERAGES", "SNACKS", "SWEETS", "SUPPLEMENTS", "OTHER"
+        ];
+        const rawCat = String((customFood as any)?.category || "").toUpperCase();
+        const safeCategory = validCategories.includes(rawCat) ? (rawCat as any) : "OTHER";
+
         targetFood = await prisma.food.create({
           data: {
             userId,
             name: customFood.name.trim(),
-            category: ((customFood as any).category as any) || "OTHER",
+            category: safeCategory,
             servingSize: 100,
             servingUnit: "g",
             calories: Math.round(calcCal * 10) / 10,

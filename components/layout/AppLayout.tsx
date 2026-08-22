@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { usePathname } from "next/navigation";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { BottomNavigation } from "./BottomNavigation";
@@ -11,6 +12,8 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
+  const pathname = usePathname();
+  const isAICoach = pathname === "/ai-coach";
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isQuickLogOpen, setIsQuickLogOpen] = useState(false);
 
@@ -43,14 +46,20 @@ export function AppLayout({ children }: AppLayoutProps) {
         </div>
       )}
 
-      {/* Main Full-Width Content Viewport (Independently scrollable with GPU acceleration) */}
+      {/* Main Full-Width Content Viewport */}
       <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden">
         <Header
           onToggleMobileSidebar={() => setIsMobileSidebarOpen((prev) => !prev)}
           onOpenQuickLog={() => setIsQuickLogOpen(true)}
         />
 
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8 w-full max-w-[1600px] mx-auto transform-gpu">
+        <main
+          className={`flex-1 w-full ${
+            isAICoach
+              ? "p-0 pb-16 lg:pb-0 h-[calc(100vh-4rem)] max-w-full overflow-hidden"
+              : "overflow-y-auto p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8 max-w-[1600px] mx-auto"
+          } transform-gpu`}
+        >
           {children}
         </main>
       </div>
