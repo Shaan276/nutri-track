@@ -14,6 +14,7 @@ import {
   Shield,
   ShieldCheck,
   ShieldAlert,
+  Trash2,
 } from "lucide-react";
 
 export default function AdminUsersPage() {
@@ -104,6 +105,27 @@ export default function AdminUsersPage() {
     } catch (err) {
       console.error("Role update error:", err);
       alert("Failed to update user role.");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    if (!confirm(`Are you sure you want to permanently delete user "${userName}"? This cannot be undone.`)) return;
+
+    setActionLoadingId(userId);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete user");
+
+      setUsers((prev) => prev.filter((u) => u.id !== userId));
+      setPagination((prev: any) => ({ ...prev, total: Math.max(0, prev.total - 1) }));
+    } catch (err: any) {
+      console.error("Delete user error:", err);
+      alert(err.message || "Failed to delete user.");
     } finally {
       setActionLoadingId(null);
     }
@@ -321,6 +343,17 @@ export default function AdminUsersPage() {
                           >
                             <ExternalLink className="h-3.5 w-3.5" />
                           </Link>
+
+                          {user.email !== "piyushpilkhwal74@gmail.com" && (
+                            <button
+                              onClick={() => handleDeleteUser(user.id, user.name)}
+                              disabled={isBusy}
+                              className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 transition-all cursor-pointer disabled:opacity-50"
+                              title="Permanently Delete User"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

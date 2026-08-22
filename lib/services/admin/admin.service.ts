@@ -406,4 +406,30 @@ export class AdminService {
 
     return updated;
   }
+
+  /**
+   * Deletes a user account and associated user data.
+   */
+  static async deleteUser(targetUserId: string, adminUserId: string) {
+    if (targetUserId === adminUserId) {
+      throw new Error("You cannot delete your own admin account.");
+    }
+
+    const pool = prisma as any;
+    const user = await pool.user.findUnique({ where: { id: targetUserId } });
+    if (!user) {
+      throw new Error("User not found.");
+    }
+
+    // Cascade delete user data
+    if (typeof pool.mealLog?.deleteMany === "function") await pool.mealLog.deleteMany({ where: { userId: targetUserId } });
+    if (typeof pool.hydrationLog?.deleteMany === "function") await pool.hydrationLog.deleteMany({ where: { userId: targetUserId } });
+    if (typeof pool.activityLog?.deleteMany === "function") await pool.activityLog.deleteMany({ where: { userId: targetUserId } });
+    if (typeof pool.workoutSession?.deleteMany === "function") await pool.workoutSession.deleteMany({ where: { userId: targetUserId } });
+    if (typeof pool.weeklyPlan?.deleteMany === "function") await pool.weeklyPlan.deleteMany({ where: { userId: targetUserId } });
+    if (typeof pool.food?.deleteMany === "function") await pool.food.deleteMany({ where: { userId: targetUserId } });
+
+    await pool.user.delete({ where: { id: targetUserId } });
+    return { success: true, message: `User "${user.name}" (${user.email}) deleted successfully.` };
+  }
 }

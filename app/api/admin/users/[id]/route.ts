@@ -23,3 +23,18 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     return NextResponse.json({ error: error.message || "Failed to fetch user details" }, { status: 500 });
   }
 }
+
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || (session.user as any)?.role !== "ADMIN") {
+      return NextResponse.json({ error: "Unauthorized. Admin privileges required." }, { status: 403 });
+    }
+
+    const result = await AdminService.deleteUser(params.id, session.user.id);
+    return NextResponse.json(result, { status: 200 });
+  } catch (error: any) {
+    console.error("Admin delete user API error:", error);
+    return NextResponse.json({ error: error.message || "Failed to delete user" }, { status: 400 });
+  }
+}
