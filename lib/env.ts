@@ -6,7 +6,11 @@ export const env = {
   NODE_ENV: process.env.NODE_ENV || "development",
   isProduction: process.env.NODE_ENV === "production",
   isDevelopment: process.env.NODE_ENV !== "production",
-  DATABASE_URL: process.env.DATABASE_URL || "",
+  DATABASE_URL:
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.POSTGRES_URL ||
+    "",
   NEXTAUTH_SECRET:
     process.env.NEXTAUTH_SECRET || "development-secret-for-nutritrack-foundation-32chars",
   NEXTAUTH_URL: process.env.NEXTAUTH_URL || "http://localhost:3000",

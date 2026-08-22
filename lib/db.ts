@@ -6966,15 +6966,26 @@ const postgresDbClient = {
  * Automatically connects to production PostgreSQL via PrismaClient when DATABASE_URL is configured.
  * Seamlessly provides local development PostgreSQL emulation when offline / in sandbox mode.
  */
+const effectiveDatabaseUrl =
+  process.env.DATABASE_URL ||
+  process.env.POSTGRES_PRISMA_URL ||
+  process.env.POSTGRES_URL ||
+  process.env.POSTGRES_URL_NON_POOLING ||
+  "";
+
+if (!process.env.DATABASE_URL && effectiveDatabaseUrl) {
+  process.env.DATABASE_URL = effectiveDatabaseUrl;
+}
+
 const isRealPostgresConfigured = Boolean(
   process.env.FORCE_REAL_POSTGRES === "true" ||
-  (process.env.VERCEL === "1" && process.env.DATABASE_URL) ||
-  (process.env.DATABASE_URL &&
-    (process.env.DATABASE_URL.startsWith("postgres://") || process.env.DATABASE_URL.startsWith("postgresql://")) &&
-    !process.env.DATABASE_URL.includes("localhost:5432") &&
-    !process.env.DATABASE_URL.includes("127.0.0.1:5432") &&
-    !process.env.DATABASE_URL.includes("mock") &&
-    !process.env.DATABASE_URL.includes("placeholder"))
+  (process.env.VERCEL === "1" && effectiveDatabaseUrl) ||
+  (effectiveDatabaseUrl &&
+    (effectiveDatabaseUrl.startsWith("postgres://") || effectiveDatabaseUrl.startsWith("postgresql://")) &&
+    !effectiveDatabaseUrl.includes("localhost:5432") &&
+    !effectiveDatabaseUrl.includes("127.0.0.1:5432") &&
+    !effectiveDatabaseUrl.includes("mock") &&
+    !effectiveDatabaseUrl.includes("placeholder"))
 );
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined };
