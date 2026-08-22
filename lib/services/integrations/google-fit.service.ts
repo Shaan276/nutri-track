@@ -3,7 +3,7 @@ import { SystemSettingsService } from "@/lib/services/admin/system-settings.serv
 
 export class GoogleFitService {
   /**
-   * Generates Google OAuth 2.0 Authorization URL with Google Fit / Health Connect scopes
+   * Generates Google OAuth 2.0 Authorization URL with Google Fit / Health Connect & Google Sheets scopes
    */
   static async getAuthorizationUrl(userId: string, redirectUri?: string): Promise<string> {
     const defaultClientId = process.env.GOOGLE_CLIENT_ID || "google_client_id_placeholder";
@@ -32,6 +32,55 @@ export class GoogleFitService {
       `prompt=consent&` +
       `state=${state}`
     );
+  }
+
+  /**
+   * Refreshes an expired Google OAuth access token using the stored refresh token
+   */
+  static async refreshAccessToken(conn: any): Promise<string> {
+    if (!conn.refreshToken || conn.refreshToken.startsWith("mock_")) {
+      return conn.accessToken;
+    }
+
+    try {
+      const defaultClientId = process.env.GOOGLE_CLIENT_ID || "";
+      const defaultClientSecret = process.env.GOOGLE_CLIENT_SECRET || "";
+      const clientId = await SystemSettingsService.getSetting("GOOGLE_CLIENT_ID", defaultClientId);
+      const clientSecret = await SystemSettingsService.getSetting("GOOGLE_CLIENT_SECRET", defaultClientSecret);
+
+      const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          refresh_token: conn.refreshToken,
+          client_id: clientId,
+          client_secret: clientSecret,
+          grant_type: "refresh_token",
+        }),
+        signal: AbortSignal.timeout(6000),
+      });
+
+      if (tokenRes.ok) {
+        const data = await tokenRes.json();
+        const newAccessToken = data.access_token;
+        const expiresAt = new Date(Date.now() + (data.expires_in || 3600) * 1000);
+
+        const pool = prisma as any;
+        await pool.integrationConnection.update({
+          where: { id: conn.id },
+          data: {
+            accessToken: newAccessToken,
+            tokenExpiresAt: expiresAt,
+          },
+        });
+
+        return newAccessToken;
+      }
+    } catch (err: any) {
+      console.warn("Failed to refresh Google access token:", err.message);
+    }
+
+    return conn.accessToken;
   }
 
   /**
@@ -105,7 +154,7 @@ export class GoogleFitService {
         tokenExpiresAt: expiresAt,
         externalUserId,
         externalUsername,
-        scope: "fitness.activity.read,fitness.body.read",
+        scope: "spreadsheets,fitness.activity.read,fitness.body.read",
         status: "CONNECTED",
         lastSyncAt: new Date(),
       },
@@ -115,7 +164,7 @@ export class GoogleFitService {
         tokenExpiresAt: expiresAt,
         externalUserId,
         externalUsername,
-        scope: "fitness.activity.read,fitness.body.read",
+        scope: "spreadsheets,fitness.activity.read,fitness.body.read",
         status: "CONNECTED",
         lastSyncAt: new Date(),
       },
@@ -152,27 +201,33 @@ export class GoogleFitService {
       };
     }
 
+    let token = conn.accessToken;
+    if (conn.tokenExpiresAt && new Date(conn.tokenExpiresAt) < new Date(Date.now() + 60000) && conn.refreshToken) {
+      token = await this.refreshAccessToken(conn);
+    }
+
     let finalSteps = 0;
     let finalCalories = 0;
     let finalDistanceKm = 0;
 
     // 1. If connected with real Google OAuth Access Token, query Google Fitness REST API
-    if (conn.accessToken && !conn.accessToken.startsWith("mock_")) {
+    if (token && !token.startsWith("mock_")) {
       try {
-        const startOfDay = new Date();
-        startOfDay.setHours(0, 0, 0, 0);
-        const startTimeMillis = startOfDay.getTime();
+        // Query the last 48 hours to account for local timezone offsets
+        const startTimeMillis = Date.now() - 48 * 3600 * 1000;
         const endTimeMillis = Date.now();
 
         const fitRes = await fetch("https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${conn.accessToken}`,
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             aggregateBy: [
               { dataTypeName: "com.google.step_count.delta" },
+              { dataSourceId: "derived:com.google.step_count.delta:com.google.android.gms:estimated_steps" },
+              { dataSourceId: "derived:com.google.step_count.delta:com.google.android.gms:merge_step_deltas" },
               { dataTypeName: "com.google.calories.expended" },
               { dataTypeName: "com.google.distance.delta" },
             ],
@@ -185,17 +240,27 @@ export class GoogleFitService {
 
         if (fitRes.ok) {
           const fitData = await fitRes.json();
-          const bucket = fitData.bucket?.[0];
-          if (bucket && bucket.dataset) {
-            for (const ds of bucket.dataset) {
-              const point = ds.point?.[0];
-              if (point && point.value?.[0]) {
-                if (ds.dataSourceId?.includes("step_count")) {
-                  finalSteps = point.value[0].intVal || 0;
-                } else if (ds.dataSourceId?.includes("calories")) {
-                  finalCalories = Math.round(point.value[0].fpVal || 0);
-                } else if (ds.dataSourceId?.includes("distance")) {
-                  finalDistanceKm = Math.round(((point.value[0].fpVal || 0) / 1000) * 100) / 100;
+          const buckets = fitData.bucket || [];
+          for (const bucket of buckets) {
+            if (bucket.dataset) {
+              for (const ds of bucket.dataset) {
+                if (ds.point && ds.point.length > 0) {
+                  for (const pt of ds.point) {
+                    if (pt.value && pt.value.length > 0) {
+                      const val = pt.value[0];
+                      const intV = Number(val.intVal) || 0;
+                      const fpV = Number(val.fpVal) || 0;
+                      const num = intV || Math.round(fpV);
+
+                      if (ds.dataSourceId?.includes("step_count") || ds.dataTypeName?.includes("step_count")) {
+                        finalSteps += num;
+                      } else if (ds.dataSourceId?.includes("calories") || ds.dataTypeName?.includes("calories")) {
+                        finalCalories += num;
+                      } else if (ds.dataSourceId?.includes("distance") || ds.dataTypeName?.includes("distance")) {
+                        finalDistanceKm += Math.round((fpV / 1000) * 100) / 100;
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -206,10 +271,9 @@ export class GoogleFitService {
       }
     }
 
-    // Strictly preserve actual measured values (never fabricate or mock step metrics)
     const todayStr = new Date().toISOString().split("T")[0];
 
-    // 3. Persist into ActivityLog so steps appear in Activities tab and Dashboard
+    // 2. Persist into ActivityLog so steps appear in Activities tab and Dashboard
     try {
       const existingLog = await pool.activityLog.findFirst({
         where: {
