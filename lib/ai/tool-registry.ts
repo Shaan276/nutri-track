@@ -3,6 +3,8 @@ import { HydrationService } from "@/lib/services/hydration.service";
 import { DeepNutritionService } from "@/lib/services/deep-nutrition.service";
 import { ReportService } from "@/lib/services/report.service";
 import { UserSettingsService } from "@/lib/services/user-settings.service";
+import { FoodService } from "@/lib/services/food.service";
+import { ActivityService } from "@/lib/services/activity.service";
 import { prisma } from "@/lib/db";
 
 export interface ToolExecutionContext {
@@ -96,6 +98,173 @@ export class AIToolRegistry {
     const { userId } = context;
 
     switch (toolName) {
+      case "log_meal": {
+        const {
+          foodName,
+          mealType = "LUNCH",
+          calories = 0,
+          protein = 0,
+          carbohydrates = 0,
+          fat = 0,
+          fiber = 0,
+          quantity = 1,
+          quantityUnit = "serving",
+          category = "OTHER",
+          date,
+        } = args;
+
+        const dateStr = date || new Date().toISOString().split("T")[0];
+
+        const logged = await NutritionService.logFoodToMeal(userId, {
+          date: dateStr,
+          mealType: mealType as any,
+          customFood: {
+            name: foodName,
+            calories: Number(calories),
+            protein: Number(protein),
+            carbs: Number(carbohydrates),
+            fat: Number(fat),
+            servingSize: Number(quantity) || 1,
+            servingUnit: quantityUnit || "serving",
+          },
+          quantity: Number(quantity) || 1,
+          quantityUnit: quantityUnit || "serving",
+        });
+
+        const updatedDaily = await NutritionService.getDailyNutrition(userId, dateStr);
+
+        return {
+          success: true,
+          message: `Logged "${foodName}" (${calories} kcal, ${protein}g protein, ${carbohydrates}g carbs, ${fat}g fat) under ${mealType} for ${dateStr}! 🥗✨`,
+          loggedEntry: logged,
+          newDailyTotals: updatedDaily.totals,
+          newRemaining: {
+            calories: Math.max(0, updatedDaily.targets.calories - updatedDaily.totals.calories),
+            protein: Math.max(0, Math.round((updatedDaily.targets.protein - updatedDaily.totals.protein) * 10) / 10),
+            carbs: Math.max(0, Math.round((updatedDaily.targets.carbs - updatedDaily.totals.carbs) * 10) / 10),
+            fat: Math.max(0, Math.round((updatedDaily.targets.fat - updatedDaily.totals.fat) * 10) / 10),
+          },
+        };
+      }
+
+      case "create_recipe_in_database": {
+        const {
+          name,
+          servingSize = 1,
+          servingUnit = "serving",
+          calories = 0,
+          protein = 0,
+          carbohydrates = 0,
+          fat = 0,
+          fiber = 0,
+          category = "RECIPE",
+        } = args;
+
+        const createdFood = await FoodService.createFood(userId, {
+          name,
+          category: category as any,
+          servingSize: Number(servingSize) || 1,
+          servingUnit: servingUnit || "serving",
+          calories: Number(calories),
+          protein: Number(protein),
+          carbohydrates: Number(carbohydrates),
+          fat: Number(fat),
+          fiber: Number(fiber),
+        });
+
+        return {
+          success: true,
+          message: `Saved recipe "${name}" to your Food Database! (${calories} kcal, ${protein}g protein per ${servingSize} ${servingUnit}) 🍳📖`,
+          recipeId: createdFood.id,
+        };
+      }
+
+      case "log_hydration": {
+        const { amountMl, beverageType = "WATER", date, notes } = args;
+        const dateStr = date || new Date().toISOString().split("T")[0];
+
+        const logged = await HydrationService.logHydration(userId, {
+          amountMl: Number(amountMl),
+          beverageType: beverageType as any,
+          date: dateStr,
+          consumedAt: new Date().toISOString(),
+          notes,
+        });
+
+        const hydStatus = await HydrationService.getDailyHydration(userId, dateStr);
+
+        return {
+          success: true,
+          message: `Logged ${amountMl}ml of ${beverageType.toLowerCase()}! 💧 Total today: ${hydStatus.totalMl}ml / ${hydStatus.targetMl}ml (${hydStatus.percentage}%)`,
+          totalIntakeMl: hydStatus.totalMl,
+          targetMl: hydStatus.targetMl,
+          remainingMl: hydStatus.remainingMl,
+          isGoalReached: hydStatus.isGoalReached,
+        };
+      }
+
+      case "log_activity": {
+        const {
+          activityType = "WORKOUT",
+          durationMinutes = 30,
+          caloriesBurned,
+          distanceKm,
+          steps,
+          notes,
+          date,
+        } = args;
+
+        const dateStr = date || new Date().toISOString().split("T")[0];
+        const movingDurationSeconds = Math.round(Number(durationMinutes) * 60);
+
+        const logged = await ActivityService.logActivity(userId, {
+          activityType: activityType as any,
+          date: dateStr,
+          movingDurationSeconds,
+          distanceKm: distanceKm ? Number(distanceKm) : undefined,
+          caloriesBurned: caloriesBurned ? Number(caloriesBurned) : undefined,
+          steps: steps ? Number(steps) : undefined,
+          notes,
+          source: "MANUAL",
+        });
+
+        return {
+          success: true,
+          message: `Logged ${activityType.toLowerCase()} session (${durationMinutes} mins${distanceKm ? `, ${distanceKm} km` : ""}${caloriesBurned ? `, ~${caloriesBurned} kcal burned` : ""})! 🏃‍♂️💪🔥`,
+          activityId: logged.id,
+        };
+      }
+
+      case "update_user_goals": {
+        const { calories, protein, carbohydrates, fat, dailyHydrationTargetMl, dailyStepTarget } = args;
+
+        const updated = await UserSettingsService.updateUserSettings(userId, {
+          nutritionGoals: {
+            ...(calories !== undefined && { calories: Number(calories) }),
+            ...(protein !== undefined && { protein: Number(protein) }),
+            ...(carbohydrates !== undefined && { carbohydrates: Number(carbohydrates) }),
+            ...(fat !== undefined && { fat: Number(fat) }),
+          },
+          profile: {
+            ...(dailyHydrationTargetMl !== undefined && { dailyHydrationTargetMl: Number(dailyHydrationTargetMl) }),
+            ...(dailyStepTarget !== undefined && { dailyStepTarget: Number(dailyStepTarget) }),
+          },
+        });
+
+        return {
+          success: true,
+          message: `Successfully updated your health targets! 🎯`,
+          newGoals: {
+            calories: updated.nutritionGoals.calories,
+            protein: updated.nutritionGoals.protein,
+            carbs: updated.nutritionGoals.carbohydrates,
+            fat: updated.nutritionGoals.fat,
+            dailyHydrationTargetMl: updated.profile.dailyHydrationTargetMl,
+            dailyStepTarget: updated.profile.dailyStepTarget,
+          },
+        };
+      }
+
       case "get_today_nutrition": {
         const dateStr = args.date || new Date().toISOString().split("T")[0];
         const daily = await NutritionService.getDailyNutrition(userId, dateStr);

@@ -16,32 +16,26 @@ export const AI_MODEL_CONFIG: ModelConfig = {
   contextMessageLimit: 12,
 };
 
-export const AI_COACH_SYSTEM_PROMPT = `You are the Nutri-Track AI Coach, an intelligent, evidence-grounded, empathetic personal nutrition and fitness intelligence partner.
+export const AI_COACH_SYSTEM_PROMPT = `You are the Nutri-Track AI Coach — an empathetic, warm, deeply knowledgeable personal nutrition, health, and fitness partner! 🌟
 
-CORE PRINCIPLES & BEHAVIOR:
-1. GROUNDED IN REAL DATA:
-   - Base your nutrition, hydration, and workout analysis strictly on the user's authenticated Nutri-Track data provided in the live context or retrieved via tools.
-   - Do NOT invent or hallucinate metrics, meal logs, or personal records.
+HOW TO TALK AND INTERACT:
+1. WARM, HUMAN, & EMPATHETIC:
+   - Talk like a supportive, uplifting personal coach and friend who genuinely cares about the user's health journey! 🤗✨
+   - Always use lively, relevant emojis to make conversations engaging and friendly (e.g., 🥗, 🥑, 🏃‍♂️, 💪, 💧, 🌟, 👏, 🎯, ✨, 🔥, 🍳).
+   - Celebrate achievements, validate efforts, and show compassionate understanding when life gets busy. Never be cold, clinical, or robotic.
 
-2. MISSING DATA IS NOT FAILURE (CRITICAL RULE):
-   - If the user has not logged meals, hydration, or activities today, treat it as a NEUTRAL state (e.g., "You haven't logged any meals yet today, so your intake is currently at 0g towards your [Target]g protein goal").
-   - NEVER make negative judgments like "Your protein intake is poor" or "You failed your calorie target" when data is simply unrecorded.
+2. FULL READ & WRITE CAPABILITY ACROSS THE ENTIRE APP:
+   - You have direct tools to access and edit data in the user's Nutri-Track account!
+   - When a user shares a meal, recipe, snack, water intake, run, or workout, YOU CAN LOG IT IMMEDIATELY using your tools!
+   - If they tell you: "Log 2 eggs and toast for breakfast" or "I just drank 500ml water" or "Save this protein smoothie recipe" -> Execute the tool (log_meal, log_hydration, create_recipe_in_database, log_activity) and confirm happily with exact macros! 🍳🥗💪
 
-3. DISTINGUISH FACTS VS CALCULATIONS VS ESTIMATES:
-   - Recorded Fact: "You have logged 72g of protein today."
-   - Exact Calculation: "You have 48g of protein remaining to reach your 120g target (120g - 72g = 48g)."
-   - Estimate: "A 45-minute moderate run for your body weight is estimated to burn approximately 380–440 kcal." Always clearly label calorie expenditures as ESTIMATES.
+3. GROUNDED IN REAL DATA & NO NEGATIVE JUDGMENTS:
+   - Ground insights in the user's real Nutri-Track numbers.
+   - If meals/water aren't logged yet today, treat it as a neutral, fresh start (e.g. "You haven't logged any meals yet today — let's fuel up with something delicious! 🥑✨").
 
-4. GOAL MODIFICATIONS REQUIRE EXPLICIT CONFIRMATION:
-   - When the user asks to change a calorie, macro, hydration, step, running, or workout goal, use the propose_goal_update tool.
-   - Explain the physiological rationale and ask the user to confirm before any changes are saved to the database. NEVER silently change targets.
-
-5. HEALTH SAFETY & ETHICAL BOUNDARIES:
-   - Provide practical wellness, nutrition, and exercise science guidance.
-   - Do not diagnose medical conditions or prescribe medical treatments. Recommend consulting a healthcare professional for clinical or injury concerns.
-
-6. TONE & STYLE:
-   - Direct, motivating, actionable, and formatted cleanly with markdown bullet points and bold highlights.
+4. STRUCTURE & FORMATTING:
+   - Use clean, readable markdown with bold text and bullet points.
+   - Summarize calories and macros clearly (e.g., **Calories: 380 kcal** | **Protein: 25g** | **Carbs: 40g** | **Fat: 12g**).
 `;
 
 export interface ToolDefinition {
@@ -58,6 +52,199 @@ export interface ToolDefinition {
 }
 
 export const AI_COACH_TOOLS: ToolDefinition[] = [
+  {
+    type: "function",
+    function: {
+      name: "log_meal",
+      description: "Logs a food item, meal, or custom recipe directly into the user's Nutri-Track food journal for Breakfast, Lunch, Dinner, or Snack.",
+      parameters: {
+        type: "object",
+        properties: {
+          foodName: {
+            type: "string",
+            description: "Name of the food or recipe (e.g. 'Avocado Toast with 2 Poached Eggs', 'Paneer Butter Masala with 2 Rotis').",
+          },
+          mealType: {
+            type: "string",
+            enum: ["BREAKFAST", "LUNCH", "DINNER", "SNACK"],
+            description: "Which meal section to log this under.",
+          },
+          calories: {
+            type: "number",
+            description: "Estimated or exact total calories (kcal) for this meal.",
+          },
+          protein: {
+            type: "number",
+            description: "Protein in grams.",
+          },
+          carbohydrates: {
+            type: "number",
+            description: "Carbohydrates in grams (optional, default: 0).",
+          },
+          fat: {
+            type: "number",
+            description: "Fat in grams (optional, default: 0).",
+          },
+          fiber: {
+            type: "number",
+            description: "Dietary fiber in grams (optional, default: 0).",
+          },
+          quantity: {
+            type: "number",
+            description: "Serving quantity (default: 1).",
+          },
+          quantityUnit: {
+            type: "string",
+            description: "Unit of measurement (e.g. 'serving', 'bowl', 'plate', 'g').",
+          },
+          date: {
+            type: "string",
+            description: "Optional ISO date (YYYY-MM-DD). Defaults to today.",
+          },
+        },
+        required: ["foodName", "mealType", "calories", "protein"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_recipe_in_database",
+      description: "Saves a new custom recipe or food item into the user's permanent Food Database for future reuse and search.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: {
+            type: "string",
+            description: "Name of the recipe or food item.",
+          },
+          servingSize: {
+            type: "number",
+            description: "Reference serving size quantity (default: 1).",
+          },
+          servingUnit: {
+            type: "string",
+            description: "Serving unit (e.g. 'serving', 'bowl', 'portion', 'g').",
+          },
+          calories: {
+            type: "number",
+            description: "Calories per serving.",
+          },
+          protein: {
+            type: "number",
+            description: "Protein (g) per serving.",
+          },
+          carbohydrates: {
+            type: "number",
+            description: "Carbohydrates (g) per serving.",
+          },
+          fat: {
+            type: "number",
+            description: "Fat (g) per serving.",
+          },
+          fiber: {
+            type: "number",
+            description: "Fiber (g) per serving.",
+          },
+          category: {
+            type: "string",
+            description: "Category (e.g. 'RECIPE', 'SNACKS', 'BREAKFAST', 'MEALS').",
+          },
+        },
+        required: ["name", "calories", "protein"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "log_hydration",
+      description: "Logs a water or beverage intake entry directly into the user's daily hydration tracker.",
+      parameters: {
+        type: "object",
+        properties: {
+          amountMl: {
+            type: "number",
+            description: "Amount in milliliters (e.g. 250, 500, 750, 1000).",
+          },
+          beverageType: {
+            type: "string",
+            enum: ["WATER", "COFFEE", "TEA", "JUICE", "ELECTROLYTE", "SMOOTHIE", "MILK", "OTHER"],
+            description: "Type of beverage (default: 'WATER').",
+          },
+          date: {
+            type: "string",
+            description: "Optional ISO date (YYYY-MM-DD). Defaults to today.",
+          },
+          notes: {
+            type: "string",
+            description: "Optional notes about the drink.",
+          },
+        },
+        required: ["amountMl"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "log_activity",
+      description: "Logs a run, walk, workout, cycling, or fitness activity into the user's activity tracker.",
+      parameters: {
+        type: "object",
+        properties: {
+          activityType: {
+            type: "string",
+            enum: ["RUNNING", "WALKING", "CYCLING", "WORKOUT", "SWIMMING", "YOGA", "HIIT", "OTHER"],
+            description: "Type of activity.",
+          },
+          durationMinutes: {
+            type: "number",
+            description: "Duration of the session in minutes.",
+          },
+          caloriesBurned: {
+            type: "number",
+            description: "Estimated or measured calories burned.",
+          },
+          distanceKm: {
+            type: "number",
+            description: "Distance in kilometers (for running, walking, cycling).",
+          },
+          steps: {
+            type: "number",
+            description: "Step count (optional).",
+          },
+          notes: {
+            type: "string",
+            description: "Notes or description of the workout.",
+          },
+          date: {
+            type: "string",
+            description: "Optional ISO date (YYYY-MM-DD). Defaults to today.",
+          },
+        },
+        required: ["activityType", "durationMinutes"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_user_goals",
+      description: "Directly updates the user's active health targets (daily calories, protein, carbs, fat, hydration, daily steps).",
+      parameters: {
+        type: "object",
+        properties: {
+          calories: { type: "number", description: "Daily calorie target in kcal." },
+          protein: { type: "number", description: "Daily protein target in grams." },
+          carbohydrates: { type: "number", description: "Daily carbs target in grams." },
+          fat: { type: "number", description: "Daily fat target in grams." },
+          dailyHydrationTargetMl: { type: "number", description: "Daily hydration goal in ml." },
+          dailyStepTarget: { type: "number", description: "Daily step target count." },
+        },
+      },
+    },
+  },
   {
     type: "function",
     function: {
