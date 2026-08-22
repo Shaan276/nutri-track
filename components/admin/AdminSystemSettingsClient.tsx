@@ -256,16 +256,16 @@ export function AdminSystemSettingsClient({ initialSettings }: AdminSystemSettin
             )}
           </div>
 
-          {/* Top 3 AI Models Recommendation */}
+          {/* Top 3 OpenAI ChatGPT Models Recommendation */}
           <div className="p-6 rounded-2xl bg-background-surface border border-border-subtle space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-sm font-bold uppercase tracking-wider text-foreground-secondary flex items-center gap-2">
                   <Bot className="w-4 h-4 text-brand-400" />
-                  Top 3 Recommended AI Models for Nutri-Track
+                  Top 3 OpenAI ChatGPT Models for Nutri-Track
                 </h2>
                 <p className="text-xs text-foreground-muted mt-0.5">
-                  Select the AI engine that best matches your speed, reasoning, and cost requirements.
+                  Choose from OpenAI&apos;s fastest, flagship, or next-generation GPT-5.x reasoning engines.
                 </p>
               </div>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-400 font-bold border border-brand-500/30">
@@ -291,11 +291,11 @@ export function AdminSystemSettingsClient({ initialSettings }: AdminSystemSettin
                     </span>
                   </div>
                   <p className="text-[11px] text-foreground-secondary">
-                    Best for real-time chat, instant Indian dish deconstruction, and daily macro calculations.
+                    Best for real-time daily chat, instant Indian dish ingredient extraction, and fast macro calculations.
                   </p>
                 </div>
                 <div className="pt-2 border-t border-border-subtle/60 flex items-center justify-between text-[10px] text-foreground-muted">
-                  <span>Latency: ~400ms</span>
+                  <span>Latency: ~350ms</span>
                   <span className="font-bold text-brand-400">Default & Economical</span>
                 </div>
               </div>
@@ -313,42 +313,42 @@ export function AdminSystemSettingsClient({ initialSettings }: AdminSystemSettin
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-black text-foreground-primary">2. GPT-4o Flagship</span>
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300">
-                      🧠 Deep Logic
+                      🌟 Omni Intelligence
                     </span>
                   </div>
                   <p className="text-[11px] text-foreground-secondary">
-                    Best for complex workout periodization, progressive overload plans, and metabolic audits.
+                    Balanced flagship model for interactive health coaching, adaptive goal suggestions, and recipe generation.
                   </p>
                 </div>
                 <div className="pt-2 border-t border-border-subtle/60 flex items-center justify-between text-[10px] text-foreground-muted">
-                  <span>Latency: ~850ms</span>
-                  <span className="font-bold text-purple-400">High Intelligence</span>
+                  <span>Latency: ~800ms</span>
+                  <span className="font-bold text-purple-400">High Versatility</span>
                 </div>
               </div>
 
-              {/* Option 3: Claude 3.5 Sonnet / Gemini */}
+              {/* Option 3: GPT-5.x / Next-Gen Reasoning */}
               <div
-                onClick={() => handleInputChange("AI_MODEL", "claude-3-5-sonnet")}
+                onClick={() => handleInputChange("AI_MODEL", "gpt-5-preview")}
                 className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-3 ${
-                  settings.AI_MODEL === "claude-3-5-sonnet"
+                  settings.AI_MODEL === "gpt-5-preview" || settings.AI_MODEL === "gpt-5" || settings.AI_MODEL === "o3-mini" || settings.AI_MODEL === "o1"
                     ? "bg-brand-500/10 border-brand-500 shadow-md shadow-brand-500/10"
                     : "bg-background-elevated border-border-subtle hover:border-border-default"
                 }`}
               >
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-black text-foreground-primary">3. Claude 3.5 Sonnet</span>
+                    <span className="text-xs font-black text-foreground-primary">3. GPT-5.x / o3 Reasoning</span>
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300">
-                      📜 Long Context
+                      🧠 Peak Reasoning
                     </span>
                   </div>
                   <p className="text-[11px] text-foreground-secondary">
-                    Best for analyzing 30-day longitudinal health histories and writing comprehensive meal guides.
+                    Next-generation STEM reasoning for multi-week athletic periodization, metabolic diagnostics, and complex health plans.
                   </p>
                 </div>
                 <div className="pt-2 border-t border-border-subtle/60 flex items-center justify-between text-[10px] text-foreground-muted">
-                  <span>Latency: ~750ms</span>
-                  <span className="font-bold text-amber-400">Detailed Explanations</span>
+                  <span>Next-Gen Model</span>
+                  <span className="font-bold text-amber-400">Maximum Intelligence</span>
                 </div>
               </div>
             </div>
@@ -372,8 +372,10 @@ export function AdminSystemSettingsClient({ initialSettings }: AdminSystemSettin
                   className="w-full px-3.5 py-2.5 rounded-xl bg-background-elevated border border-border-subtle text-foreground-primary text-xs focus:outline-none focus:border-brand-500"
                 >
                   <option value="gpt-4o-mini">gpt-4o-mini (Recommended - Ultra Fast & Cost Efficient)</option>
-                  <option value="gpt-4o">gpt-4o (High Intelligence & Vision)</option>
-                  <option value="claude-3-5-sonnet">claude-3-5-sonnet (Via Proxy)</option>
+                  <option value="gpt-4o">gpt-4o (Omni Flagship Intelligence)</option>
+                  <option value="gpt-5-preview">gpt-5-preview / gpt-5 (Next-Gen GPT-5 Intelligence)</option>
+                  <option value="o3-mini">o3-mini (Next-Gen High-Speed Reasoning)</option>
+                  <option value="o1">o1 (Deep Scientific Reasoning)</option>
                   <option value="gpt-4-turbo">gpt-4-turbo (Legacy)</option>
                 </select>
                 <p className="text-[11px] text-foreground-muted">
@@ -390,9 +392,11 @@ export function AdminSystemSettingsClient({ initialSettings }: AdminSystemSettin
                   onChange={(e) => handleInputChange("AI_REASONING_MODEL", e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-background-elevated border border-border-subtle text-foreground-primary text-xs focus:outline-none focus:border-brand-500"
                 >
+                  <option value="gpt-5-preview">gpt-5-preview (Next-Gen GPT-5 Reasoning)</option>
+                  <option value="o3-mini">o3-mini (Next-Gen Fast Reasoning)</option>
                   <option value="gpt-4o">gpt-4o (Recommended for Weekly Blueprints)</option>
+                  <option value="o1">o1 (Full Reasoning)</option>
                   <option value="gpt-4o-mini">gpt-4o-mini</option>
-                  <option value="claude-3-5-sonnet">claude-3-5-sonnet</option>
                 </select>
                 <p className="text-[11px] text-foreground-muted">
                   Used for synthesizing 7-day training schedules and complex nutritional retrospectives.
