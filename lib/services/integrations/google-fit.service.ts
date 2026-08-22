@@ -45,10 +45,6 @@ export class GoogleFitService {
       "https://www.googleapis.com/auth/spreadsheets",
       "https://www.googleapis.com/auth/fitness.activity.read",
       "https://www.googleapis.com/auth/fitness.body.read",
-      "https://www.googleapis.com/auth/fitness.location.read",
-      "https://www.googleapis.com/auth/fitness.nutrition.read",
-      "https://www.googleapis.com/auth/fitness.sleep.read",
-      "https://www.googleapis.com/auth/fitness.heart_rate.read",
       "https://www.googleapis.com/auth/userinfo.profile",
       "https://www.googleapis.com/auth/userinfo.email",
     ].join(" ");
@@ -63,6 +59,7 @@ export class GoogleFitService {
       `scope=${encodeURIComponent(scopes)}&` +
       `access_type=offline&` +
       `prompt=consent&` +
+      `include_granted_scopes=true&` +
       `state=${state}`
     );
   }
