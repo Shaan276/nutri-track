@@ -316,4 +316,81 @@ export class ChallengeService {
     });
     return true;
   }
+
+  /**
+   * Admin: Create and publish a new challenge
+   */
+  static async createChallenge(data: {
+    title: string;
+    description: string;
+    category: string;
+    targetValue: number;
+    unit: string;
+    durationDays: number;
+    badgeIcon?: string;
+    isPublic?: boolean;
+  }) {
+    const pool = prisma as any;
+    const code = `CHALLENGE_${Date.now()}_${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    const id = code;
+
+    const challenge = await pool.challenge.create({
+      data: {
+        id,
+        code,
+        title: data.title.trim(),
+        description: data.description.trim(),
+        category: data.category,
+        targetValue: Number(data.targetValue),
+        unit: data.unit.trim(),
+        durationDays: Number(data.durationDays || 30),
+        badgeIcon: data.badgeIcon || "Trophy",
+        isSystem: false,
+        isPublic: data.isPublic !== false,
+      },
+    });
+
+    return challenge;
+  }
+
+  /**
+   * Admin: List all challenges with participant statistics
+   */
+  static async getAdminChallenges() {
+    await this.seedChallenges();
+    const pool = prisma as any;
+    const challenges = await pool.challenge.findMany({
+      include: { participants: true },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return challenges.map((ch: any) => ({
+      id: ch.id,
+      code: ch.code,
+      title: ch.title,
+      description: ch.description,
+      category: ch.category,
+      targetValue: ch.targetValue,
+      unit: ch.unit,
+      durationDays: ch.durationDays,
+      badgeIcon: ch.badgeIcon,
+      isSystem: ch.isSystem,
+      isPublic: ch.isPublic,
+      participantsCount: (ch.participants || []).filter((p: any) => p.status !== "ABANDONED").length,
+      completionsCount: (ch.participants || []).filter((p: any) => p.status === "COMPLETED").length,
+      createdAt: ch.createdAt,
+    }));
+  }
+
+  /**
+   * Admin: Delete a challenge
+   */
+  static async deleteChallenge(challengeId: string) {
+    const pool = prisma as any;
+    if (typeof pool.challengeParticipant?.deleteMany === "function") {
+      await pool.challengeParticipant.deleteMany({ where: { challengeId } });
+    }
+    await pool.challenge.delete({ where: { id: challengeId } });
+    return { success: true };
+  }
 }

@@ -12,6 +12,7 @@ import {
   ArrowLeft,
   LayoutDashboard,
   Sliders,
+  Trophy,
 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -74,6 +75,14 @@ export default async function AdminLayout({
             >
               <UserCheck className="h-4 w-4" />
               <span className="hidden md:inline">Pre-Approvals</span>
+            </Link>
+
+            <Link
+              href="/admin/challenges"
+              className="px-3 py-1.5 rounded-xl text-xs font-bold text-foreground-secondary hover:text-foreground-primary hover:bg-background-elevated transition-colors flex items-center gap-1.5"
+            >
+              <Trophy className="h-4 w-4 text-amber-400" />
+              <span>Challenges</span>
             </Link>
 
             <Link
