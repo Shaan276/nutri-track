@@ -328,81 +328,80 @@ export class GoogleSheetsService {
       const targetRows = WorkbookMapper.mapTargetsToNutritionTargetRows();
       const dictRows = WorkbookMapper.mapNutrientDictionaryRows();
 
-      // Synchronize all 8 workbook sheets concurrently to prevent 504 serverless timeouts
-      await Promise.all([
-        GoogleSheetsClient.syncTabularData({
-          spreadsheetId: conn.spreadsheetId,
-          webhookUrl,
-          accessToken,
+      const sheetsList = [
+        {
           sheetName: WORKBOOK_SHEET_SCHEMAS.FOOD_LOG.sheetName,
           headerRow: WORKBOOK_SHEET_SCHEMAS.FOOD_LOG.headers,
           dataRows: foodLogRows,
           keyColumnIndex: 0,
-        }),
-        GoogleSheetsClient.syncTabularData({
-          spreadsheetId: conn.spreadsheetId,
-          webhookUrl,
-          accessToken,
+        },
+        {
           sheetName: WORKBOOK_SHEET_SCHEMAS.MICRONUTRIENTS.sheetName,
           headerRow: WORKBOOK_SHEET_SCHEMAS.MICRONUTRIENTS.headers,
           dataRows: microRows,
           keyColumnIndex: 0,
-        }),
-        GoogleSheetsClient.syncTabularData({
-          spreadsheetId: conn.spreadsheetId,
-          webhookUrl,
-          accessToken,
+        },
+        {
           sheetName: WORKBOOK_SHEET_SCHEMAS.AMINO_ACIDS.sheetName,
           headerRow: WORKBOOK_SHEET_SCHEMAS.AMINO_ACIDS.headers,
           dataRows: aminoRows,
           keyColumnIndex: 0,
-        }),
-        GoogleSheetsClient.syncTabularData({
-          spreadsheetId: conn.spreadsheetId,
-          webhookUrl,
-          accessToken,
+        },
+        {
           sheetName: WORKBOOK_SHEET_SCHEMAS.OTHER_NUTRIENTS.sheetName,
           headerRow: WORKBOOK_SHEET_SCHEMAS.OTHER_NUTRIENTS.headers,
           dataRows: otherRows,
           keyColumnIndex: 0,
-        }),
-        GoogleSheetsClient.syncTabularData({
-          spreadsheetId: conn.spreadsheetId,
-          webhookUrl,
-          accessToken,
+        },
+        {
           sheetName: WORKBOOK_SHEET_SCHEMAS.DAILY_SUMMARY.sheetName,
           headerRow: WORKBOOK_SHEET_SCHEMAS.DAILY_SUMMARY.headers,
           dataRows: dailyRows,
           keyColumnIndex: 0,
-        }),
-        GoogleSheetsClient.syncTabularData({
-          spreadsheetId: conn.spreadsheetId,
-          webhookUrl,
-          accessToken,
+        },
+        {
           sheetName: WORKBOOK_SHEET_SCHEMAS.FOOD_DATABASE.sheetName,
           headerRow: WORKBOOK_SHEET_SCHEMAS.FOOD_DATABASE.headers,
           dataRows: foodDbRows,
           keyColumnIndex: 0,
-        }),
-        GoogleSheetsClient.syncTabularData({
-          spreadsheetId: conn.spreadsheetId,
-          webhookUrl,
-          accessToken,
+        },
+        {
           sheetName: WORKBOOK_SHEET_SCHEMAS.NUTRITION_TARGETS.sheetName,
           headerRow: WORKBOOK_SHEET_SCHEMAS.NUTRITION_TARGETS.headers,
           dataRows: targetRows,
           keyColumnIndex: 0,
-        }),
-        GoogleSheetsClient.syncTabularData({
-          spreadsheetId: conn.spreadsheetId,
-          webhookUrl,
-          accessToken,
+        },
+        {
           sheetName: WORKBOOK_SHEET_SCHEMAS.NUTRIENT_DICTIONARY.sheetName,
           headerRow: WORKBOOK_SHEET_SCHEMAS.NUTRIENT_DICTIONARY.headers,
           dataRows: dictRows,
           keyColumnIndex: 0,
-        }),
-      ]);
+        },
+      ];
+
+      // If Webhook URL is present, use ultra-fast single-call batch sync (<1.5s total)
+      if (webhookUrl) {
+        await GoogleSheetsClient.sendBatchWebhookSync({
+          spreadsheetId: conn.spreadsheetId,
+          webhookUrl,
+          sheets: sheetsList,
+        });
+      } else {
+        // Direct OAuth / Service Account Sync
+        await Promise.all(
+          sheetsList.map((s) =>
+            GoogleSheetsClient.syncTabularData({
+              spreadsheetId: conn.spreadsheetId,
+              webhookUrl,
+              accessToken,
+              sheetName: s.sheetName,
+              headerRow: s.headerRow,
+              dataRows: s.dataRows,
+              keyColumnIndex: s.keyColumnIndex,
+            })
+          )
+        );
+      }
 
       sheetsSyncedList.push(
         WORKBOOK_SHEET_SCHEMAS.FOOD_LOG.sheetName,

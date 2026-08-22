@@ -21,52 +21,62 @@ export const DEFAULT_NUTRITION_TEMPLATE_URL =
  * Standard copy-pasteable Google Apps Script for the user's spreadsheet (Option 1)
  */
 export const GOOGLE_APPS_SCRIPT_TEMPLATE = `/**
- * Nutri-Track Smart Sync Webhook Handler (Google Apps Script)
- * Paste this into Extensions -> Apps Script in your copied Google Sheet.
- * Then click Deploy -> New deployment -> Web app (Access: Anyone).
+ * Nutri-Track Smart Multi-Sheet Sync Webhook Handler (Google Apps Script)
+ * Paste this into Extensions -> Apps Script in your Google Sheet.
+ * Then click Deploy -> New deployment -> Web app (Execute as: Me, Access: Anyone).
  */
+function doGet(e) {
+  return ContentService.createTextOutput("Nutri-Track Webhook Active")
+    .setMimeType(ContentService.MimeType.TEXT);
+}
+
 function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var sheetName = data.sheetName || "Daily Summary";
-    var sheet = ss.getSheetByName(sheetName);
+    var sheetsList = data.sheets || [data];
+    var totalProcessed = 0;
 
-    if (!sheet) {
-      sheet = ss.insertSheet(sheetName);
-      if (data.headerRow && data.headerRow.length > 0) {
-        sheet.appendRow(data.headerRow);
+    for (var s = 0; s < sheetsList.length; s++) {
+      var item = sheetsList[s];
+      var sheetName = item.sheetName || "Daily Summary";
+      var sheet = ss.getSheetByName(sheetName);
+
+      if (!sheet) {
+        sheet = ss.insertSheet(sheetName);
+        if (item.headerRow && item.headerRow.length > 0) {
+          sheet.appendRow(item.headerRow);
+        }
       }
-    }
 
-    var rows = data.dataRows || [];
-    var keyIndex = data.keyColumnIndex !== undefined ? data.keyColumnIndex : 0;
-
-    // Read existing keys to update in place and prevent duplicate rows
-    var lastRow = sheet.getLastRow();
-    var existingKeys = {};
-    if (lastRow > 1) {
-      var keyValues = sheet.getRange(2, keyIndex + 1, lastRow - 1, 1).getValues();
-      for (var i = 0; i < keyValues.length; i++) {
-        var k = String(keyValues[i][0]);
-        if (k) existingKeys[k] = i + 2; // 1-indexed row number
+      var rows = item.dataRows || [];
+      var keyIndex = item.keyColumnIndex !== undefined ? item.keyColumnIndex : 0;
+      var lastRow = sheet.getLastRow();
+      var existingKeys = {};
+      if (lastRow > 1) {
+        var keyValues = sheet.getRange(2, keyIndex + 1, lastRow - 1, 1).getValues();
+        for (var i = 0; i < keyValues.length; i++) {
+          var k = String(keyValues[i][0]);
+          if (k) existingKeys[k] = i + 2;
+        }
       }
-    }
 
-    for (var r = 0; r < rows.length; r++) {
-      var row = rows[r];
-      var rowKey = String(row[keyIndex] || "");
-      if (rowKey && existingKeys[rowKey]) {
-        sheet.getRange(existingKeys[rowKey], 1, 1, row.length).setValues([row]);
-      } else {
-        sheet.appendRow(row);
+      for (var r = 0; r < rows.length; r++) {
+        var row = rows[r];
+        var rowKey = String(row[keyIndex] || "");
+        if (rowKey && existingKeys[rowKey]) {
+          sheet.getRange(existingKeys[rowKey], 1, 1, row.length).setValues([row]);
+        } else {
+          sheet.appendRow(row);
+        }
+        totalProcessed++;
       }
     }
 
     return ContentService.createTextOutput(JSON.stringify({
       status: "success",
-      sheetName: sheetName,
-      rowsProcessed: rows.length
+      sheetsProcessed: sheetsList.length,
+      rowsProcessed: totalProcessed
     })).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({

@@ -27,6 +27,20 @@ export interface SheetSyncPayload {
   keyColumnIndex?: number; // Deterministic row identifier (e.g., Entry ID or Date)
 }
 
+export interface MultiSheetItem {
+  sheetName: string;
+  headerRow: string[];
+  dataRows: (string | number | boolean | null)[][];
+  keyColumnIndex?: number;
+}
+
+export interface BatchSheetSyncPayload {
+  spreadsheetId: string;
+  webhookUrl?: string;
+  accessToken?: string;
+  sheets: MultiSheetItem[];
+}
+
 export class GoogleSheetsClient {
   /**
    * Reads credentials from server-side environment variables safely
@@ -50,8 +64,73 @@ export class GoogleSheetsClient {
   }
 
   /**
+   * High-Performance Single-Call Multi-Sheet Batch Sync
+   * Sends all 8 sheets in a SINGLE HTTP request to avoid Google Apps Script concurrency locking!
+   */
+  public static async sendBatchWebhookSync(payload: BatchSheetSyncPayload): Promise<{
+    success: boolean;
+    sheetsProcessed: number;
+    rowsProcessed: number;
+    message: string;
+  }> {
+    const { webhookUrl, sheets } = payload;
+
+    if (!webhookUrl) {
+      throw new Error("Invalid or missing Google Apps Script Webhook URL.");
+    }
+
+    try {
+      const bodyPayload = JSON.stringify({
+        sheets: sheets.map((s) => ({
+          sheetName: s.sheetName,
+          headerRow: s.headerRow,
+          dataRows: s.dataRows,
+          keyColumnIndex: s.keyColumnIndex !== undefined ? s.keyColumnIndex : 0,
+        })),
+      });
+
+      const response = await fetch(webhookUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/plain;charset=utf-8",
+        },
+        body: bodyPayload,
+        redirect: "follow",
+        signal: AbortSignal.timeout(30000),
+      });
+
+      const responseText = await response.text();
+      let parsedResponse: any = {};
+      try {
+        parsedResponse = JSON.parse(responseText);
+      } catch {
+        parsedResponse = { status: response.ok ? "success" : "error", raw: responseText };
+      }
+
+      const isSuccess = response.ok && parsedResponse.status !== "error";
+      const totalRows = sheets.reduce((acc, s) => acc + s.dataRows.length, 0);
+
+      return {
+        success: isSuccess,
+        sheetsProcessed: sheets.length,
+        rowsProcessed: totalRows,
+        message: isSuccess
+          ? `[Live Apps Script Batch Sync] Successfully synchronized all ${sheets.length} sheets (${totalRows} total rows) to your Google Sheet.`
+          : `[Apps Script Notice] Script returned: ${parsedResponse.message || "Unknown response"}.`,
+      };
+    } catch (err: any) {
+      console.warn("[Batch Webhook Sync] Notice:", err.message);
+      return {
+        success: false,
+        sheetsProcessed: 0,
+        rowsProcessed: 0,
+        message: `Failed to execute batch sync to Google Sheets: ${err.message}`,
+      };
+    }
+  }
+
+  /**
    * Option 1: Transmits multi-sheet data directly to user's deployed Google Apps Script Webhook
-   * (Zero Google Cloud Console setup required!)
    */
   public static async sendWebhookSync(payload: SheetSyncPayload): Promise<SheetAppendResult> {
     const { webhookUrl, sheetName, headerRow, dataRows, keyColumnIndex } = payload;
@@ -68,7 +147,6 @@ export class GoogleSheetsClient {
         keyColumnIndex: keyColumnIndex !== undefined ? keyColumnIndex : 0,
       });
 
-      // Post to Apps Script web app endpoint with redirect following and 20-second timeout for Google Cloud cold start
       const response = await fetch(webhookUrl, {
         method: "POST",
         headers: {
@@ -122,7 +200,6 @@ export class GoogleSheetsClient {
 
   /**
    * Option 2 (1-Click Customer Zero Manual Work): Direct Google Sheets API v4
-   * Uses the user's OAuth access token to write directly into their spreadsheet tabs!
    */
   public static async sendOAuthDirectSync(payload: SheetSyncPayload): Promise<SheetAppendResult> {
     const { spreadsheetId, accessToken, sheetName, headerRow, dataRows } = payload;
@@ -132,7 +209,6 @@ export class GoogleSheetsClient {
     }
 
     try {
-      // 1. Prepare values: [headerRow, ...dataRows]
       const values = [headerRow, ...dataRows];
       const range = `'${sheetName}'!A1`;
 
@@ -197,12 +273,10 @@ export class GoogleSheetsClient {
   public static async syncTabularData(payload: SheetSyncPayload): Promise<SheetAppendResult> {
     const { spreadsheetId, webhookUrl, accessToken, sheetName, dataRows } = payload;
 
-    // 1. If Webhook URL is provided (Apps Script Webhook), use Webhook synchronization
     if (webhookUrl && webhookUrl.includes("script.google.com")) {
       return this.sendWebhookSync(payload);
     }
 
-    // 2. If OAuth Access Token is available (Customer Zero-Setup 1-Click), write directly via API v4
     if (accessToken && !accessToken.startsWith("mock_")) {
       return this.sendOAuthDirectSync(payload);
     }
@@ -213,7 +287,6 @@ export class GoogleSheetsClient {
 
     const hasCreds = this.hasConfiguredCredentials();
 
-    // 3. If Service Account credentials are not configured, return verified architectural simulation
     if (!hasCreds) {
       return {
         success: true,
@@ -229,7 +302,6 @@ export class GoogleSheetsClient {
       };
     }
 
-    // 4. Service Account Direct Sync
     return {
       success: true,
       rowsAppended: dataRows.length,
