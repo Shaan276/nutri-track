@@ -1,0 +1,1075 @@
+// Nutri-Track — Prisma Schema
+// Prompt 8: Activity Refinement, Running Types & Workout Tracking Foundation
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum AccountStatus {
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+/// User model storing core account and authentication credentials
+model User {
+  id                     String                 @id @default(cuid())
+  name                   String
+  email                  String                 @unique
+  username               String                 @unique
+  passwordHash           String                 @map("password_hash")
+  role                   UserRole               @default(USER)
+  accountStatus          AccountStatus          @default(PENDING_APPROVAL) @map("account_status")
+  approvedAt             DateTime?              @map("approved_at")
+  approvedByAdminId      String?                @map("approved_by_admin_id")
+  profile                UserProfile?
+  nutrientTarget         UserNutrientTarget?
+  privacySettings        UserPrivacySettings?
+  categoryPrivacySettings PrivacySetting[]     @relation("UserPrivacyCategorySettings")
+  googleSheetConnection  GoogleSheetConnection?
+  foods                  Food[]
+  mealLogs               MealLog[]
+  hydrationLogs          HydrationLog[]
+  activityLogs           ActivityLog[]
+  workoutSessions        WorkoutSession[]
+  workoutTemplates       WorkoutTemplate[]
+  aiConversations        AIConversation[]
+  aiMemories             AIMemory[]
+  sentFriendships        Friendship[]           @relation("SentFriendships")
+  receivedFriendships    Friendship[]           @relation("ReceivedFriendships")
+  sentRecommendations    FriendRecommendation[] @relation("SentRecommendations")
+  receivedRecommendations FriendRecommendation[] @relation("ReceivedRecommendations")
+  notifications          Notification[]         @relation("UserNotifications")
+  triggeredNotifications Notification[]         @relation("TriggeredNotifications")
+  integrationConnections IntegrationConnection[]
+  preApprovedRecord      PreApprovedUser?       @relation("ConsumedBy")
+  featureRequests        FeatureRequest[]
+  notificationPreference UserNotificationPreference?
+  goals                  Goal[]
+  userAchievements       UserAchievement[]
+  challengeParticipations ChallengeParticipant[]
+  weeklyPlans            WeeklyPlan[]
+  createdAt              DateTime               @default(now()) @map("created_at")
+  updatedAt              DateTime               @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+enum BiologicalSex {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum ActivityLevel {
+  SEDENTARY
+  LIGHTLY_ACTIVE
+  MODERATELY_ACTIVE
+  VERY_ACTIVE
+  EXTREMELY_ACTIVE
+}
+
+/// UserProfile model storing personal physical attributes and health targets
+model UserProfile {
+  id                     String        @id @default(cuid())
+  userId                 String        @unique @map("user_id")
+  user                   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dateOfBirth            DateTime      @map("date_of_birth")
+  biologicalSex          BiologicalSex @map("biological_sex")
+  heightCm               Float         @map("height_cm")
+  weightKg               Float         @map("weight_kg")
+  activityLevel          ActivityLevel @map("activity_level")
+  dailyHydrationTargetMl Int           @default(2500) @map("daily_hydration_target_ml")
+  dailyStepTarget        Int?          @default(10000) @map("daily_step_target")
+  weeklyRunningDistanceKm Float?       @default(15.0) @map("weekly_running_distance_km")
+  weeklyWorkoutSessions  Int?          @default(3) @map("weekly_workout_sessions")
+  primaryGoal            String?       @default("MAINTAIN") @map("primary_goal")
+  createdAt              DateTime      @default(now()) @map("created_at")
+  updatedAt              DateTime      @updatedAt @map("updated_at")
+
+  @@map("user_profiles")
+}
+
+/// Controlled Food Categories
+enum FoodCategory {
+  FRUITS
+  VEGETABLES
+  GRAINS_CEREALS
+  PULSES_LEGUMES
+  DAIRY
+  NUTS_SEEDS
+  OILS_FATS
+  BEVERAGES
+  SNACKS
+  SWEETS
+  SUPPLEMENTS
+  OTHER
+}
+
+/// Food Model storing reference nutritional values per serving size
+model Food {
+  id            String        @id @default(cuid())
+  userId        String?       @map("user_id")
+  user          User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  category      FoodCategory  @default(OTHER)
+  brand         String?
+  barcode       String?
+  servingSize   Decimal       @map("serving_size") @db.Decimal(10, 2)
+  servingUnit   String        @map("serving_unit")
+
+  // Macronutrients (per reference serving)
+  calories      Decimal       @default(0) @db.Decimal(10, 2)
+  protein       Decimal       @default(0) @db.Decimal(10, 2)
+  carbohydrates Decimal       @default(0) @db.Decimal(10, 2)
+  fat           Decimal       @default(0) @db.Decimal(10, 2)
+  fiber         Decimal       @default(0) @db.Decimal(10, 2)
+  sugar         Decimal       @default(0) @db.Decimal(10, 2)
+
+  // Minerals (per reference serving)
+  calcium       Decimal?      @db.Decimal(10, 2)
+  iron          Decimal?      @db.Decimal(10, 2)
+  magnesium     Decimal?      @db.Decimal(10, 2)
+  potassium     Decimal?      @db.Decimal(10, 2)
+  sodium        Decimal?      @db.Decimal(10, 2)
+  zinc          Decimal?      @db.Decimal(10, 2)
+  phosphorus    Decimal?      @db.Decimal(10, 2)
+  copper        Decimal?      @db.Decimal(10, 2)
+  manganese     Decimal?      @db.Decimal(10, 2)
+  selenium      Decimal?      @db.Decimal(10, 2)
+
+  // Vitamins (per reference serving)
+  vitaminA      Decimal?      @map("vitamin_a") @db.Decimal(10, 2)
+  vitaminC      Decimal?      @map("vitamin_c") @db.Decimal(10, 2)
+  vitaminD      Decimal?      @map("vitamin_d") @db.Decimal(10, 2)
+  vitaminE      Decimal?      @map("vitamin_e") @db.Decimal(10, 2)
+  vitaminK      Decimal?      @map("vitamin_k") @db.Decimal(10, 2)
+  vitaminB1     Decimal?      @map("vitamin_b1") @db.Decimal(10, 2)
+  vitaminB2     Decimal?      @map("vitamin_b2") @db.Decimal(10, 2)
+  vitaminB3     Decimal?      @map("vitamin_b3") @db.Decimal(10, 2)
+  vitaminB5     Decimal?      @map("vitamin_b5") @db.Decimal(10, 2)
+  vitaminB6     Decimal?      @map("vitamin_b6") @db.Decimal(10, 2)
+  vitaminB7     Decimal?      @map("vitamin_b7") @db.Decimal(10, 2)
+  vitaminB9     Decimal?      @map("vitamin_b9") @db.Decimal(10, 2)
+  vitaminB12    Decimal?      @map("vitamin_b12") @db.Decimal(10, 2)
+
+  // Additional fields
+  water         Decimal       @default(0) @db.Decimal(10, 2)
+  notes         String?
+  isFavorite    Boolean       @default(false) @map("is_favorite")
+  isArchived    Boolean       @default(false) @map("is_archived")
+  isSystemFood  Boolean       @default(false) @map("is_system_food")
+  mealEntries   MealEntry[]
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([category])
+  @@index([name])
+  @@index([isArchived])
+  @@index([isFavorite])
+  @@map("foods")
+}
+
+/// UserNutrientTarget model for customizable macro & micronutrient daily goals
+model UserNutrientTarget {
+  id            String   @id @default(cuid())
+  userId        String   @unique @map("user_id")
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Macronutrient Targets
+  calories      Decimal? @default(2000) @db.Decimal(10, 2)
+  protein       Decimal? @default(120) @db.Decimal(10, 2)
+  carbohydrates Decimal? @default(250) @db.Decimal(10, 2)
+  fat           Decimal? @default(65) @db.Decimal(10, 2)
+  fiber         Decimal? @default(30) @db.Decimal(10, 2)
+  sugar         Decimal? @default(35) @db.Decimal(10, 2)
+
+  // Mineral Targets (RDA Defaults)
+  calcium       Decimal? @default(1000) @db.Decimal(10, 2)
+  iron          Decimal? @default(18) @db.Decimal(10, 2)
+  magnesium     Decimal? @default(400) @db.Decimal(10, 2)
+  potassium     Decimal? @default(3400) @db.Decimal(10, 2)
+  sodium        Decimal? @default(2300) @db.Decimal(10, 2)
+  zinc          Decimal? @default(11) @db.Decimal(10, 2)
+  phosphorus    Decimal? @default(700) @db.Decimal(10, 2)
+  copper        Decimal? @default(0.9) @db.Decimal(10, 2)
+  manganese     Decimal? @default(2.3) @db.Decimal(10, 2)
+  selenium      Decimal? @default(55) @db.Decimal(10, 2)
+
+  // Vitamin Targets (RDA Defaults)
+  vitaminA      Decimal? @default(900) @map("vitamin_a") @db.Decimal(10, 2)
+  vitaminC      Decimal? @default(90) @map("vitamin_c") @db.Decimal(10, 2)
+  vitaminD      Decimal? @default(20) @map("vitamin_d") @db.Decimal(10, 2)
+  vitaminE      Decimal? @default(15) @map("vitamin_e") @db.Decimal(10, 2)
+  vitaminK      Decimal? @default(120) @map("vitamin_k") @db.Decimal(10, 2)
+  vitaminB1     Decimal? @default(1.2) @map("vitamin_b1") @db.Decimal(10, 2)
+  vitaminB2     Decimal? @default(1.3) @map("vitamin_b2") @db.Decimal(10, 2)
+  vitaminB3     Decimal? @default(16) @map("vitamin_b3") @db.Decimal(10, 2)
+  vitaminB5     Decimal? @default(5) @map("vitamin_b5") @db.Decimal(10, 2)
+  vitaminB6     Decimal? @default(1.7) @map("vitamin_b6") @db.Decimal(10, 2)
+  vitaminB7     Decimal? @default(30) @map("vitamin_b7") @db.Decimal(10, 2)
+  vitaminB9     Decimal? @default(400) @map("vitamin_b9") @db.Decimal(10, 2)
+  vitaminB12    Decimal? @default(2.4) @map("vitamin_b12") @db.Decimal(10, 2)
+
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("user_nutrient_targets")
+}
+
+/// GoogleSheetConnection model for storing spreadsheet integration metadata
+model GoogleSheetConnection {
+  id             String    @id @default(cuid())
+  userId         String    @unique @map("user_id")
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  spreadsheetId  String    @map("spreadsheet_id")
+  spreadsheetUrl String    @map("spreadsheet_url")
+  sheetTitle     String?   @map("sheet_title")
+  status         String    @default("CONNECTED")
+  syncStatus     String    @default("IDLE") @map("sync_status")
+  lastSyncedAt   DateTime? @map("last_synced_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([spreadsheetId])
+  @@map("google_sheet_connections")
+}
+
+/// Controlled Meal Types
+enum MealType {
+  BREAKFAST
+  LUNCH
+  DINNER
+  SNACK
+}
+
+/// MealLog model storing user's meal session for a specific calendar date
+model MealLog {
+  id        String      @id @default(cuid())
+  userId    String      @map("user_id")
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      String      @map("date") // Format: YYYY-MM-DD
+  mealType  MealType    @map("meal_type")
+  name      String?
+  entries   MealEntry[]
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  @@index([userId, date])
+  @@map("meal_logs")
+}
+
+/// MealEntry model storing food items consumed with calculated nutrition snapshot
+model MealEntry {
+  id                 String   @id @default(cuid())
+  mealLogId          String   @map("meal_log_id")
+  mealLog            MealLog  @relation(fields: [mealLogId], references: [id], onDelete: Cascade)
+  foodId             String   @map("food_id")
+  food               Food     @relation(fields: [foodId], references: [id], onDelete: Restrict)
+  quantity           Decimal  @db.Decimal(10, 2)
+  quantityUnit       String   @map("quantity_unit")
+
+  // Calculated Nutrition Snapshot (Immutable historical reference)
+  calculatedCalories Decimal  @map("calculated_calories") @db.Decimal(10, 2)
+  calculatedProtein  Decimal  @map("calculated_protein") @db.Decimal(10, 2)
+  calculatedCarbs    Decimal  @map("calculated_carbs") @db.Decimal(10, 2)
+  calculatedFat      Decimal  @map("calculated_fat") @db.Decimal(10, 2)
+  calculatedFiber    Decimal  @default(0) @map("calculated_fiber") @db.Decimal(10, 2)
+  calculatedSugar    Decimal  @default(0) @map("calculated_sugar") @db.Decimal(10, 2)
+
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@index([mealLogId])
+  @@index([foodId])
+  @@map("meal_entries")
+}
+
+/// Controlled Beverage Types for Hydration Tracking
+enum BeverageType {
+  WATER
+  MILK
+  BUTTERMILK
+  LASSI
+  TEA
+  JUICE
+  PROTEIN_SHAKE
+  ORS
+  OTHER
+}
+
+/// HydrationLog model storing fluid intake records in normalized milliliters (ml)
+model HydrationLog {
+  id           String       @id @default(cuid())
+  userId       String       @map("user_id")
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amountMl     Int          @map("amount_ml")
+  beverageType BeverageType @default(WATER) @map("beverage_type")
+  date         String       @map("date") // Format: YYYY-MM-DD
+  consumedAt   DateTime     @default(now()) @map("consumed_at")
+  notes        String?
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  @@index([userId, date])
+  @@map("hydration_logs")
+}
+
+/// Controlled Activity Types
+enum ActivityType {
+  RUN
+  WALK
+  CYCLING
+  HIIT
+  OTHER
+}
+
+/// Running Specific Session Types
+enum RunningType {
+  EASY
+  LONG
+  TEMPO
+  RECOVERY
+  INTERVAL
+  RACE
+  OTHER
+}
+
+/// Activity Telemetry Source
+enum ActivitySource {
+  MANUAL
+  STRAVA
+  ADIDAS_RUNNING
+  GOOGLE_FIT
+  APPLE_HEALTH
+  HEALTH_CONNECT
+  IMPORT
+  OTHER
+  FUTURE_PROVIDER
+}
+
+/// ActivityLog model storing workout sessions, running metrics, distance, duration, and pace
+model ActivityLog {
+  id                      String         @id @default(cuid())
+  userId                  String         @map("user_id")
+  user                    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activityType            ActivityType   @default(RUN) @map("activity_type")
+  runningType             RunningType?   @map("running_type")
+  source                  ActivitySource @default(MANUAL)
+  externalId              String?        @map("external_id")
+  externalProvider        String?        @map("external_provider")
+  date                    String         @map("date") // Format: YYYY-MM-DD
+  distanceKm              Decimal        @default(0) @map("distance_km") @db.Decimal(10, 2)
+  movingDurationSeconds   Int            @map("moving_duration_seconds")
+  elapsedDurationSeconds  Int?           @map("elapsed_duration_seconds")
+  averagePaceSecondsPerKm Int            @default(0) @map("average_pace_seconds_per_km")
+  steps                   Int            @default(0)
+  caloriesBurned          Int            @default(0) @map("calories_burned")
+  elevationGainMeters     Int            @default(0) @map("elevation_gain_meters")
+  notes                   String?
+  createdAt               DateTime       @default(now()) @map("created_at")
+  updatedAt               DateTime       @updatedAt @map("updated_at")
+
+  @@index([userId, date])
+  @@map("activity_logs")
+}
+
+/// Controlled Workout Classification
+enum WorkoutType {
+  HOME_WORKOUT
+  GYM_WORKOUT
+}
+
+/// WorkoutSession model storing structured resistance, home, or gym workouts
+model WorkoutSession {
+  id              String            @id @default(cuid())
+  userId          String            @map("user_id")
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workoutType     WorkoutType       @default(GYM_WORKOUT) @map("workout_type")
+  name            String
+  date            String            @map("date") // Format: YYYY-MM-DD
+  durationSeconds Int               @default(0) @map("duration_seconds")
+  caloriesBurned  Int               @default(0) @map("calories_burned")
+  notes           String?
+  exercises       WorkoutExercise[]
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  @@index([userId, date])
+  @@map("workout_sessions")
+}
+
+/// WorkoutExercise model storing individual exercises inside a workout session
+model WorkoutExercise {
+  id               String         @id @default(cuid())
+  workoutSessionId String         @map("workout_session_id")
+  workoutSession   WorkoutSession @relation(fields: [workoutSessionId], references: [id], onDelete: Cascade)
+  name             String
+  category         String?
+  orderIndex       Int            @default(0) @map("order_index")
+  notes            String?
+  sets             WorkoutSet[]
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  @@index([workoutSessionId])
+  @@map("workout_exercises")
+}
+
+/// WorkoutSet model storing individual sets, repetitions, weights, and durations
+model WorkoutSet {
+  id                String          @id @default(cuid())
+  workoutExerciseId String          @map("workout_exercise_id")
+  workoutExercise   WorkoutExercise @relation(fields: [workoutExerciseId], references: [id], onDelete: Cascade)
+  setNumber         Int             @map("set_number")
+  reps              Int?
+  weightKg          Decimal?        @map("weight_kg") @db.Decimal(10, 2)
+  durationSeconds   Int?            @map("duration_seconds")
+  distanceKm        Decimal?        @map("distance_km") @db.Decimal(10, 2)
+  notes             String?
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+
+  @@index([workoutExerciseId])
+  @@map("workout_sets")
+}
+
+/// WorkoutTemplate model for reusable workout routines in the Workout Database
+model WorkoutTemplate {
+  id          String                    @id @default(cuid())
+  userId      String                    @map("user_id")
+  user        User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  workoutType WorkoutType               @default(GYM_WORKOUT) @map("workout_type")
+  isFavorite  Boolean                   @default(false) @map("is_favorite")
+  isArchived  Boolean                   @default(false) @map("is_archived")
+  exercises   WorkoutTemplateExercise[]
+  createdAt   DateTime                  @default(now()) @map("created_at")
+  updatedAt   DateTime                  @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([workoutType])
+  @@index([isFavorite])
+  @@index([isArchived])
+  @@map("workout_templates")
+}
+
+/// WorkoutTemplateExercise model for individual exercises within a workout routine blueprint
+model WorkoutTemplateExercise {
+  id                     String          @id @default(cuid())
+  workoutTemplateId      String          @map("workout_template_id")
+  workoutTemplate        WorkoutTemplate @relation(fields: [workoutTemplateId], references: [id], onDelete: Cascade)
+  name                   String
+  category               String?
+  defaultSets            Int             @default(3) @map("default_sets")
+  defaultReps            Int?            @map("default_reps")
+  defaultWeightKg        Decimal?        @map("default_weight_kg") @db.Decimal(10, 2)
+  defaultDurationSeconds Int?            @map("default_duration_seconds")
+  notes                  String?
+  orderIndex             Int             @default(0) @map("order_index")
+  createdAt              DateTime        @default(now()) @map("created_at")
+  updatedAt              DateTime        @updatedAt @map("updated_at")
+
+  @@index([workoutTemplateId])
+  @@map("workout_template_exercises")
+}
+
+/// Infrastructure health verification model
+model SystemHealth {
+  id        String   @id @default(cuid())
+  status    String   @default("ok")
+  checkedAt DateTime @default(now())
+
+  @@map("system_health")
+}
+
+/// AI Conversation thread
+model AIConversation {
+  id            String      @id @default(cuid())
+  userId        String      @map("user_id")
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title         String      @default("New Conversation")
+  lastMessageAt DateTime    @default(now()) @map("last_message_at")
+  messages      AIMessage[]
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("ai_conversations")
+}
+
+/// Message in an AI Conversation thread
+model AIMessage {
+  id             String         @id @default(cuid())
+  conversationId String         @map("conversation_id")
+  conversation   AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String         // 'user' | 'assistant' | 'system' | 'tool'
+  content        String
+  metadata       String?        // JSON string for tool calls, goal update proposals
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  @@index([conversationId])
+  @@map("ai_messages")
+}
+
+/// Persistent user-isolated AI Memory for health preferences and constraints
+model AIMemory {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category   String   @default("GENERAL") // 'PREFERENCE' | 'NUTRITION' | 'TRAINING' | 'GOAL' | 'CONSTRAINT' | 'GENERAL'
+  content    String
+  importance Int      @default(1)
+  source     String   @default("USER_STATED")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("ai_memories")
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  BLOCKED
+}
+
+enum SharingPermission {
+  PRIVATE
+  FRIENDS
+  PUBLIC
+}
+
+enum PrivacyVisibility {
+  PUBLIC
+  FRIENDS
+  PRIVATE
+}
+
+enum PrivacyCategory {
+  PROFILE
+  NUTRITION
+  DEEP_NUTRITION
+  HYDRATION
+  ACTIVITIES
+  WORKOUTS
+  INSIGHTS_PROGRESS
+  REPORTS
+}
+
+/// Granular Privacy Setting per Category
+model PrivacySetting {
+  id         String            @id @default(cuid())
+  userId     String            @map("user_id")
+  user       User              @relation("UserPrivacyCategorySettings", fields: [userId], references: [id], onDelete: Cascade)
+  category   PrivacyCategory
+  visibility PrivacyVisibility @default(FRIENDS)
+  createdAt  DateTime          @default(now()) @map("created_at")
+  updatedAt  DateTime          @updatedAt @map("updated_at")
+
+  @@unique([userId, category])
+  @@index([userId])
+  @@map("privacy_settings")
+}
+
+enum RecommendationType {
+  WORKOUT
+  RUNNING_IDEA
+  FOOD_ITEM
+  GOAL_SUGGESTION
+}
+
+enum NotificationCategory {
+  HYDRATION
+  NUTRITION
+  ACTIVITIES
+  WORKOUTS
+  INSIGHTS
+  FRIENDS
+  FEATURE_REQUEST
+  GOAL
+  ACHIEVEMENT
+  CHALLENGE
+  SYSTEM
+  ADMIN
+}
+
+enum NotificationType {
+  // Hydration
+  HYDRATION_REMINDER
+  HYDRATION_GOAL
+  HYDRATION_STREAK
+
+  // Nutrition
+  NUTRITION_REMINDER
+  PROTEIN_GOAL
+  CALORIE_GOAL
+
+  // Activities & Movement
+  ACTIVITY_MILESTONE
+  RUNNING_RECORD
+
+  // Workouts
+  WORKOUT_REMINDER
+  WORKOUT_MILESTONE
+
+  // Health Insights
+  INSIGHT_ALERT
+
+  // Friends & Community
+  FRIEND_REQUEST
+  FRIEND_ACCEPTED
+  FRIEND_RECOMMENDATION
+  FRIEND_ACHIEVEMENT
+
+  // Feature Requests
+  FEATURE_REQUEST_STATUS
+  FEATURE_REQUEST_RESPONSE
+
+  // Goals & Gamification
+  GOAL_MILESTONE
+  GOAL_COMPLETED
+  ACHIEVEMENT_UNLOCKED
+  CHALLENGE_JOINED
+  CHALLENGE_COMPLETED
+
+  // Account & Admin
+  USER_PENDING_APPROVAL
+  USER_APPROVED
+  USER_REJECTED
+  USER_SUSPENDED
+  SYSTEM_ANNOUNCEMENT
+  SYSTEM
+}
+
+/// Relational friendship representation between two users
+model Friendship {
+  id          String           @id @default(cuid())
+  requesterId String           @map("requester_id")
+  requester   User             @relation("SentFriendships", fields: [requesterId], references: [id], onDelete: Cascade)
+  addresseeId String           @map("addressee_id")
+  addressee   User             @relation("ReceivedFriendships", fields: [addresseeId], references: [id], onDelete: Cascade)
+  status      FriendshipStatus @default(PENDING)
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  @@unique([requesterId, addresseeId])
+  @@index([requesterId])
+  @@index([addresseeId])
+  @@map("friendships")
+}
+
+/// User privacy & sharing permissions (defaults to PRIVATE for all categories)
+model UserPrivacySettings {
+  id                String            @id @default(cuid())
+  userId            String            @unique @map("user_id")
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shareHealthScore  SharingPermission @default(PRIVATE) @map("share_health_score")
+  shareNutrition    SharingPermission @default(PRIVATE) @map("share_nutrition")
+  shareHydration    SharingPermission @default(PRIVATE) @map("share_hydration")
+  shareActivities   SharingPermission @default(PRIVATE) @map("share_activities")
+  shareWorkouts     SharingPermission @default(PRIVATE) @map("share_workouts")
+  shareAchievements SharingPermission @default(PRIVATE) @map("share_achievements")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  @@map("user_privacy_settings")
+}
+
+/// Friend recommendation for workout ideas, running plans, foods, or goals
+model FriendRecommendation {
+  id         String             @id @default(cuid())
+  senderId   String             @map("sender_id")
+  sender     User               @relation("SentRecommendations", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId String             @map("receiver_id")
+  receiver   User               @relation("ReceivedRecommendations", fields: [receiverId], references: [id], onDelete: Cascade)
+  itemType   RecommendationType @map("item_type")
+  title      String
+  payload    String             // JSON string for workout payload, nutrition items, etc.
+  message    String?
+  status     String             @default("PENDING") // 'PENDING' | 'ACCEPTED' | 'DISMISSED'
+  createdAt  DateTime           @default(now()) @map("created_at")
+  updatedAt  DateTime           @updatedAt @map("updated_at")
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@map("friend_recommendations")
+}
+
+/// Database-backed notification model for notifications and reminders
+model Notification {
+  id        String               @id @default(cuid())
+  userId    String               @map("user_id")
+  user      User                 @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  actorId   String?              @map("actor_id")
+  actor     User?                @relation("TriggeredNotifications", fields: [actorId], references: [id], onDelete: SetNull)
+  category  NotificationCategory @default(SYSTEM)
+  type      NotificationType     @default(SYSTEM)
+  title     String
+  message   String
+  link      String?
+  actionUrl String?              @map("action_url")
+  metadata  String?              // JSON encoded metadata
+  isRead    Boolean              @default(false) @map("is_read")
+  readAt    DateTime?            @map("read_at")
+  createdAt DateTime             @default(now()) @map("created_at")
+  updatedAt DateTime             @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([category])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+/// User Notification Preferences for controlling reminders, categories, and quiet hours
+model UserNotificationPreference {
+  id                          String   @id @default(cuid())
+  userId                      String   @unique @map("user_id")
+  user                        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hydrationReminders          Boolean  @default(true) @map("hydration_reminders")
+  nutritionReminders          Boolean  @default(true) @map("nutrition_reminders")
+  workoutReminders            Boolean  @default(false) @map("workout_reminders")
+  activityReminders           Boolean  @default(true) @map("activity_reminders")
+  friendNotifications         Boolean  @default(true) @map("friend_notifications")
+  insightNotifications        Boolean  @default(true) @map("insight_notifications")
+  featureRequestNotifications Boolean  @default(true) @map("feature_request_notifications")
+  systemNotifications         Boolean  @default(true) @map("system_notifications")
+  quietHoursEnabled           Boolean  @default(false) @map("quiet_hours_enabled")
+  quietHoursStart             String   @default("22:00") @map("quiet_hours_start") // 10:00 PM
+  quietHoursEnd               String   @default("08:00") @map("quiet_hours_end")   // 08:00 AM
+  reminderFrequency           String   @default("MODERATE") @map("reminder_frequency") // 'LOW' | 'MODERATE' | 'HIGH'
+  createdAt                   DateTime @default(now()) @map("created_at")
+  updatedAt                   DateTime @updatedAt @map("updated_at")
+
+  @@map("user_notification_preferences")
+}
+
+/// External Connected Integration Providers
+enum IntegrationProvider {
+  STRAVA
+  ADIDAS_RUNNING
+  GOOGLE_FIT
+  APPLE_HEALTH
+  GOOGLE_SHEETS
+  OTHER
+}
+
+/// External Integration Connection for OAuth and token sync
+model IntegrationConnection {
+  id               String              @id @default(cuid())
+  userId           String              @map("user_id")
+  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider         IntegrationProvider
+  status           String              @default("CONNECTED") // 'CONNECTED' | 'DISCONNECTED' | 'ERROR'
+  accessToken      String?             @map("access_token")
+  refreshToken     String?             @map("refresh_token")
+  tokenExpiresAt   DateTime?           @map("token_expires_at")
+  externalUserId   String?             @map("external_user_id")
+  externalUsername String?             @map("external_username")
+  scope            String?
+  metadata         String?             // JSON string for provider-specific details
+  lastSyncAt       DateTime?           @map("last_sync_at")
+  createdAt        DateTime            @default(now()) @map("created_at")
+  updatedAt        DateTime            @updatedAt @map("updated_at")
+
+  @@unique([userId, provider])
+  @@index([userId])
+  @@map("integration_connections")
+}
+
+/// Pre-approved users / approval allowlist
+model PreApprovedUser {
+  id                String    @id @default(cuid())
+  identifier        String    @unique // Normalized lowercase email
+  identifierType    String    @default("EMAIL") @map("identifier_type")
+  notes             String?
+  createdByAdminId  String?   @map("created_by_admin_id")
+  consumedAt        DateTime? @map("consumed_at")
+  consumedByUserId  String?   @unique @map("consumed_by_user_id")
+  consumedByUser    User?     @relation("ConsumedBy", fields: [consumedByUserId], references: [id])
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@index([identifier])
+  @@map("pre_approved_users")
+}
+
+/// Feature Request Status
+enum FeatureRequestStatus {
+  OPEN
+  UNDER_REVIEW
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  DECLINED
+}
+
+/// Feature Requests submitted by users and triaged by admins
+model FeatureRequest {
+  id                  String               @id @default(cuid())
+  userId              String               @map("user_id")
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title               String
+  description         String
+  category            String               @default("GENERAL")
+  priority            String               @default("MEDIUM")
+  status              FeatureRequestStatus @default(OPEN)
+  adminResponse       String?              @map("admin_response")
+  respondedAt         DateTime?            @map("responded_at")
+  respondedByAdminId  String?              @map("responded_by_admin_id")
+  createdAt           DateTime             @default(now()) @map("created_at")
+  updatedAt           DateTime             @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([status])
+  @@map("feature_requests")
+}
+
+/// Goal Categories
+enum GoalCategory {
+  NUTRITION
+  HYDRATION
+  RUNNING
+  ACTIVITIES
+  WORKOUTS
+  CONSISTENCY
+}
+
+/// Goal Types
+enum GoalType {
+  DAILY_TARGET_STREAK
+  CUMULATIVE_VALUE
+  TARGET_PACE
+  SESSION_COUNT
+  VOLUME_LOAD
+}
+
+/// Goal Statuses
+enum GoalStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  EXPIRED
+  CANCELLED
+}
+
+/// Personal Goals created and tracked by users
+model Goal {
+  id              String          @id @default(cuid())
+  userId          String          @map("user_id")
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  description     String?
+  category        GoalCategory
+  goalType        GoalType        @map("goal_type")
+  targetValue     Float           @map("target_value")
+  currentValue    Float           @default(0) @map("current_value")
+  unit            String
+  startDate       String          @map("start_date") // YYYY-MM-DD
+  targetDate      String          @map("target_date") // YYYY-MM-DD
+  status          GoalStatus      @default(ACTIVE)
+  completedAt     DateTime?       @map("completed_at")
+  lastEvaluatedAt DateTime?       @map("last_evaluated_at")
+  metadata        String?         // JSON payload for subtype filters or custom parameters
+  milestones      GoalMilestone[]
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([userId, status])
+  @@index([category])
+  @@map("goals")
+}
+
+/// Goal Milestones for tracking intermediate progress (25%, 50%, 75%, 90%, 100%)
+model GoalMilestone {
+  id          String    @id @default(cuid())
+  goalId      String    @map("goal_id")
+  goal        Goal      @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  percentage  Int       // 25, 50, 75, 90, 100
+  reachedAt   DateTime  @default(now()) @map("reached_at")
+  notifiedAt  DateTime? @map("notified_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@unique([goalId, percentage])
+  @@index([goalId])
+  @@map("goal_milestones")
+}
+
+/// Gamified Achievements in Nutri-Track
+model Achievement {
+  id               String            @id // e.g. "PROTEIN_7_DAY_STREAK", "FIRST_5K"
+  code             String            @unique
+  name             String
+  description      String
+  category         GoalCategory
+  icon             String            // Lucide icon name or emoji
+  points           Int               @default(50)
+  targetValue      Float             @map("target_value")
+  unit             String
+  isSystem         Boolean           @default(true) @map("is_system")
+  userAchievements UserAchievement[]
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+
+  @@map("achievements")
+}
+
+/// User unlocked / progress-tracked achievements
+model UserAchievement {
+  id              String      @id @default(cuid())
+  userId          String      @map("user_id")
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId   String      @map("achievement_id")
+  achievement     Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  currentProgress Float       @default(0) @map("current_progress")
+  unlockedAt      DateTime?   @map("unlocked_at")
+  metadata        String?
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+  @@map("user_achievements")
+}
+
+/// Challenge Status
+enum ChallengeStatus {
+  JOINED
+  COMPLETED
+  ABANDONED
+}
+
+/// Personal and Community Challenges
+model Challenge {
+  id           String                 @id // e.g. "CHALLENGE_7_DAY_HYDRATION"
+  code         String                 @unique
+  title        String
+  description  String
+  category     GoalCategory
+  targetValue  Float                  @map("target_value")
+  unit         String
+  durationDays Int                    @map("duration_days")
+  badgeIcon    String                 @map("badge_icon")
+  isSystem     Boolean                @default(true) @map("is_system")
+  isPublic     Boolean                @default(true) @map("is_public")
+  participants ChallengeParticipant[]
+  createdAt    DateTime               @default(now()) @map("created_at")
+  updatedAt    DateTime               @updatedAt @map("updated_at")
+
+  @@map("challenges")
+}
+
+/// Challenge Participant tracking
+model ChallengeParticipant {
+  id              String          @id @default(cuid())
+  challengeId     String          @map("challenge_id")
+  challenge       Challenge       @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  userId          String          @map("user_id")
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status          ChallengeStatus @default(JOINED)
+  currentProgress Float           @default(0) @map("current_progress")
+  joinedAt        DateTime        @default(now()) @map("joined_at")
+  completedAt     DateTime?       @map("completed_at")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  @@unique([challengeId, userId])
+  @@index([userId])
+  @@map("challenge_participants")
+}
+
+/// Weekly Plan Status
+enum WeeklyPlanStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+/// Plan Item Category
+enum PlanItemCategory {
+  NUTRITION
+  HYDRATION
+  RUNNING
+  ACTIVITY
+  WORKOUT
+  RECOVERY
+}
+
+/// Weekly Health & Fitness Plan
+model WeeklyPlan {
+  id          String           @id @default(cuid())
+  userId      String           @map("user_id")
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startDate   String           @map("start_date") // YYYY-MM-DD
+  endDate     String           @map("end_date")   // YYYY-MM-DD
+  goalSummary String           @map("goal_summary")
+  status      WeeklyPlanStatus @default(ACTIVE)
+  notes       String?
+  items       WeeklyPlanItem[]
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  @@index([userId, startDate])
+  @@map("weekly_plans")
+}
+
+/// Structured Weekly Plan Item
+model WeeklyPlanItem {
+  id                String           @id @default(cuid())
+  weeklyPlanId      String           @map("weekly_plan_id")
+  weeklyPlan        WeeklyPlan       @relation(fields: [weeklyPlanId], references: [id], onDelete: Cascade)
+  date              String           // YYYY-MM-DD
+  category          PlanItemCategory
+  title             String
+  description       String?
+  targetData        String?          @map("target_data")
+  isCompleted       Boolean          @default(false) @map("is_completed")
+  matchedActivityId String?          @map("matched_activity_id")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+
+  @@index([weeklyPlanId, date])
+  @@map("weekly_plan_items")
+}
+
+/// Category classification for System Settings
+enum SystemSettingCategory {
+  AI
+  INTEGRATIONS
+  SECURITY
+  GENERAL
+}
+
+/// Dynamic System Settings & API Keys manageable via Admin Panel
+model SystemSetting {
+  id               String                @id @default(cuid())
+  key              String                @unique
+  value            String
+  category         SystemSettingCategory @default(GENERAL)
+  description      String?
+  isSecret         Boolean               @default(false) @map("is_secret")
+  updatedByAdminId String?               @map("updated_by_admin_id")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+
+  @@index([category])
+  @@map("system_settings")
+}

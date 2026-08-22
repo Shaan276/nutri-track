@@ -1,0 +1,31 @@
+{
+  "name": "Nutri-Track",
+  "short_name": "Nutri-Track",
+  "description": "High-precision health, nutrition, workout, and consistency operating system.",
+  "start_url": "/app",
+  "display": "standalone",
+  "background_color": "#0E121A",
+  "theme_color": "#0E121A",
+  "orientation": "portrait-primary",
+  "categories": ["health", "fitness", "lifestyle", "productivity"],
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512x512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/apple-touch-icon.svg",
+      "sizes": "180x180",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

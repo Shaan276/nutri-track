@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#161B26"/>
+      <stop offset="100%" stop-color="#0E121A"/>
+    </linearGradient>
+    <linearGradient id="emeraldGrad512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34D399"/>
+      <stop offset="100%" stop-color="#10B981"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad512)"/>
+  <rect width="508" height="508" x="2" y="2" rx="110" fill="none" stroke="#232936" stroke-width="4"/>
+  <g transform="translate(106, 106) scale(3.12)">
+    <!-- Leaf -->
+    <path d="M48 24C48 24 56 16 56 8C48 8 40 16 40 24" fill="url(#emeraldGrad512)"/>
+    <!-- Apple Body -->
+    <path d="M48 30C42 24 32 24 26 28C20 32 16 40 16 52C16 72 34 88 48 92C62 88 80 72 80 52C80 40 76 32 70 28C64 24 54 24 48 30Z" fill="url(#emeraldGrad512)"/>
+    <!-- Crosshairs Target Ring for Track -->
+    <circle cx="48" cy="56" r="16" fill="none" stroke="#0E121A" stroke-width="4"/>
+    <circle cx="48" cy="56" r="6" fill="#0E121A"/>
+  </g>
+</svg>

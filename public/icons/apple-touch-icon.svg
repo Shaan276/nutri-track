@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" width="180" height="180">
+  <defs>
+    <linearGradient id="bgGrad180" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#161B26"/>
+      <stop offset="100%" stop-color="#0E121A"/>
+    </linearGradient>
+    <linearGradient id="emeraldGrad180" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34D399"/>
+      <stop offset="100%" stop-color="#10B981"/>
+    </linearGradient>
+  </defs>
+  <rect width="180" height="180" rx="38" fill="url(#bgGrad180)"/>
+  <g transform="translate(35, 35) scale(1.15)">
+    <path d="M48 24C48 24 56 16 56 8C48 8 40 16 40 24" fill="url(#emeraldGrad180)"/>
+    <path d="M48 30C42 24 32 24 26 28C20 32 16 40 16 52C16 72 34 88 48 92C62 88 80 72 80 52C80 40 76 32 70 28C64 24 54 24 48 30Z" fill="url(#emeraldGrad180)"/>
+    <circle cx="48" cy="56" r="16" fill="none" stroke="#0E121A" stroke-width="4"/>
+    <circle cx="48" cy="56" r="6" fill="#0E121A"/>
+  </g>
+</svg>

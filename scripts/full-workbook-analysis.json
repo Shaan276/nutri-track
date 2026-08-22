@@ -1,0 +1,5258 @@
+{
+  "Dashboard": {
+    "colsCount": 12,
+    "rowsCount": 23,
+    "headers": [
+      "HEALTH OS DATABASE",
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      "TODAY",
+      {
+        "formula": "21 Aug 2026",
+        "value": "Date(2026,7,21)"
+      },
+      null
+    ],
+    "rows": [
+      [
+        "HEALTH OS DATABASE",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "TODAY",
+        {
+          "formula": "21 Aug 2026",
+          "value": "Date(2026,7,21)"
+        },
+        null
+      ],
+      [
+        "Personal Health Operating System • Nutrition Intelligence",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "Database Quality",
+        "1 checks need review",
+        null,
+        "Last Calculation",
+        "21 Aug 2026 23:22",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "TODAY'S CALORIES",
+        null,
+        null,
+        "CALORIES REMAINING",
+        null,
+        null,
+        "TODAY'S PROTEIN",
+        null,
+        null,
+        "PROTEIN REMAINING",
+        null,
+        null
+      ],
+      [
+        "0.0",
+        null,
+        null,
+        null,
+        null,
+        null,
+        "0.0",
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "kcal consumed",
+        null,
+        null,
+        "kcal remaining",
+        null,
+        null,
+        "g consumed",
+        null,
+        null,
+        "g remaining",
+        null,
+        null
+      ],
+      [
+        "░░░░░░░░░░░░",
+        null,
+        null,
+        "░░░░░░░░░░░░",
+        null,
+        null,
+        "░░░░░░░░░░░░",
+        null,
+        null,
+        "░░░░░░░░░░░░",
+        null,
+        null
+      ],
+      [
+        "TODAY'S CARBS",
+        null,
+        null,
+        "TODAY'S FAT",
+        null,
+        null,
+        "TODAY'S FIBRE",
+        null,
+        null,
+        "TODAY'S WATER",
+        null,
+        null
+      ],
+      [
+        "0.0",
+        null,
+        null,
+        "0.0",
+        null,
+        null,
+        "0.0",
+        null,
+        null,
+        "0.0",
+        null,
+        null
+      ],
+      [
+        "g consumed",
+        null,
+        null,
+        "g consumed",
+        null,
+        null,
+        "g consumed",
+        null,
+        null,
+        "ml consumed",
+        null,
+        null
+      ],
+      [
+        "░░░░░░░░░░░░",
+        null,
+        null,
+        "░░░░░░░░░░░░",
+        null,
+        null,
+        "░░░░░░░░░░░░",
+        null,
+        null,
+        "░░░░░░░░░░░░",
+        null,
+        null
+      ],
+      [
+        "VITAMIN COMPLETION",
+        null,
+        null,
+        null,
+        "MINERAL COMPLETION",
+        null,
+        null,
+        null,
+        "AMINO ACID COMPLETION",
+        null,
+        null,
+        null
+      ],
+      [
+        "0%",
+        null,
+        null,
+        null,
+        "0%",
+        null,
+        null,
+        null,
+        "0%",
+        null,
+        null,
+        null
+      ],
+      [
+        "░░░░░░░░░░░░░░░░",
+        null,
+        null,
+        null,
+        "░░░░░░░░░░░░░░░░",
+        null,
+        null,
+        null,
+        "░░░░░░░░░░░░░░░░",
+        null,
+        null,
+        null
+      ],
+      [
+        "WEEKLY HEALTH SCORE",
+        null,
+        null,
+        null,
+        null,
+        null,
+        "MONTHLY HEALTH SCORE",
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "0%",
+        null,
+        null,
+        null,
+        null,
+        null,
+        "0%",
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "░░░░░░░░░░░░░░░░░░░░░░░░",
+        null,
+        null,
+        null,
+        null,
+        null,
+        "░░░░░░░░░░░░░░░░░░░░░░░░",
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "TODAY'S DEFICIENCIES",
+        null,
+        null,
+        null,
+        null,
+        null,
+        "TODAY'S EXCESS NUTRIENTS",
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "Targets not configured — enter values in Nutrition Targets",
+        null,
+        null,
+        null,
+        null,
+        null,
+        "No nutrients above upper limits",
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "AI RECOMMENDATION PLACEHOLDER",
+        null,
+        null,
+        null,
+        null,
+        null,
+        "AI WARNINGS PLACEHOLDER",
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "Awaiting PHP / AI population",
+        null,
+        null,
+        null,
+        null,
+        null,
+        "Awaiting PHP / AI population",
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "14-DAY NUTRIENT TREND — CHART-READY DATA",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "TODAY'S NUTRIENT HEATMAP DATA",
+        null,
+        null,
+        null
+      ],
+      [
+        "Date",
+        "Calories",
+        "Protein",
+        "Carbohydrates",
+        "Fat",
+        "Fibre",
+        "Water",
+        null,
+        "Nutrient",
+        "Category",
+        null,
+        "Status"
+      ]
+    ]
+  },
+  "System Guide": {
+    "colsCount": 8,
+    "rowsCount": 29,
+    "headers": [
+      "HEALTH OS DATABASE",
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "rows": [
+      [
+        "HEALTH OS DATABASE",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "Primary nutrition database backend for future PHP, web, and AI integrations.",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "ARCHITECTURE REVIEW",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "The user-facing workbook is separated into fact tables, dimensions, calculated outputs, controls, and quality checks.",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "Food Log is the primary consumption fact table; each row represents one consumed food record.",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "Micronutrients, Amino Acids, and Other Nutrients are one-to-one child fact tables linked by Entry ID.",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "Food Database is the master food dimension linked by immutable Food ID.",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "Daily Summary and Deficiency Tracker are calculated reporting layers; they should never be manually edited.",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "ADDED INFRASTRUCTURE",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "Nutrient Dictionary — canonical keys, display labels, categories, units, target behaviour, and active flags.",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "Lists — controlled values for meals, units, sources, statuses, target types, and central thresholds.",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "Data Quality — duplicate key, orphan record, missing field, and invalid value monitoring.",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "System Guide — architecture, relationships, and API operating rules.",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "RELATIONAL KEYS",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "Food Database.Food ID  →  Food Log.Food ID",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "Food Log.Entry ID  →  Micronutrients.Entry ID / Amino Acids.Entry ID / Other Nutrients.Entry ID",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "Nutrient Dictionary.Nutrient Key  →  Nutrition Targets.Nutrient Key / Deficiency Tracker.Nutrient Key",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "OPERATING RULES",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "Treat Food Log and Food Database as append-only database tables; avoid deleting historical records.",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "Food ID and Entry ID must be unique and immutable. Future PHP writes should use UUIDs.",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "Use ISO-compatible timestamps and preserve the User ID on every fact record.",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "Never sort a single column inside a database table; sort or filter the complete row range.",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "Enter personal target values only in Nutrition Targets. Do not hardcode targets in formulas.",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "STATUS LOGIC",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "Critical, Low, Good, and Excellent thresholds are centralized in Lists so reporting logic is maintainable.",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "Upper limits are optional; excess values are flagged only when a nutrient has an upper limit.",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "SCALABILITY",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "Fact sheets are provisioned for 50,000 rows and use lookup-driven formulas against the food master.",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "The summary layer uses dynamic arrays, LET, FILTER, UNIQUE, SORT, MAP, LAMBDA, XLOOKUP, INDEX, and MATCH.",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    ]
+  },
+  "Food Log": {
+    "colsCount": 28,
+    "rowsCount": 1,
+    "headers": [
+      "Entry ID",
+      "User ID",
+      "DateTime",
+      "Date",
+      "Meal",
+      "Food ID",
+      "Food Name",
+      "Quantity",
+      "Unit",
+      "Brand",
+      "Notes",
+      "Source",
+      "Calories",
+      "Protein",
+      "Carbohydrates",
+      "Net Carbohydrates",
+      "Fat",
+      "Saturated Fat",
+      "Monounsaturated Fat",
+      "Polyunsaturated Fat",
+      "Omega-3",
+      "Omega-6",
+      "Trans Fat",
+      "Sugar",
+      "Added Sugar",
+      "Fibre",
+      "Water",
+      "Record Status"
+    ],
+    "rows": [
+      [
+        "Entry ID",
+        "User ID",
+        "DateTime",
+        "Date",
+        "Meal",
+        "Food ID",
+        "Food Name",
+        "Quantity",
+        "Unit",
+        "Brand",
+        "Notes",
+        "Source",
+        "Calories",
+        "Protein",
+        "Carbohydrates",
+        "Net Carbohydrates",
+        "Fat",
+        "Saturated Fat",
+        "Monounsaturated Fat",
+        "Polyunsaturated Fat",
+        "Omega-3",
+        "Omega-6",
+        "Trans Fat",
+        "Sugar",
+        "Added Sugar",
+        "Fibre",
+        "Water",
+        "Record Status"
+      ]
+    ]
+  },
+  "Micronutrients": {
+    "colsCount": 33,
+    "rowsCount": 1,
+    "headers": [
+      "Entry ID",
+      "User ID",
+      "Date",
+      "Food ID",
+      "Food Name",
+      "Quantity",
+      "Unit",
+      "Vitamin A",
+      "Vitamin B1",
+      "Vitamin B2",
+      "Vitamin B3",
+      "Vitamin B5",
+      "Vitamin B6",
+      "Vitamin B7",
+      "Vitamin B9",
+      "Vitamin B12",
+      "Vitamin C",
+      "Vitamin D",
+      "Vitamin E",
+      "Vitamin K",
+      "Calcium",
+      "Iron",
+      "Magnesium",
+      "Phosphorus",
+      "Potassium",
+      "Sodium",
+      "Zinc",
+      "Copper",
+      "Manganese",
+      "Selenium",
+      "Chromium",
+      "Molybdenum",
+      "Iodine"
+    ],
+    "rows": [
+      [
+        "Entry ID",
+        "User ID",
+        "Date",
+        "Food ID",
+        "Food Name",
+        "Quantity",
+        "Unit",
+        "Vitamin A",
+        "Vitamin B1",
+        "Vitamin B2",
+        "Vitamin B3",
+        "Vitamin B5",
+        "Vitamin B6",
+        "Vitamin B7",
+        "Vitamin B9",
+        "Vitamin B12",
+        "Vitamin C",
+        "Vitamin D",
+        "Vitamin E",
+        "Vitamin K",
+        "Calcium",
+        "Iron",
+        "Magnesium",
+        "Phosphorus",
+        "Potassium",
+        "Sodium",
+        "Zinc",
+        "Copper",
+        "Manganese",
+        "Selenium",
+        "Chromium",
+        "Molybdenum",
+        "Iodine"
+      ]
+    ]
+  },
+  "Amino Acids": {
+    "colsCount": 22,
+    "rowsCount": 1,
+    "headers": [
+      "Entry ID",
+      "User ID",
+      "Date",
+      "Food ID",
+      "Food Name",
+      "Quantity",
+      "Unit",
+      "Histidine",
+      "Isoleucine",
+      "Leucine",
+      "Lysine",
+      "Methionine",
+      "Phenylalanine",
+      "Threonine",
+      "Tryptophan",
+      "Valine",
+      "Arginine",
+      "Cysteine",
+      "Glutamine",
+      "Glycine",
+      "Proline",
+      "Tyrosine"
+    ],
+    "rows": [
+      [
+        "Entry ID",
+        "User ID",
+        "Date",
+        "Food ID",
+        "Food Name",
+        "Quantity",
+        "Unit",
+        "Histidine",
+        "Isoleucine",
+        "Leucine",
+        "Lysine",
+        "Methionine",
+        "Phenylalanine",
+        "Threonine",
+        "Tryptophan",
+        "Valine",
+        "Arginine",
+        "Cysteine",
+        "Glutamine",
+        "Glycine",
+        "Proline",
+        "Tyrosine"
+      ]
+    ]
+  },
+  "Other Nutrients": {
+    "colsCount": 14,
+    "rowsCount": 1,
+    "headers": [
+      "Entry ID",
+      "User ID",
+      "Date",
+      "Food ID",
+      "Food Name",
+      "Quantity",
+      "Unit",
+      "Choline",
+      "Cholesterol",
+      "Beta Carotene",
+      "Lutein",
+      "Zeaxanthin",
+      "Lycopene",
+      "Ash"
+    ],
+    "rows": [
+      [
+        "Entry ID",
+        "User ID",
+        "Date",
+        "Food ID",
+        "Food Name",
+        "Quantity",
+        "Unit",
+        "Choline",
+        "Cholesterol",
+        "Beta Carotene",
+        "Lutein",
+        "Zeaxanthin",
+        "Lycopene",
+        "Ash"
+      ]
+    ]
+  },
+  "Daily Summary": {
+    "colsCount": 67,
+    "rowsCount": 1,
+    "headers": [
+      "Date",
+      "Day",
+      "Week Start",
+      "Month",
+      "Calories",
+      "Protein",
+      "Carbohydrates",
+      "Net Carbohydrates",
+      "Fat",
+      "Saturated Fat",
+      "Monounsaturated Fat",
+      "Polyunsaturated Fat",
+      "Omega-3",
+      "Omega-6",
+      "Trans Fat",
+      "Sugar",
+      "Added Sugar",
+      "Fibre",
+      "Water",
+      "Vitamin A",
+      "Vitamin B1",
+      "Vitamin B2",
+      "Vitamin B3",
+      "Vitamin B5",
+      "Vitamin B6",
+      "Vitamin B7",
+      "Vitamin B9",
+      "Vitamin B12",
+      "Vitamin C",
+      "Vitamin D",
+      "Vitamin E",
+      "Vitamin K",
+      "Calcium",
+      "Iron",
+      "Magnesium",
+      "Phosphorus",
+      "Potassium",
+      "Sodium",
+      "Zinc",
+      "Copper",
+      "Manganese",
+      "Selenium",
+      "Chromium",
+      "Molybdenum",
+      "Iodine",
+      "Histidine",
+      "Isoleucine",
+      "Leucine",
+      "Lysine",
+      "Methionine",
+      "Phenylalanine",
+      "Threonine",
+      "Tryptophan",
+      "Valine",
+      "Arginine",
+      "Cysteine",
+      "Glutamine",
+      "Glycine",
+      "Proline",
+      "Tyrosine",
+      "Choline",
+      "Cholesterol",
+      "Beta Carotene",
+      "Lutein",
+      "Zeaxanthin",
+      "Lycopene",
+      "Ash"
+    ],
+    "rows": [
+      [
+        "Date",
+        "Day",
+        "Week Start",
+        "Month",
+        "Calories",
+        "Protein",
+        "Carbohydrates",
+        "Net Carbohydrates",
+        "Fat",
+        "Saturated Fat",
+        "Monounsaturated Fat",
+        "Polyunsaturated Fat",
+        "Omega-3",
+        "Omega-6",
+        "Trans Fat",
+        "Sugar",
+        "Added Sugar",
+        "Fibre",
+        "Water",
+        "Vitamin A",
+        "Vitamin B1",
+        "Vitamin B2",
+        "Vitamin B3",
+        "Vitamin B5",
+        "Vitamin B6",
+        "Vitamin B7",
+        "Vitamin B9",
+        "Vitamin B12",
+        "Vitamin C",
+        "Vitamin D",
+        "Vitamin E",
+        "Vitamin K",
+        "Calcium",
+        "Iron",
+        "Magnesium",
+        "Phosphorus",
+        "Potassium",
+        "Sodium",
+        "Zinc",
+        "Copper",
+        "Manganese",
+        "Selenium",
+        "Chromium",
+        "Molybdenum",
+        "Iodine",
+        "Histidine",
+        "Isoleucine",
+        "Leucine",
+        "Lysine",
+        "Methionine",
+        "Phenylalanine",
+        "Threonine",
+        "Tryptophan",
+        "Valine",
+        "Arginine",
+        "Cysteine",
+        "Glutamine",
+        "Glycine",
+        "Proline",
+        "Tyrosine",
+        "Choline",
+        "Cholesterol",
+        "Beta Carotene",
+        "Lutein",
+        "Zeaxanthin",
+        "Lycopene",
+        "Ash"
+      ]
+    ]
+  },
+  "Deficiency Tracker": {
+    "colsCount": 14,
+    "rowsCount": 63,
+    "headers": [
+      "calories",
+      "Calories",
+      "Energy",
+      "kcal",
+      {
+        "formula": "0.00",
+        "value": 0
+      },
+      null,
+      null,
+      {
+        "formula": "0.00",
+        "value": 0
+      },
+      null,
+      "NO TARGET",
+      {
+        "formula": "0.00",
+        "value": 0
+      },
+      {
+        "formula": "0.00",
+        "value": 0
+      },
+      {
+        "formula": "0.00",
+        "value": 0
+      },
+      {
+        "formula": "0.00",
+        "value": 0
+      }
+    ],
+    "rows": [
+      [
+        "calories",
+        "Calories",
+        "Energy",
+        "kcal",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "protein",
+        "Protein",
+        "Macronutrient",
+        "g",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "carbohydrates",
+        "Carbohydrates",
+        "Macronutrient",
+        "g",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "net_carbohydrates",
+        "Net Carbohydrates",
+        "Macronutrient",
+        "g",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "fat",
+        "Fat",
+        "Macronutrient",
+        "g",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "saturated_fat",
+        "Saturated Fat",
+        "Macronutrient",
+        "g",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "monounsaturated_fat",
+        "Monounsaturated Fat",
+        "Macronutrient",
+        "g",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "polyunsaturated_fat",
+        "Polyunsaturated Fat",
+        "Macronutrient",
+        "g",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "omega_3",
+        "Omega-3",
+        "Macronutrient",
+        "g",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "omega_6",
+        "Omega-6",
+        "Macronutrient",
+        "g",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "trans_fat",
+        "Trans Fat",
+        "Macronutrient",
+        "g",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "sugar",
+        "Sugar",
+        "Macronutrient",
+        "g",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "added_sugar",
+        "Added Sugar",
+        "Macronutrient",
+        "g",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "fibre",
+        "Fibre",
+        "Macronutrient",
+        "g",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "water",
+        "Water",
+        "Macronutrient",
+        "ml",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "vitamin_a",
+        "Vitamin A",
+        "Vitamin",
+        "µg RAE",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "vitamin_b1",
+        "Vitamin B1",
+        "Vitamin",
+        "mg",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "vitamin_b2",
+        "Vitamin B2",
+        "Vitamin",
+        "mg",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "vitamin_b3",
+        "Vitamin B3",
+        "Vitamin",
+        "mg",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "vitamin_b5",
+        "Vitamin B5",
+        "Vitamin",
+        "mg",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "vitamin_b6",
+        "Vitamin B6",
+        "Vitamin",
+        "mg",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "vitamin_b7",
+        "Vitamin B7",
+        "Vitamin",
+        "µg",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "vitamin_b9",
+        "Vitamin B9",
+        "Vitamin",
+        "µg DFE",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "vitamin_b12",
+        "Vitamin B12",
+        "Vitamin",
+        "µg",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "vitamin_c",
+        "Vitamin C",
+        "Vitamin",
+        "mg",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "vitamin_d",
+        "Vitamin D",
+        "Vitamin",
+        "µg",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "vitamin_e",
+        "Vitamin E",
+        "Vitamin",
+        "mg",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "vitamin_k",
+        "Vitamin K",
+        "Vitamin",
+        "µg",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "calcium",
+        "Calcium",
+        "Mineral",
+        "mg",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "iron",
+        "Iron",
+        "Mineral",
+        "mg",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "magnesium",
+        "Magnesium",
+        "Mineral",
+        "mg",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "phosphorus",
+        "Phosphorus",
+        "Mineral",
+        "mg",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "potassium",
+        "Potassium",
+        "Mineral",
+        "mg",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "sodium",
+        "Sodium",
+        "Mineral",
+        "mg",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "zinc",
+        "Zinc",
+        "Mineral",
+        "mg",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "copper",
+        "Copper",
+        "Mineral",
+        "mg",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "manganese",
+        "Manganese",
+        "Mineral",
+        "mg",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "selenium",
+        "Selenium",
+        "Mineral",
+        "µg",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "chromium",
+        "Chromium",
+        "Mineral",
+        "µg",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "molybdenum",
+        "Molybdenum",
+        "Mineral",
+        "µg",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "iodine",
+        "Iodine",
+        "Mineral",
+        "µg",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "histidine",
+        "Histidine",
+        "Amino Acid",
+        "g",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "isoleucine",
+        "Isoleucine",
+        "Amino Acid",
+        "g",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "leucine",
+        "Leucine",
+        "Amino Acid",
+        "g",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "lysine",
+        "Lysine",
+        "Amino Acid",
+        "g",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "methionine",
+        "Methionine",
+        "Amino Acid",
+        "g",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "phenylalanine",
+        "Phenylalanine",
+        "Amino Acid",
+        "g",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "threonine",
+        "Threonine",
+        "Amino Acid",
+        "g",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "tryptophan",
+        "Tryptophan",
+        "Amino Acid",
+        "g",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "valine",
+        "Valine",
+        "Amino Acid",
+        "g",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "arginine",
+        "Arginine",
+        "Amino Acid",
+        "g",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "cysteine",
+        "Cysteine",
+        "Amino Acid",
+        "g",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "glutamine",
+        "Glutamine",
+        "Amino Acid",
+        "g",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "glycine",
+        "Glycine",
+        "Amino Acid",
+        "g",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "proline",
+        "Proline",
+        "Amino Acid",
+        "g",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "tyrosine",
+        "Tyrosine",
+        "Amino Acid",
+        "g",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "choline",
+        "Choline",
+        "Other",
+        "mg",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "cholesterol",
+        "Cholesterol",
+        "Other",
+        "mg",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "beta_carotene",
+        "Beta Carotene",
+        "Other",
+        "µg",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "lutein",
+        "Lutein",
+        "Other",
+        "µg",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "zeaxanthin",
+        "Zeaxanthin",
+        "Other",
+        "µg",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "lycopene",
+        "Lycopene",
+        "Other",
+        "µg",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ],
+      [
+        "ash",
+        "Ash",
+        "Other",
+        "g",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        null,
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        null,
+        "NO TARGET",
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        },
+        {
+          "formula": "0.00",
+          "value": 0
+        }
+      ]
+    ]
+  },
+  "Nutrition Targets": {
+    "colsCount": 8,
+    "rowsCount": 64,
+    "headers": [
+      "Nutrient Key",
+      "Nutrient",
+      "Category",
+      "Unit",
+      "Daily Target",
+      "Upper Limit",
+      "Target Type",
+      "Notes"
+    ],
+    "rows": [
+      [
+        "Nutrient Key",
+        "Nutrient",
+        "Category",
+        "Unit",
+        "Daily Target",
+        "Upper Limit",
+        "Target Type",
+        "Notes"
+      ],
+      [
+        "calories",
+        "Calories",
+        "Energy",
+        "kcal",
+        null,
+        null,
+        "Range",
+        null
+      ],
+      [
+        "protein",
+        "Protein",
+        "Macronutrient",
+        "g",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "carbohydrates",
+        "Carbohydrates",
+        "Macronutrient",
+        "g",
+        null,
+        null,
+        "Range",
+        null
+      ],
+      [
+        "net_carbohydrates",
+        "Net Carbohydrates",
+        "Macronutrient",
+        "g",
+        null,
+        null,
+        "Range",
+        null
+      ],
+      [
+        "fat",
+        "Fat",
+        "Macronutrient",
+        "g",
+        null,
+        null,
+        "Range",
+        null
+      ],
+      [
+        "saturated_fat",
+        "Saturated Fat",
+        "Macronutrient",
+        "g",
+        null,
+        null,
+        "Maximum",
+        null
+      ],
+      [
+        "monounsaturated_fat",
+        "Monounsaturated Fat",
+        "Macronutrient",
+        "g",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "polyunsaturated_fat",
+        "Polyunsaturated Fat",
+        "Macronutrient",
+        "g",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "omega_3",
+        "Omega-3",
+        "Macronutrient",
+        "g",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "omega_6",
+        "Omega-6",
+        "Macronutrient",
+        "g",
+        null,
+        null,
+        "Range",
+        null
+      ],
+      [
+        "trans_fat",
+        "Trans Fat",
+        "Macronutrient",
+        "g",
+        null,
+        null,
+        "Maximum",
+        null
+      ],
+      [
+        "sugar",
+        "Sugar",
+        "Macronutrient",
+        "g",
+        null,
+        null,
+        "Maximum",
+        null
+      ],
+      [
+        "added_sugar",
+        "Added Sugar",
+        "Macronutrient",
+        "g",
+        null,
+        null,
+        "Maximum",
+        null
+      ],
+      [
+        "fibre",
+        "Fibre",
+        "Macronutrient",
+        "g",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "water",
+        "Water",
+        "Macronutrient",
+        "ml",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "vitamin_a",
+        "Vitamin A",
+        "Vitamin",
+        "µg RAE",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "vitamin_b1",
+        "Vitamin B1",
+        "Vitamin",
+        "mg",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "vitamin_b2",
+        "Vitamin B2",
+        "Vitamin",
+        "mg",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "vitamin_b3",
+        "Vitamin B3",
+        "Vitamin",
+        "mg",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "vitamin_b5",
+        "Vitamin B5",
+        "Vitamin",
+        "mg",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "vitamin_b6",
+        "Vitamin B6",
+        "Vitamin",
+        "mg",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "vitamin_b7",
+        "Vitamin B7",
+        "Vitamin",
+        "µg",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "vitamin_b9",
+        "Vitamin B9",
+        "Vitamin",
+        "µg DFE",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "vitamin_b12",
+        "Vitamin B12",
+        "Vitamin",
+        "µg",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "vitamin_c",
+        "Vitamin C",
+        "Vitamin",
+        "mg",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "vitamin_d",
+        "Vitamin D",
+        "Vitamin",
+        "µg",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "vitamin_e",
+        "Vitamin E",
+        "Vitamin",
+        "mg",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "vitamin_k",
+        "Vitamin K",
+        "Vitamin",
+        "µg",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "calcium",
+        "Calcium",
+        "Mineral",
+        "mg",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "iron",
+        "Iron",
+        "Mineral",
+        "mg",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "magnesium",
+        "Magnesium",
+        "Mineral",
+        "mg",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "phosphorus",
+        "Phosphorus",
+        "Mineral",
+        "mg",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "potassium",
+        "Potassium",
+        "Mineral",
+        "mg",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "sodium",
+        "Sodium",
+        "Mineral",
+        "mg",
+        null,
+        null,
+        "Maximum",
+        null
+      ],
+      [
+        "zinc",
+        "Zinc",
+        "Mineral",
+        "mg",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "copper",
+        "Copper",
+        "Mineral",
+        "mg",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "manganese",
+        "Manganese",
+        "Mineral",
+        "mg",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "selenium",
+        "Selenium",
+        "Mineral",
+        "µg",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "chromium",
+        "Chromium",
+        "Mineral",
+        "µg",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "molybdenum",
+        "Molybdenum",
+        "Mineral",
+        "µg",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "iodine",
+        "Iodine",
+        "Mineral",
+        "µg",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "histidine",
+        "Histidine",
+        "Amino Acid",
+        "g",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "isoleucine",
+        "Isoleucine",
+        "Amino Acid",
+        "g",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "leucine",
+        "Leucine",
+        "Amino Acid",
+        "g",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "lysine",
+        "Lysine",
+        "Amino Acid",
+        "g",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "methionine",
+        "Methionine",
+        "Amino Acid",
+        "g",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "phenylalanine",
+        "Phenylalanine",
+        "Amino Acid",
+        "g",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "threonine",
+        "Threonine",
+        "Amino Acid",
+        "g",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "tryptophan",
+        "Tryptophan",
+        "Amino Acid",
+        "g",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "valine",
+        "Valine",
+        "Amino Acid",
+        "g",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "arginine",
+        "Arginine",
+        "Amino Acid",
+        "g",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "cysteine",
+        "Cysteine",
+        "Amino Acid",
+        "g",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "glutamine",
+        "Glutamine",
+        "Amino Acid",
+        "g",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "glycine",
+        "Glycine",
+        "Amino Acid",
+        "g",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "proline",
+        "Proline",
+        "Amino Acid",
+        "g",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "tyrosine",
+        "Tyrosine",
+        "Amino Acid",
+        "g",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "choline",
+        "Choline",
+        "Other",
+        "mg",
+        null,
+        null,
+        "Minimum",
+        null
+      ],
+      [
+        "cholesterol",
+        "Cholesterol",
+        "Other",
+        "mg",
+        null,
+        null,
+        "Maximum",
+        null
+      ],
+      [
+        "beta_carotene",
+        "Beta Carotene",
+        "Other",
+        "µg",
+        null,
+        null,
+        "Reference",
+        null
+      ],
+      [
+        "lutein",
+        "Lutein",
+        "Other",
+        "µg",
+        null,
+        null,
+        "Reference",
+        null
+      ],
+      [
+        "zeaxanthin",
+        "Zeaxanthin",
+        "Other",
+        "µg",
+        null,
+        null,
+        "Reference",
+        null
+      ],
+      [
+        "lycopene",
+        "Lycopene",
+        "Other",
+        "µg",
+        null,
+        null,
+        "Reference",
+        null
+      ],
+      [
+        "ash",
+        "Ash",
+        "Other",
+        "g",
+        null,
+        null,
+        "Reference",
+        null
+      ]
+    ]
+  },
+  "Food Database": {
+    "colsCount": 70,
+    "rowsCount": 1,
+    "headers": [
+      "Food ID",
+      "Food Name",
+      "Brand",
+      "Serving Size",
+      "Serving Unit",
+      "Source",
+      "Active",
+      "Calories",
+      "Protein",
+      "Carbohydrates",
+      "Net Carbohydrates",
+      "Fat",
+      "Saturated Fat",
+      "Monounsaturated Fat",
+      "Polyunsaturated Fat",
+      "Omega-3",
+      "Omega-6",
+      "Trans Fat",
+      "Sugar",
+      "Added Sugar",
+      "Fibre",
+      "Water",
+      "Vitamin A",
+      "Vitamin B1",
+      "Vitamin B2",
+      "Vitamin B3",
+      "Vitamin B5",
+      "Vitamin B6",
+      "Vitamin B7",
+      "Vitamin B9",
+      "Vitamin B12",
+      "Vitamin C",
+      "Vitamin D",
+      "Vitamin E",
+      "Vitamin K",
+      "Calcium",
+      "Iron",
+      "Magnesium",
+      "Phosphorus",
+      "Potassium",
+      "Sodium",
+      "Zinc",
+      "Copper",
+      "Manganese",
+      "Selenium",
+      "Chromium",
+      "Molybdenum",
+      "Iodine",
+      "Histidine",
+      "Isoleucine",
+      "Leucine",
+      "Lysine",
+      "Methionine",
+      "Phenylalanine",
+      "Threonine",
+      "Tryptophan",
+      "Valine",
+      "Arginine",
+      "Cysteine",
+      "Glutamine",
+      "Glycine",
+      "Proline",
+      "Tyrosine",
+      "Choline",
+      "Cholesterol",
+      "Beta Carotene",
+      "Lutein",
+      "Zeaxanthin",
+      "Lycopene",
+      "Ash"
+    ],
+    "rows": [
+      [
+        "Food ID",
+        "Food Name",
+        "Brand",
+        "Serving Size",
+        "Serving Unit",
+        "Source",
+        "Active",
+        "Calories",
+        "Protein",
+        "Carbohydrates",
+        "Net Carbohydrates",
+        "Fat",
+        "Saturated Fat",
+        "Monounsaturated Fat",
+        "Polyunsaturated Fat",
+        "Omega-3",
+        "Omega-6",
+        "Trans Fat",
+        "Sugar",
+        "Added Sugar",
+        "Fibre",
+        "Water",
+        "Vitamin A",
+        "Vitamin B1",
+        "Vitamin B2",
+        "Vitamin B3",
+        "Vitamin B5",
+        "Vitamin B6",
+        "Vitamin B7",
+        "Vitamin B9",
+        "Vitamin B12",
+        "Vitamin C",
+        "Vitamin D",
+        "Vitamin E",
+        "Vitamin K",
+        "Calcium",
+        "Iron",
+        "Magnesium",
+        "Phosphorus",
+        "Potassium",
+        "Sodium",
+        "Zinc",
+        "Copper",
+        "Manganese",
+        "Selenium",
+        "Chromium",
+        "Molybdenum",
+        "Iodine",
+        "Histidine",
+        "Isoleucine",
+        "Leucine",
+        "Lysine",
+        "Methionine",
+        "Phenylalanine",
+        "Threonine",
+        "Tryptophan",
+        "Valine",
+        "Arginine",
+        "Cysteine",
+        "Glutamine",
+        "Glycine",
+        "Proline",
+        "Tyrosine",
+        "Choline",
+        "Cholesterol",
+        "Beta Carotene",
+        "Lutein",
+        "Zeaxanthin",
+        "Lycopene",
+        "Ash"
+      ]
+    ]
+  },
+  "AI Suggestions": {
+    "colsCount": 5,
+    "rowsCount": 6,
+    "headers": [
+      "Section Key",
+      "AI Suggestion Section",
+      "AI Output Placeholder",
+      "Updated At",
+      "Source"
+    ],
+    "rows": [
+      [
+        "Section Key",
+        "AI Suggestion Section",
+        "AI Output Placeholder",
+        "Updated At",
+        "Source"
+      ],
+      [
+        "today_missing_nutrients",
+        "Today's Missing Nutrients",
+        "Awaiting PHP / AI population",
+        null,
+        "Future API"
+      ],
+      [
+        "tomorrow_suggested_foods",
+        "Tomorrow's Suggested Foods",
+        "Awaiting PHP / AI population",
+        null,
+        "Future API"
+      ],
+      [
+        "repeated_deficiencies",
+        "Repeated Deficiencies",
+        "Awaiting PHP / AI population",
+        null,
+        "Future API"
+      ],
+      [
+        "high_priority_nutrients",
+        "High Priority Nutrients",
+        "Awaiting PHP / AI population",
+        null,
+        "Future API"
+      ],
+      [
+        "warnings",
+        "Warnings",
+        "Awaiting PHP / AI population",
+        null,
+        "Future API"
+      ]
+    ]
+  },
+  "Nutrient Dictionary": {
+    "colsCount": 6,
+    "rowsCount": 63,
+    "headers": [
+      "calories",
+      "Calories",
+      "Energy",
+      "kcal",
+      "Range",
+      {
+        "formula": "TRUE",
+        "value": true
+      }
+    ],
+    "rows": [
+      [
+        "calories",
+        "Calories",
+        "Energy",
+        "kcal",
+        "Range",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "protein",
+        "Protein",
+        "Macronutrient",
+        "g",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "carbohydrates",
+        "Carbohydrates",
+        "Macronutrient",
+        "g",
+        "Range",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "net_carbohydrates",
+        "Net Carbohydrates",
+        "Macronutrient",
+        "g",
+        "Range",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "fat",
+        "Fat",
+        "Macronutrient",
+        "g",
+        "Range",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "saturated_fat",
+        "Saturated Fat",
+        "Macronutrient",
+        "g",
+        "Maximum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "monounsaturated_fat",
+        "Monounsaturated Fat",
+        "Macronutrient",
+        "g",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "polyunsaturated_fat",
+        "Polyunsaturated Fat",
+        "Macronutrient",
+        "g",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "omega_3",
+        "Omega-3",
+        "Macronutrient",
+        "g",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "omega_6",
+        "Omega-6",
+        "Macronutrient",
+        "g",
+        "Range",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "trans_fat",
+        "Trans Fat",
+        "Macronutrient",
+        "g",
+        "Maximum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "sugar",
+        "Sugar",
+        "Macronutrient",
+        "g",
+        "Maximum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "added_sugar",
+        "Added Sugar",
+        "Macronutrient",
+        "g",
+        "Maximum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "fibre",
+        "Fibre",
+        "Macronutrient",
+        "g",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "water",
+        "Water",
+        "Macronutrient",
+        "ml",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "vitamin_a",
+        "Vitamin A",
+        "Vitamin",
+        "µg RAE",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "vitamin_b1",
+        "Vitamin B1",
+        "Vitamin",
+        "mg",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "vitamin_b2",
+        "Vitamin B2",
+        "Vitamin",
+        "mg",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "vitamin_b3",
+        "Vitamin B3",
+        "Vitamin",
+        "mg",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "vitamin_b5",
+        "Vitamin B5",
+        "Vitamin",
+        "mg",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "vitamin_b6",
+        "Vitamin B6",
+        "Vitamin",
+        "mg",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "vitamin_b7",
+        "Vitamin B7",
+        "Vitamin",
+        "µg",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "vitamin_b9",
+        "Vitamin B9",
+        "Vitamin",
+        "µg DFE",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "vitamin_b12",
+        "Vitamin B12",
+        "Vitamin",
+        "µg",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "vitamin_c",
+        "Vitamin C",
+        "Vitamin",
+        "mg",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "vitamin_d",
+        "Vitamin D",
+        "Vitamin",
+        "µg",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "vitamin_e",
+        "Vitamin E",
+        "Vitamin",
+        "mg",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "vitamin_k",
+        "Vitamin K",
+        "Vitamin",
+        "µg",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "calcium",
+        "Calcium",
+        "Mineral",
+        "mg",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "iron",
+        "Iron",
+        "Mineral",
+        "mg",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "magnesium",
+        "Magnesium",
+        "Mineral",
+        "mg",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "phosphorus",
+        "Phosphorus",
+        "Mineral",
+        "mg",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "potassium",
+        "Potassium",
+        "Mineral",
+        "mg",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "sodium",
+        "Sodium",
+        "Mineral",
+        "mg",
+        "Maximum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "zinc",
+        "Zinc",
+        "Mineral",
+        "mg",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "copper",
+        "Copper",
+        "Mineral",
+        "mg",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "manganese",
+        "Manganese",
+        "Mineral",
+        "mg",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "selenium",
+        "Selenium",
+        "Mineral",
+        "µg",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "chromium",
+        "Chromium",
+        "Mineral",
+        "µg",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "molybdenum",
+        "Molybdenum",
+        "Mineral",
+        "µg",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "iodine",
+        "Iodine",
+        "Mineral",
+        "µg",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "histidine",
+        "Histidine",
+        "Amino Acid",
+        "g",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "isoleucine",
+        "Isoleucine",
+        "Amino Acid",
+        "g",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "leucine",
+        "Leucine",
+        "Amino Acid",
+        "g",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "lysine",
+        "Lysine",
+        "Amino Acid",
+        "g",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "methionine",
+        "Methionine",
+        "Amino Acid",
+        "g",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "phenylalanine",
+        "Phenylalanine",
+        "Amino Acid",
+        "g",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "threonine",
+        "Threonine",
+        "Amino Acid",
+        "g",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "tryptophan",
+        "Tryptophan",
+        "Amino Acid",
+        "g",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "valine",
+        "Valine",
+        "Amino Acid",
+        "g",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "arginine",
+        "Arginine",
+        "Amino Acid",
+        "g",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "cysteine",
+        "Cysteine",
+        "Amino Acid",
+        "g",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "glutamine",
+        "Glutamine",
+        "Amino Acid",
+        "g",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "glycine",
+        "Glycine",
+        "Amino Acid",
+        "g",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "proline",
+        "Proline",
+        "Amino Acid",
+        "g",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "tyrosine",
+        "Tyrosine",
+        "Amino Acid",
+        "g",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "choline",
+        "Choline",
+        "Other",
+        "mg",
+        "Minimum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "cholesterol",
+        "Cholesterol",
+        "Other",
+        "mg",
+        "Maximum",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "beta_carotene",
+        "Beta Carotene",
+        "Other",
+        "µg",
+        "Reference",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "lutein",
+        "Lutein",
+        "Other",
+        "µg",
+        "Reference",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "zeaxanthin",
+        "Zeaxanthin",
+        "Other",
+        "µg",
+        "Reference",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "lycopene",
+        "Lycopene",
+        "Other",
+        "µg",
+        "Reference",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "ash",
+        "Ash",
+        "Other",
+        "g",
+        "Reference",
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ]
+    ]
+  },
+  "Lists": {
+    "colsCount": 11,
+    "rowsCount": 23,
+    "headers": [
+      "Breakfast",
+      null,
+      "g",
+      null,
+      "Manual",
+      null,
+      "READY",
+      null,
+      "Minimum",
+      null,
+      {
+        "formula": "TRUE",
+        "value": true
+      }
+    ],
+    "rows": [
+      [
+        "Breakfast",
+        null,
+        "g",
+        null,
+        "Manual",
+        null,
+        "READY",
+        null,
+        "Minimum",
+        null,
+        {
+          "formula": "TRUE",
+          "value": true
+        }
+      ],
+      [
+        "Morning Snack",
+        null,
+        "kg",
+        null,
+        "USDA",
+        null,
+        "INCOMPLETE",
+        null,
+        "Maximum",
+        null,
+        {
+          "formula": "FALSE",
+          "value": false
+        }
+      ],
+      [
+        "Lunch",
+        null,
+        "mg",
+        null,
+        "Manufacturer",
+        null,
+        "INVALID FOOD",
+        null,
+        "Range",
+        null,
+        null
+      ],
+      [
+        "Afternoon Snack",
+        null,
+        "µg",
+        null,
+        "Restaurant",
+        null,
+        "ARCHIVED",
+        null,
+        "Reference",
+        null,
+        null
+      ],
+      [
+        "Dinner",
+        null,
+        "ml",
+        null,
+        "Barcode",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "Evening Snack",
+        null,
+        "l",
+        null,
+        "Recipe",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "Pre-Workout",
+        null,
+        "oz",
+        null,
+        "Import",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "Post-Workout",
+        null,
+        "lb",
+        null,
+        "API",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "Beverage",
+        null,
+        "cup",
+        null,
+        "AI Suggested",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "Supplement",
+        null,
+        "tbsp",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "Other",
+        null,
+        "tsp",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        null,
+        null,
+        "piece",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        null,
+        null,
+        "serving",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        null,
+        null,
+        "scoop",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "Status Thresholds",
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "Critical below",
+        {
+          "formula": "50%",
+          "value": 0.5
+        },
+        null,
+        null,
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "Low below",
+        {
+          "formula": "80%",
+          "value": 0.8
+        },
+        null,
+        null,
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "Good below",
+        {
+          "formula": "100%",
+          "value": 1
+        },
+        null,
+        null,
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "Maximum critical above",
+        {
+          "formula": "120%",
+          "value": 1.2
+        },
+        null,
+        null,
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "Database Settings",
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "Default User ID",
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "Food row capacity",
+        {
+          "formula": "50000",
+          "value": 50000
+        },
+        null,
+        null,
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "Summary row capacity",
+        {
+          "formula": "20000",
+          "value": 20000
+        },
+        null,
+        null,
+        null
+      ]
+    ]
+  },
+  "Data Quality": {
+    "colsCount": 5,
+    "rowsCount": 11,
+    "headers": [
+      "DQ-001",
+      "Duplicate Food IDs",
+      {
+        "formula": "0",
+        "value": 0
+      },
+      "✓ PASS",
+      "Assign one immutable Food ID per food record."
+    ],
+    "rows": [
+      [
+        "DQ-001",
+        "Duplicate Food IDs",
+        {
+          "formula": "0",
+          "value": 0
+        },
+        "✓ PASS",
+        "Assign one immutable Food ID per food record."
+      ],
+      [
+        "DQ-002",
+        "Duplicate Entry IDs",
+        {
+          "formula": "0",
+          "value": 0
+        },
+        "✓ PASS",
+        "Generate a unique UUID for every consumed-food record."
+      ],
+      [
+        "DQ-003",
+        "Food records missing required fields",
+        {
+          "formula": "0",
+          "value": 0
+        },
+        "✓ PASS",
+        "Complete food name, serving size, and serving unit."
+      ],
+      [
+        "DQ-004",
+        "Incomplete Food Log records",
+        {
+          "formula": "0",
+          "value": 0
+        },
+        "✓ PASS",
+        "Complete Entry ID, timestamp, meal, Food ID, and quantity."
+      ],
+      [
+        "DQ-005",
+        "Invalid Food IDs in Food Log",
+        {
+          "formula": "0",
+          "value": 0
+        },
+        "✓ PASS",
+        "Add the Food ID to Food Database or correct the log record."
+      ],
+      [
+        "DQ-006",
+        "Orphan Micronutrient Entry IDs",
+        {
+          "formula": "0",
+          "value": 0
+        },
+        "✓ PASS",
+        "Restore the parent Food Log record or remove the orphan."
+      ],
+      [
+        "DQ-007",
+        "Orphan Amino Acid Entry IDs",
+        {
+          "formula": "0",
+          "value": 0
+        },
+        "✓ PASS",
+        "Restore the parent Food Log record or remove the orphan."
+      ],
+      [
+        "DQ-008",
+        "Orphan Other Nutrient Entry IDs",
+        {
+          "formula": "0",
+          "value": 0
+        },
+        "✓ PASS",
+        "Restore the parent Food Log record or remove the orphan."
+      ],
+      [
+        "DQ-009",
+        "Negative consumption quantities",
+        {
+          "formula": "0",
+          "value": 0
+        },
+        "✓ PASS",
+        "Correct quantity signs."
+      ],
+      [
+        "DQ-010",
+        "Negative nutrient values in Food Database",
+        {
+          "formula": "0",
+          "value": 0
+        },
+        "✓ PASS",
+        "Correct invalid nutrient values at source."
+      ],
+      [
+        "DQ-011",
+        "Missing active nutrition targets",
+        {
+          "formula": "58",
+          "value": 58
+        },
+        "⚠ REVIEW",
+        "Enter personalized targets in Nutrition Targets."
+      ]
+    ]
+  }
+}
