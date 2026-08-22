@@ -121,7 +121,7 @@ export function GoogleSheetsSection({
       const res = await fetch("/api/google-sheets/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ direction: "PUSH_LOGS", dateRangeDays: 30 }),
+        body: JSON.stringify({ direction: "PUSH_LOGS", dateRangeDays: 14 }),
       });
       const data = await res.json();
 
@@ -129,7 +129,7 @@ export function GoogleSheetsSection({
         throw new Error(data.error || "Failed to synchronize with Google Sheets");
       }
 
-      setSuccessMsg(data.message || "Successfully synchronized all workbook sheets!");
+      setSuccessMsg(data.data?.message || data.message || "Successfully synchronized with your Google Spreadsheet!");
       await fetchConnection();
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to synchronize with Google Sheets");

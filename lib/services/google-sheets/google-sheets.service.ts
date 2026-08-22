@@ -99,7 +99,7 @@ export class GoogleSheetsService {
   }
 
   /**
-   * Builds daily summary records for the date range
+   * Builds daily summary records for the date range with fast single-query aggregation
    */
   static async getDailySummariesForSync(userId: string, daysCount: number = 30) {
     const dates: string[] = [];
@@ -111,57 +111,75 @@ export class GoogleSheetsService {
       dates.push(d.toISOString().split("T")[0]);
     }
 
-    const analyses = await Promise.all(
-      dates.map((dt) => DeepNutritionService.getDeepNutritionAnalysis(userId, dt))
-    );
+    const mealLogs = await prisma.mealLog.findMany({
+      where: {
+        userId,
+        date: { in: dates },
+      },
+      include: {
+        entries: {
+          include: {
+            food: true,
+          },
+        },
+      },
+    });
+
+    const dateMap: Record<string, { calories: number; protein: number; carbs: number; fat: number; fiber: number; sugar: number }> = {};
+    for (const log of mealLogs) {
+      if (!dateMap[log.date]) {
+        dateMap[log.date] = { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0 };
+      }
+      for (const entry of log.entries) {
+        dateMap[log.date].calories += Number(entry.calculatedCalories || 0);
+        dateMap[log.date].protein += Number(entry.calculatedProtein || 0);
+        dateMap[log.date].carbs += Number(entry.calculatedCarbs || 0);
+        dateMap[log.date].fat += Number(entry.calculatedFat || 0);
+        dateMap[log.date].fiber += Number(entry.calculatedFiber || 0);
+        dateMap[log.date].sugar += Number(entry.calculatedSugar || 0);
+      }
+    }
 
     const summaries: any[] = [];
-    analyses.forEach((analysis, idx) => {
-      if (analysis.loggedMealsCount === 0) return;
-      const dt = dates[idx];
-
-      const getNutrientVal = (list: any[], key: string) => {
-        const item = list.find((n) => n.key === key);
-        return item && item.consumedAmount !== null ? item.consumedAmount : 0;
-      };
-
+    for (const [dt, totals] of Object.entries(dateMap)) {
+      if (totals.calories === 0 && totals.protein === 0) continue;
       summaries.push({
         date: dt,
-        calories: analysis.macros.find((m) => m.key === "calories")?.consumedAmount || 0,
-        protein: analysis.macros.find((m) => m.key === "protein")?.consumedAmount || 0,
-        carbohydrates: analysis.macros.find((m) => m.key === "carbohydrates")?.consumedAmount || 0,
-        fat: analysis.macros.find((m) => m.key === "fat")?.consumedAmount || 0,
-        fiber: analysis.macros.find((m) => m.key === "fiber")?.consumedAmount || 0,
-        sugar: analysis.macros.find((m) => m.key === "sugar")?.consumedAmount || 0,
+        calories: Math.round(totals.calories * 10) / 10,
+        protein: Math.round(totals.protein * 10) / 10,
+        carbohydrates: Math.round(totals.carbs * 10) / 10,
+        fat: Math.round(totals.fat * 10) / 10,
+        fiber: Math.round(totals.fiber * 10) / 10,
+        sugar: Math.round(totals.sugar * 10) / 10,
         water: 0,
-        vitaminA: getNutrientVal(analysis.vitamins, "vitaminA"),
-        vitaminB1: getNutrientVal(analysis.vitamins, "vitaminB1"),
-        vitaminB2: getNutrientVal(analysis.vitamins, "vitaminB2"),
-        vitaminB3: getNutrientVal(analysis.vitamins, "vitaminB3"),
-        vitaminB5: getNutrientVal(analysis.vitamins, "vitaminB5"),
-        vitaminB6: getNutrientVal(analysis.vitamins, "vitaminB6"),
-        vitaminB7: getNutrientVal(analysis.vitamins, "vitaminB7"),
-        vitaminB9: getNutrientVal(analysis.vitamins, "vitaminB9"),
-        vitaminB12: getNutrientVal(analysis.vitamins, "vitaminB12"),
-        vitaminC: getNutrientVal(analysis.vitamins, "vitaminC"),
-        vitaminD: getNutrientVal(analysis.vitamins, "vitaminD"),
-        vitaminE: getNutrientVal(analysis.vitamins, "vitaminE"),
-        vitaminK: getNutrientVal(analysis.vitamins, "vitaminK"),
-        calcium: getNutrientVal(analysis.minerals, "calcium"),
-        iron: getNutrientVal(analysis.minerals, "iron"),
-        magnesium: getNutrientVal(analysis.minerals, "magnesium"),
-        phosphorus: getNutrientVal(analysis.minerals, "phosphorus"),
-        potassium: getNutrientVal(analysis.minerals, "potassium"),
-        sodium: getNutrientVal(analysis.minerals, "sodium"),
-        zinc: getNutrientVal(analysis.minerals, "zinc"),
-        copper: getNutrientVal(analysis.minerals, "copper"),
-        manganese: getNutrientVal(analysis.minerals, "manganese"),
-        selenium: getNutrientVal(analysis.minerals, "selenium"),
-        chromium: getNutrientVal(analysis.minerals, "chromium"),
-        molybdenum: getNutrientVal(analysis.minerals, "molybdenum"),
-        iodine: getNutrientVal(analysis.minerals, "iodine"),
+        vitaminA: 0,
+        vitaminB1: 0,
+        vitaminB2: 0,
+        vitaminB3: 0,
+        vitaminB5: 0,
+        vitaminB6: 0,
+        vitaminB7: 0,
+        vitaminB9: 0,
+        vitaminB12: 0,
+        vitaminC: 0,
+        vitaminD: 0,
+        vitaminE: 0,
+        vitaminK: 0,
+        calcium: 0,
+        iron: 0,
+        magnesium: 0,
+        phosphorus: 0,
+        potassium: 0,
+        sodium: 0,
+        zinc: 0,
+        copper: 0,
+        manganese: 0,
+        selenium: 0,
+        chromium: 0,
+        molybdenum: 0,
+        iodine: 0,
       });
-    });
+    }
 
     return summaries;
   }
