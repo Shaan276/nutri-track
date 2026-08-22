@@ -50,9 +50,12 @@ function doPost(e) {
       }
 
       var rows = item.dataRows || [];
+      if (rows.length === 0) continue;
+
       var keyIndex = item.keyColumnIndex !== undefined ? item.keyColumnIndex : 0;
       var lastRow = sheet.getLastRow();
       var existingKeys = {};
+
       if (lastRow > 1) {
         var keyValues = sheet.getRange(2, keyIndex + 1, lastRow - 1, 1).getValues();
         for (var i = 0; i < keyValues.length; i++) {
@@ -61,15 +64,22 @@ function doPost(e) {
         }
       }
 
+      var appends = [];
       for (var r = 0; r < rows.length; r++) {
         var row = rows[r];
         var rowKey = String(row[keyIndex] || "");
         if (rowKey && existingKeys[rowKey]) {
           sheet.getRange(existingKeys[rowKey], 1, 1, row.length).setValues([row]);
         } else {
-          sheet.appendRow(row);
+          appends.push(row);
         }
         totalProcessed++;
+      }
+
+      // Ultra-fast bulk write for new rows
+      if (appends.length > 0) {
+        var startRow = Math.max(2, sheet.getLastRow() + 1);
+        sheet.getRange(startRow, 1, appends.length, appends[0].length).setValues(appends);
       }
     }
 
