@@ -1,4 +1,5 @@
 import { PrismaClient, Prisma } from "@prisma/client";
+import { Pool as PgRealPool } from "pg";
 import { newDb, IMemoryDb } from "pg-mem";
 import fs from "fs";
 import path from "path";
@@ -151,9 +152,31 @@ function savePersistedData(data: PersistentData) {
 
 async function getPool(): Promise<any> {
   if (!globalForDb.pgPool) {
-    const db = newDb();
-    const { Pool } = db.adapters.createPg();
-    const pool = new Pool();
+    const dbUrl = process.env.DATABASE_URL || process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL;
+    let pool: any = null;
+
+    if (dbUrl && !dbUrl.includes("localhost") && !dbUrl.includes("127.0.0.1")) {
+      try {
+        pool = new PgRealPool({
+          connectionString: dbUrl,
+          ssl: { rejectUnauthorized: false },
+          max: 10,
+        });
+        await pool.query("SELECT 1");
+      } catch (err) {
+        console.warn("Falling back to in-memory db because connection failed:", err);
+        pool = null;
+      }
+    }
+
+    if (!pool) {
+      const db = newDb();
+      const { Pool } = db.adapters.createPg();
+      pool = new Pool();
+      globalForDb.memDb = db;
+    }
+
+    globalForDb.pgPool = pool;
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
@@ -1296,7 +1319,6 @@ async function getPool(): Promise<any> {
       } catch {}
     }
 
-    globalForDb.memDb = db;
     globalForDb.pgPool = pool;
   }
   return globalForDb.pgPool;
