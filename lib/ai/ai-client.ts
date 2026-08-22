@@ -1,6 +1,7 @@
 import { keyManager } from "./key-manager";
 import { AI_MODEL_CONFIG, AI_COACH_SYSTEM_PROMPT, AI_COACH_TOOLS } from "./model-config";
 import { AIToolRegistry, ToolExecutionContext, GoalProposalPayload } from "./tool-registry";
+import { SystemSettingsService } from "@/lib/services/admin/system-settings.service";
 
 export interface ChatCompletionMessage {
   role: "system" | "user" | "assistant" | "tool";
@@ -36,7 +37,8 @@ export class AIClient {
     context: ToolExecutionContext,
     options: { modelOverride?: string; allowTools?: boolean } = {}
   ): Promise<AICoachResponse> {
-    const selectedModel = options.modelOverride || AI_MODEL_CONFIG.defaultModel;
+    const dbModel = await SystemSettingsService.getSetting("AI_MODEL", AI_MODEL_CONFIG.defaultModel);
+    const selectedModel = options.modelOverride || dbModel;
     const allowTools = options.allowTools !== false;
     const toolsExecuted: Array<{ toolName: string; args: any; result: any }> = [];
     let proposedGoal: GoalProposalPayload | null = null;
@@ -119,8 +121,11 @@ export class AIClient {
     // Sync custom keys from database system settings if present
     await keyManager.syncWithDatabase();
 
-    // Model fallback sequence: requested model (e.g. gpt-5-preview) -> gpt-4o -> gpt-4o-mini
-    const candidateModels = Array.from(new Set([model, "gpt-4o", "gpt-4o-mini"]));
+    const baseUrl = await SystemSettingsService.getSetting("AI_BASE_URL", AI_MODEL_CONFIG.baseUrl);
+    const cleanBaseUrl = (baseUrl || "https://api.openai.com/v1").replace(/\/+$/, "");
+
+    // Model fallback sequence
+    const candidateModels = Array.from(new Set([model, "gemini-2.5-flash", "gemini-1.5-flash", "gpt-4o-mini", "gpt-4o"]));
 
     for (const currentModel of candidateModels) {
       for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -130,7 +135,7 @@ export class AIClient {
           // All developer keys exhausted or unavailable
           return {
             content:
-              "🤖 AI Coach is currently unavailable at the moment. Please configure an active OpenAI API key in the Admin Settings (/admin/settings) or contact the administrator. In the meantime, you can log your meals, hydration, workouts, and runs directly on your Dashboard!",
+              "🤖 AI Coach is currently unavailable at the moment. Please configure an active AI key in the Admin Settings (/admin/settings) or contact the administrator. In the meantime, you can log your meals, hydration, workouts, and runs directly on your Dashboard!",
           };
         }
 
@@ -152,7 +157,7 @@ export class AIClient {
             bodyPayload.tool_choice = "auto";
           }
 
-          const res = await fetch(`${AI_MODEL_CONFIG.baseUrl}/chat/completions`, {
+          const res = await fetch(`${cleanBaseUrl}/chat/completions`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
