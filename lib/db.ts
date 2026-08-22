@@ -5367,13 +5367,29 @@ const postgresDbClient = {
       await syncToDisk();
       return existing;
     },
-    deleteMany: async ({ where }: { where?: { userId?: string } }) => {
+    deleteMany: async ({ where }: { where?: { userId?: any; provider?: string } } = {}) => {
       const pool = await getPool();
+      let q = "DELETE FROM integration_connections WHERE 1=1";
+      const params: any[] = [];
       if (where?.userId) {
-        await pool.query("DELETE FROM integration_connections WHERE user_id = $1", [where.userId]);
-        await syncToDisk();
+        if (typeof where.userId === "object" && where.userId.in) {
+          const placeholders = where.userId.in.map((id: string) => {
+            params.push(id);
+            return `$${params.length}`;
+          }).join(", ");
+          q += ` AND user_id IN (${placeholders})`;
+        } else {
+          params.push(where.userId);
+          q += ` AND user_id = $${params.length}`;
+        }
       }
-      return { count: 1 };
+      if (where?.provider) {
+        params.push(where.provider);
+        q += ` AND provider = $${params.length}`;
+      }
+      const res = await pool.query(q, params);
+      await syncToDisk();
+      return { count: res.rowCount || 0 };
     },
   },
   preApprovedUser: {
