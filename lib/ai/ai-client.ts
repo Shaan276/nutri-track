@@ -127,7 +127,7 @@ export class AIClient {
 
     const isGemini = cleanBaseUrl.includes("googleapis.com");
     const candidateModels = isGemini
-      ? Array.from(new Set([model, "gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite", "gemini-3.7-flash", "gemini-3.5-flash"].filter(Boolean)))
+      ? Array.from(new Set([model === "gemini-2.5-flash" ? "gemini-3.5-flash" : model, "gemini-3.5-flash", "gemini-3.7-flash", "gemini-flash-latest"].filter(Boolean)))
       : Array.from(new Set([model, "gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"].filter(Boolean)));
 
     for (const currentModel of candidateModels) {
@@ -135,15 +135,22 @@ export class AIClient {
         const activeKeyInfo = keyManager.getActiveKey();
 
         if (!activeKeyInfo) {
-          // All developer keys exhausted or unavailable
-          return {
-            content:
-              "🤖 AI Coach is currently unavailable at the moment. Please configure an active AI key in the Admin Settings (/admin/settings) or contact the administrator. In the meantime, you can log your meals, hydration, workouts, and runs directly on your Dashboard!",
-          };
+          // If in mock mode or single key, recover immediately
+          const rawK = keyManager.getRawKey(0);
+          if (rawK) {
+            keyManager.recordSuccess(0);
+          } else {
+            return {
+              content:
+                "🤖 AI Coach is currently unavailable at the moment. Please configure an active AI key in the Admin Settings (/admin/settings) or contact the administrator. In the meantime, you can log your meals, hydration, workouts, and runs directly on your Dashboard!",
+            };
+          }
         }
 
+        const safeKeyInfo = activeKeyInfo || { key: keyManager.getRawKey(0), index: 0, label: "AI_API_KEY_1" };
+
         // Check if we are in mock mode (used for local testing / test suites)
-        if (activeKeyInfo.key.startsWith("mock_key_")) {
+        if (safeKeyInfo.key.startsWith("mock_key_")) {
           return this.generateMockResponse(messages);
         }
 
@@ -164,57 +171,60 @@ export class AIClient {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${activeKeyInfo.key}`,
+              Authorization: `Bearer ${safeKeyInfo.key}`,
             },
             body: JSON.stringify(bodyPayload),
           });
 
           if (res.status === 429) {
-            const waitMs = Math.min(6000, 1500 * (attempt + 1));
+            const waitMs = Math.min(4000, 1000 * (attempt + 1));
             console.warn(`[AIClient] Rate limited on ${currentModel} (HTTP 429). Retrying after ${waitMs}ms (attempt ${attempt + 1}/${maxRetries})...`);
             await new Promise((r) => setTimeout(r, waitMs));
-            continue; // Retry with next attempt
+            if (attempt === maxRetries - 1) {
+              console.warn(`[AIClient] Rate limit retries exhausted on ${currentModel}. Failing over to next candidate model...`);
+              break;
+            }
+            continue;
           }
 
           if (res.status === 401 || res.status === 402 || res.status === 403) {
-            console.warn(`[AIClient] Key ${activeKeyInfo.label} quota/auth error (${res.status}). Marking unavailable...`);
-            keyManager.recordExhaustion(activeKeyInfo.index);
+            console.warn(`[AIClient] Key ${safeKeyInfo.label} quota/auth error (${res.status}). Marking unavailable...`);
+            keyManager.recordExhaustion(safeKeyInfo.index);
             continue; // Retry with next key in priority
           }
 
-          // If model is not recognized or not available yet (e.g. 404/400 on gpt-5-preview), break inner loop to try next candidate model (gpt-4o)
-          if (res.status === 400 || res.status === 404) {
+          // If model is overloaded (503) or not recognized (400/404/500/502), fail over to next model immediately
+          if (res.status === 503 || res.status === 502 || res.status === 500 || res.status === 400 || res.status === 404) {
             const errText = await res.text().catch(() => "");
-            console.warn(`[AIClient] Model '${currentModel}' unavailable (${res.status}: ${errText}). Downgrading to next model...`);
+            console.warn(`[AIClient] Model '${currentModel}' temporary error (${res.status}: ${errText.substring(0, 100)}). Failing over to next model...`);
             break;
           }
 
           if (!res.ok) {
             const errText = await res.text().catch(() => "");
-            console.error(`[AIClient] Error from ${activeKeyInfo.label} on ${currentModel}:`, res.status, errText);
-            keyManager.recordRateLimit(activeKeyInfo.index, 30000); // 30s brief cooldown
-            continue;
+            console.error(`[AIClient] Error on ${currentModel}:`, res.status, errText);
+            break;
           }
 
           const data = await res.json();
-          keyManager.recordSuccess(activeKeyInfo.index);
+          keyManager.recordSuccess(safeKeyInfo.index);
 
           const choice = data.choices?.[0]?.message;
           return {
             content: choice?.content || "",
             tool_calls: choice?.tool_calls,
-            tokensUsed: data.usage?.total_tokens,
+            tokensUsed: data.usage?.total_tokens || 0,
           };
-        } catch (err: any) {
-          console.error(`[AIClient] Network exception on key ${activeKeyInfo.label} for model ${currentModel}:`, err.message);
-          keyManager.recordRateLimit(activeKeyInfo.index, 30000);
+        } catch (fetchErr: any) {
+          console.error(`[AIClient] Network error on ${currentModel}:`, fetchErr.message);
+          break;
         }
       }
     }
 
     return {
       content:
-        "🤖 AI Coach is currently unavailable at the moment. Please configure an active OpenAI API key in the Admin Settings (/admin/settings) or contact the administrator. In the meantime, you can log your meals, hydration, workouts, and runs directly on your Dashboard!",
+        "🤖 AI Coach is currently unavailable at the moment. Please configure an active AI key in the Admin Settings (/admin/settings) or contact the administrator. In the meantime, you can log your meals, hydration, workouts, and runs directly on your Dashboard!",
     };
   }
 

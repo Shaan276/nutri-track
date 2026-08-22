@@ -180,9 +180,13 @@ export class AIToolRegistry {
           iron: iron !== undefined ? Number(iron) : undefined,
           calcium: calcium !== undefined ? Number(calcium) : undefined,
           potassium: potassium !== undefined ? Number(potassium) : undefined,
+          magnesium: args.magnesium !== undefined ? Number(args.magnesium) : undefined,
           sodium: sodium !== undefined ? Number(sodium) : undefined,
           zinc: zinc !== undefined ? Number(zinc) : undefined,
+          vitaminA: args.vitaminA !== undefined ? Number(args.vitaminA) : undefined,
           vitaminC: vitaminC !== undefined ? Number(vitaminC) : undefined,
+          vitaminD: args.vitaminD !== undefined ? Number(args.vitaminD) : undefined,
+          vitaminB12: args.vitaminB12 !== undefined ? Number(args.vitaminB12) : undefined,
           notes,
         });
 
