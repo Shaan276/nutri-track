@@ -338,8 +338,8 @@ export function ConnectedServicesSection() {
                   <Smartphone className="w-5 h-5 text-emerald-400" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-foreground-primary">Android Health Connect</h4>
-                  <p className="text-xs text-foreground-secondary">Steps, Active Calories &amp; Motion Sensors</p>
+                  <h4 className="text-sm font-bold text-foreground-primary">Google Health &amp; Health Connect</h4>
+                  <p className="text-xs text-foreground-secondary">Steps, Active Calories, Sleep &amp; Motion Sensors</p>
                 </div>
               </div>
 
