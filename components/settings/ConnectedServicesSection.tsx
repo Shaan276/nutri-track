@@ -279,7 +279,7 @@ export function ConnectedServicesSection() {
       } else if (syncData?.status === "AUTH_EXPIRED") {
         setGoogleMessage({
           type: "error",
-          text: "Google permissions have expired. Please click Reconnect Google.",
+          text: syncData?.message || "Google permissions have expired. Please click Reconnect Google.",
         });
       } else {
         setGoogleMessage({
