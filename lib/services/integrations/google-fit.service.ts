@@ -1,12 +1,42 @@
 import { prisma } from "@/lib/db";
 import { SystemSettingsService } from "@/lib/services/admin/system-settings.service";
 
+export type GoogleSyncStatus =
+  | "SUCCESS"
+  | "GENUINE_ZERO"
+  | "NO_DATA_AVAILABLE"
+  | "NOT_CONNECTED"
+  | "AUTH_EXPIRED"
+  | "API_ERROR";
+
+export interface GoogleDailyStepRecord {
+  date: string; // YYYY-MM-DD
+  steps: number;
+  caloriesBurned: number;
+  distanceKm: number;
+  status: GoogleSyncStatus;
+  dataSource: string;
+  syncedAt: string;
+}
+
+export interface GoogleFitSyncResult {
+  success: boolean;
+  status: GoogleSyncStatus;
+  importedSteps: number;
+  importedCalories: number;
+  importedDistanceKm: number;
+  date: string;
+  records: GoogleDailyStepRecord[];
+  message: string;
+  lastSyncedAt: string;
+}
+
 export class GoogleFitService {
   /**
-   * Generates Google OAuth 2.0 Authorization URL with Google Fit / Health Connect & Google Sheets scopes
+   * Generates Google OAuth 2.0 Authorization URL with Google Health & Fitness Scopes
    */
   static async getAuthorizationUrl(userId: string, redirectUri?: string): Promise<string> {
-    const defaultClientId = process.env.GOOGLE_CLIENT_ID || "google_client_id_placeholder";
+    const defaultClientId = process.env.GOOGLE_CLIENT_ID || "";
     const clientId = await SystemSettingsService.getSetting("GOOGLE_CLIENT_ID", defaultClientId);
     const appUrl = process.env.NEXTAUTH_URL || "https://nutri-track-henna.vercel.app";
     const callback = redirectUri || `${appUrl}/api/integrations/google-fit/callback`;
@@ -40,7 +70,7 @@ export class GoogleFitService {
   /**
    * Refreshes an expired Google OAuth access token using the stored refresh token
    */
-  static async refreshAccessToken(conn: any): Promise<string> {
+  static async refreshAccessToken(conn: any): Promise<string | null> {
     if (!conn.refreshToken || conn.refreshToken.startsWith("mock_")) {
       return conn.accessToken;
     }
@@ -60,7 +90,7 @@ export class GoogleFitService {
           client_secret: clientSecret,
           grant_type: "refresh_token",
         }),
-        signal: AbortSignal.timeout(6000),
+        signal: AbortSignal.timeout(8000),
       });
 
       if (tokenRes.ok) {
@@ -78,12 +108,15 @@ export class GoogleFitService {
         });
 
         return newAccessToken;
+      } else {
+        const errData = await tokenRes.json().catch(() => ({}));
+        console.warn("Failed to refresh Google token, response:", errData);
+        return null;
       }
     } catch (err: any) {
-      console.warn("Failed to refresh Google access token:", err.message);
+      console.warn("Google token refresh error:", err.message);
+      return null;
     }
-
-    return conn.accessToken;
   }
 
   /**
@@ -103,42 +136,41 @@ export class GoogleFitService {
     let externalUserId = `gfit_${userId.slice(0, 8)}`;
 
     if (clientId && clientSecret && !code.startsWith("mock_")) {
+      const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          code,
+          client_id: clientId,
+          client_secret: clientSecret,
+          redirect_uri: redirectUri,
+          grant_type: "authorization_code",
+        }),
+        signal: AbortSignal.timeout(10000),
+      });
+
+      const tokenData = await tokenRes.json();
+      if (!tokenRes.ok || !tokenData.access_token) {
+        console.error("Google OAuth token exchange failed:", JSON.stringify(tokenData));
+        throw new Error(tokenData.error_description || tokenData.error || "Google token exchange failed");
+      }
+
+      accessToken = tokenData.access_token;
+      refreshToken = tokenData.refresh_token || "";
+
+      // Fetch user info from Google
       try {
-        const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({
-            code,
-            client_id: clientId,
-            client_secret: clientSecret,
-            redirect_uri: redirectUri,
-            grant_type: "authorization_code",
-          }),
-          signal: AbortSignal.timeout(10000),
+        const userRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          signal: AbortSignal.timeout(6000),
         });
-
-        const tokenData = await tokenRes.json();
-        if (tokenRes.ok && tokenData.access_token) {
-          accessToken = tokenData.access_token;
-          refreshToken = tokenData.refresh_token || "";
-
-          // Fetch user info from Google
-          const userRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
-            headers: { Authorization: `Bearer ${accessToken}` },
-            signal: AbortSignal.timeout(6000),
-          });
-          if (userRes.ok) {
-            const userInfo = await userRes.json();
-            externalUsername = userInfo.name || userInfo.email || externalUsername;
-            externalUserId = userInfo.id || externalUserId;
-          }
-        } else {
-          console.error("Google OAuth token exchange failed:", JSON.stringify(tokenData));
-          throw new Error(tokenData.error_description || tokenData.error || "Google token exchange failed");
+        if (userRes.ok) {
+          const userInfo = await userRes.json();
+          externalUsername = userInfo.name || userInfo.email || externalUsername;
+          externalUserId = userInfo.id || externalUserId;
         }
       } catch (err: any) {
-        console.error("Failed to exchange Google OAuth code:", err.message);
-        throw err;
+        console.warn("Could not fetch user profile from Google:", err.message);
       }
     } else {
       accessToken = "mock_google_fit_token";
@@ -170,7 +202,7 @@ export class GoogleFitService {
       },
       update: {
         accessToken,
-        refreshToken,
+        refreshToken: refreshToken || undefined,
         tokenExpiresAt: expiresAt,
         externalUserId,
         externalUsername,
@@ -184,14 +216,9 @@ export class GoogleFitService {
   }
 
   /**
-   * Syncs daily fitness data (Steps, calories, distance) from Google Fit and persists into ActivityLog
+   * Disconnects Google integration and invalidates credentials
    */
-  static async syncGoogleFit(userId: string): Promise<{
-    success: boolean;
-    importedSteps: number;
-    importedCalories: number;
-    message: string;
-  }> {
+  static async disconnect(userId: string): Promise<boolean> {
     const pool = prisma as any;
     const conn = await pool.integrationConnection.findUnique({
       where: {
@@ -202,34 +229,93 @@ export class GoogleFitService {
       },
     });
 
+    if (!conn) return true;
+
+    // Attempt token revocation with Google (non-blocking)
+    if (conn.accessToken && !conn.accessToken.startsWith("mock_")) {
+      fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(conn.accessToken)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      }).catch(() => {});
+    }
+
+    await pool.integrationConnection.delete({
+      where: { id: conn.id },
+    });
+
+    return true;
+  }
+
+  /**
+   * Retrieves step telemetry for a specific date range with robust status handling
+   */
+  static async syncGoogleFit(
+    userId: string,
+    options: { days?: number; timezoneOffsetMinutes?: number } = {}
+  ): Promise<GoogleFitSyncResult> {
+    const pool = prisma as any;
+    const days = Math.min(Math.max(options.days || 1, 1), 14); // 1 to 14 days
+    const tzOffset = options.timezoneOffsetMinutes !== undefined ? options.timezoneOffsetMinutes : 0;
+
+    const conn = await pool.integrationConnection.findUnique({
+      where: {
+        userId_provider: {
+          userId,
+          provider: "GOOGLE_FIT",
+        },
+      },
+    });
+
+    const now = new Date();
+    const todayStr = new Date(now.getTime() - tzOffset * 60000).toISOString().split("T")[0];
+
+    // CASE B: Google account is not connected
     if (!conn || conn.status !== "CONNECTED") {
       return {
         success: false,
+        status: "NOT_CONNECTED",
         importedSteps: 0,
         importedCalories: 0,
-        message: "Google Fit is not connected.",
+        importedDistanceKm: 0,
+        date: todayStr,
+        records: [],
+        message: "Google account is not connected. Connect your Google account to sync steps automatically.",
+        lastSyncedAt: "",
       };
     }
 
+    // Refresh token if nearing expiration
     let token = conn.accessToken;
-    if (conn.tokenExpiresAt && new Date(conn.tokenExpiresAt) < new Date(Date.now() + 60000) && conn.refreshToken) {
-      token = await this.refreshAccessToken(conn);
+    if (conn.tokenExpiresAt && new Date(conn.tokenExpiresAt) < new Date(Date.now() + 60000)) {
+      const refreshed = await this.refreshAccessToken(conn);
+      if (!refreshed) {
+        return {
+          success: false,
+          status: "AUTH_EXPIRED",
+          importedSteps: 0,
+          importedCalories: 0,
+          importedDistanceKm: 0,
+          date: todayStr,
+          records: [],
+          message: "Google session has expired. Please reconnect your Google account.",
+          lastSyncedAt: conn.lastSyncAt ? new Date(conn.lastSyncAt).toISOString() : "",
+        };
+      }
+      token = refreshed;
     }
 
-    let finalSteps = 0;
-    let finalCalories = 0;
-    let finalDistanceKm = 0;
+    const records: GoogleDailyStepRecord[] = [];
+    let hadDataPoints = false;
+    let apiErrorOccurred = false;
 
-    // 1. If connected with real Google OAuth Access Token, query Google Fitness REST API
+    // Query Google Fitness REST API if real token is available
     if (token && !token.startsWith("mock_")) {
       try {
-        // Calculate exact start of today in local time (00:00:00.000) to capture WHOLE DAY's total steps
-        const now = new Date();
-        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-        const startTimeMillis = startOfToday.getTime();
+        // Calculate timestamp boundaries for requested days
+        const startOfTodayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+        const startTimeMillis = startOfTodayLocal.getTime() - (days - 1) * 86400000;
         const endTimeMillis = now.getTime();
 
-        // 1A. Standard Aggregate Query for full day
         const fitRes = await fetch("https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate", {
           method: "POST",
           headers: {
@@ -246,17 +332,29 @@ export class GoogleFitService {
             startTimeMillis,
             endTimeMillis,
           }),
-          signal: AbortSignal.timeout(6000),
+          signal: AbortSignal.timeout(8000),
         });
 
         if (fitRes.ok) {
           const fitData = await fitRes.json();
           const buckets = fitData.bucket || [];
-          for (const bucket of buckets) {
-            if (bucket.dataset) {
-              for (const ds of bucket.dataset) {
+
+          for (let i = 0; i < buckets.length; i++) {
+            const b = buckets[i];
+            const bucketStart = Number(b.startTimeMillis) || startTimeMillis + i * 86400000;
+            const bDate = new Date(bucketStart - tzOffset * 60000).toISOString().split("T")[0];
+
+            let bSteps = 0;
+            let bCalories = 0;
+            let bDistanceKm = 0;
+            let pointCount = 0;
+
+            if (b.dataset) {
+              for (const ds of b.dataset) {
                 if (ds.point && ds.point.length > 0) {
                   for (const pt of ds.point) {
+                    pointCount++;
+                    hadDataPoints = true;
                     if (pt.value && pt.value.length > 0) {
                       const val = pt.value[0];
                       const intV = Number(val.intVal) || 0;
@@ -264,93 +362,131 @@ export class GoogleFitService {
                       const num = intV || Math.round(fpV);
 
                       if (ds.dataSourceId?.includes("step_count") || ds.dataTypeName?.includes("step_count")) {
-                        finalSteps += num;
+                        bSteps += num;
                       } else if (ds.dataSourceId?.includes("calories") || ds.dataTypeName?.includes("calories")) {
-                        finalCalories += num;
+                        bCalories += num;
                       } else if (ds.dataSourceId?.includes("distance") || ds.dataTypeName?.includes("distance")) {
-                        finalDistanceKm += Math.round((fpV / 1000) * 100) / 100;
+                        bDistanceKm += Math.round((fpV / 1000) * 100) / 100;
                       }
                     }
                   }
                 }
               }
             }
-          }
-        }
 
-        // 1B. Direct Raw Dataset Query Fallback (captures estimated steps directly from Android phone)
-        if (finalSteps === 0) {
-          const startNano = BigInt(startTimeMillis) * BigInt(1000000);
-          const endNano = BigInt(endTimeMillis) * BigInt(1000000);
-          const rawUrl = `https://www.googleapis.com/fitness/v1/users/me/dataSources/derived:com.google.step_count.delta:com.google.android.gms:estimated_steps/datasets/${startNano}-${endNano}`;
-
-          const rawRes = await fetch(rawUrl, {
-            headers: { Authorization: `Bearer ${token}` },
-            signal: AbortSignal.timeout(6000),
-          });
-
-          if (rawRes.ok) {
-            const rawData = await rawRes.json();
-            if (rawData.point && rawData.point.length > 0) {
-              for (const pt of rawData.point) {
-                if (pt.value && pt.value.length > 0) {
-                  finalSteps += Number(pt.value[0].intVal) || 0;
-                }
-              }
+            let status: GoogleSyncStatus = "NO_DATA_AVAILABLE";
+            if (pointCount > 0) {
+              status = bSteps > 0 ? "SUCCESS" : "GENUINE_ZERO";
             }
+
+            records.push({
+              date: bDate,
+              steps: bSteps,
+              caloriesBurned: bCalories,
+              distanceKm: bDistanceKm,
+              status,
+              dataSource: "Google Account (Cloud Telemetry)",
+              syncedAt: now.toISOString(),
+            });
           }
+        } else {
+          const errStatus = fitRes.status;
+          console.warn(`Google Fitness API returned status ${errStatus}`);
+          if (errStatus === 401 || errStatus === 403) {
+            return {
+              success: false,
+              status: "AUTH_EXPIRED",
+              importedSteps: 0,
+              importedCalories: 0,
+              importedDistanceKm: 0,
+              date: todayStr,
+              records: [],
+              message: "Google permissions have expired. Please re-authenticate your Google Account.",
+              lastSyncedAt: conn.lastSyncAt ? new Date(conn.lastSyncAt).toISOString() : "",
+            };
+          }
+          apiErrorOccurred = true;
         }
       } catch (err: any) {
-        console.warn("Google Fit API query notice:", err.message);
+        console.error("Google Fitness API request error:", err.message);
+        apiErrorOccurred = true;
       }
     }
 
-    const todayStr = new Date().toISOString().split("T")[0];
+    // Fallback lookup from today's ActivityLog if no fresh network points
+    const todayRecord = records.find((r) => r.date === todayStr) || {
+      date: todayStr,
+      steps: 0,
+      caloriesBurned: 0,
+      distanceKm: 0,
+      status: hadDataPoints ? "SUCCESS" : "NO_DATA_AVAILABLE",
+      dataSource: "Google Account",
+      syncedAt: now.toISOString(),
+    };
 
-    // 2. Persist into ActivityLog so steps appear in Activities tab and Dashboard
-    try {
-      const existingLog = await pool.activityLog.findFirst({
-        where: {
-          userId,
-          source: "GOOGLE_FIT",
-          date: todayStr,
-        },
-      });
-
-      if (existingLog) {
-        await pool.activityLog.update({
-          where: { id: existingLog.id },
-          data: {
-            steps: finalSteps,
-            caloriesBurned: finalCalories,
-            distanceKm: finalDistanceKm,
-            movingDurationSeconds: Math.max(600, Math.round((finalSteps / 100) * 60)),
-            averagePaceSecondsPerKm: finalDistanceKm > 0 ? Math.round(3600 / finalDistanceKm) : 0,
-            notes: "Google Fit Daily Steps & Activity",
-          },
-        });
-      } else {
-        await pool.activityLog.create({
-          data: {
-            userId,
-            activityType: "WALK",
-            source: "GOOGLE_FIT",
-            externalProvider: "GOOGLE_FIT",
-            date: todayStr,
-            steps: finalSteps,
-            caloriesBurned: finalCalories,
-            distanceKm: finalDistanceKm,
-            movingDurationSeconds: Math.max(600, Math.round((finalSteps / 100) * 60)),
-            averagePaceSecondsPerKm: finalDistanceKm > 0 ? Math.round(3600 / finalDistanceKm) : 0,
-            notes: "Google Fit Daily Steps & Activity",
-          },
-        });
-      }
-    } catch (dbErr: any) {
-      console.warn("Failed to persist Google Fit activity log:", dbErr.message);
+    // CASE D: API Request failed
+    if (apiErrorOccurred && records.length === 0) {
+      return {
+        success: false,
+        status: "API_ERROR",
+        importedSteps: 0,
+        importedCalories: 0,
+        importedDistanceKm: 0,
+        date: todayStr,
+        records: [],
+        message: "Unable to sync steps right now. Please check your internet connection or try again.",
+        lastSyncedAt: conn.lastSyncAt ? new Date(conn.lastSyncAt).toISOString() : "",
+      };
     }
 
-    const now = new Date();
+    // Persist records into ActivityLog with userId + date + source deduplication
+    for (const rec of records) {
+      if (rec.steps > 0 || rec.status === "GENUINE_ZERO") {
+        try {
+          const existing = await pool.activityLog.findFirst({
+            where: {
+              userId,
+              date: rec.date,
+              source: "GOOGLE_FIT",
+            },
+          });
+
+          if (existing) {
+            await pool.activityLog.update({
+              where: { id: existing.id },
+              data: {
+                steps: rec.steps,
+                caloriesBurned: rec.caloriesBurned,
+                distanceKm: rec.distanceKm,
+                movingDurationSeconds: Math.max(600, Math.round((rec.steps / 100) * 60)),
+                averagePaceSecondsPerKm: rec.distanceKm > 0 ? Math.round(3600 / rec.distanceKm) : 0,
+                notes: `Google Account Auto-Sync (${rec.status})`,
+              },
+            });
+          } else {
+            await pool.activityLog.create({
+              data: {
+                userId,
+                activityType: "WALK",
+                source: "GOOGLE_FIT",
+                externalProvider: "GOOGLE_FIT",
+                date: rec.date,
+                steps: rec.steps,
+                caloriesBurned: rec.caloriesBurned,
+                distanceKm: rec.distanceKm,
+                movingDurationSeconds: Math.max(600, Math.round((rec.steps / 100) * 60)),
+                averagePaceSecondsPerKm: rec.distanceKm > 0 ? Math.round(3600 / rec.distanceKm) : 0,
+                notes: `Google Account Auto-Sync (${rec.status})`,
+              },
+            });
+          }
+        } catch (dbErr: any) {
+          console.warn("Failed to persist Google ActivityLog:", dbErr.message);
+        }
+      }
+    }
+
+    // Update connection lastSyncAt
     await pool.integrationConnection.update({
       where: {
         userId_provider: {
@@ -363,11 +499,30 @@ export class GoogleFitService {
       },
     });
 
+    let overallStatus: GoogleSyncStatus = todayRecord.status;
+    let message = "";
+
+    if (todayRecord.steps > 0) {
+      overallStatus = "SUCCESS";
+      message = `Successfully synced ${todayRecord.steps.toLocaleString()} steps and ${todayRecord.caloriesBurned} active calories from your Google account.`;
+    } else if (todayRecord.status === "GENUINE_ZERO") {
+      overallStatus = "GENUINE_ZERO";
+      message = "0 steps recorded for today in your Google account.";
+    } else {
+      overallStatus = "NO_DATA_AVAILABLE";
+      message = "No step data is currently available from your connected Google account for today.";
+    }
+
     return {
-      success: true,
-      importedSteps: finalSteps,
-      importedCalories: finalCalories,
-      message: `Successfully synchronized ${finalSteps} steps and ${finalCalories} active calories to your Activities log.`,
+      success: overallStatus === "SUCCESS" || overallStatus === "GENUINE_ZERO",
+      status: overallStatus,
+      importedSteps: todayRecord.steps,
+      importedCalories: todayRecord.caloriesBurned,
+      importedDistanceKm: todayRecord.distanceKm,
+      date: todayStr,
+      records,
+      message,
+      lastSyncedAt: now.toISOString(),
     };
   }
 }

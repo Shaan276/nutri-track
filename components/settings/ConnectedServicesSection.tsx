@@ -38,14 +38,44 @@ export function ConnectedServicesSection() {
   const [stravaConnecting, setStravaConnecting] = useState(false);
   const [stravaMessage, setStravaMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // Google Fit State
+  // Google Health State
   const [googleSyncing, setGoogleSyncing] = useState(false);
   const [googleConnecting, setGoogleConnecting] = useState(false);
-  const [googleMessage, setGoogleMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [googleStatus, setGoogleStatus] = useState<{
+    todaySteps: number;
+    todayCalories: number;
+    todayDistanceKm: number;
+    status: string;
+    lastSyncedAt: string | null;
+  } | null>(null);
+  const [googleMessage, setGoogleMessage] = useState<{
+    type: "success" | "error" | "info";
+    text: string;
+  } | null>(null);
 
   useEffect(() => {
     fetchIntegrations();
+    fetchGoogleStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const fetchGoogleStatus = async () => {
+    try {
+      const res = await fetch("/api/integrations/google-fit/status");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          setGoogleStatus(json.data);
+          // Trigger auto-sync once if connected and never synced today
+          if (json.data.isConnected && (!json.data.lastSyncAt || Date.now() - new Date(json.data.lastSyncAt).getTime() > 600000)) {
+            handleSyncGoogleSilent();
+          }
+        }
+      }
+    } catch {
+      // Ignore background status check errors
+    }
+  };
 
   const fetchIntegrations = async () => {
     try {
@@ -146,7 +176,7 @@ export function ConnectedServicesSection() {
     }
   };
 
-  // Connect Google Fit
+  // Connect Google Health
   const handleConnectGoogle = async () => {
     try {
       setGoogleConnecting(true);
@@ -159,6 +189,7 @@ export function ConnectedServicesSection() {
           if (data.url.includes("google_client_id_placeholder")) {
             await fetch("/api/integrations/google-fit/callback?code=mock_google_auth_code_12345");
             await fetchIntegrations();
+            await fetchGoogleStatus();
             setGoogleMessage({
               type: "success",
               text: "Google Account connected in sandbox mode! Synced demo steps and calories.",
@@ -175,37 +206,97 @@ export function ConnectedServicesSection() {
     }
   };
 
-  // Sync Google Fit
+  // Silent sync helper for auto-refresh
+  const handleSyncGoogleSilent = async () => {
+    try {
+      const tzOffset = new Date().getTimezoneOffset();
+      const res = await fetch("/api/integrations/google-fit/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ days: 1, timezoneOffsetMinutes: tzOffset }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data) {
+          setGoogleStatus({
+            todaySteps: json.data.importedSteps || 0,
+            todayCalories: json.data.importedCalories || 0,
+            todayDistanceKm: json.data.importedDistanceKm || 0,
+            status: json.data.status,
+            lastSyncedAt: json.data.lastSyncedAt || new Date().toISOString(),
+          });
+        }
+      }
+    } catch {
+      // silent
+    }
+  };
+
+  // Manual Sync Google Health
   const handleSyncGoogle = async () => {
     try {
       setGoogleSyncing(true);
       setGoogleMessage(null);
 
+      const tzOffset = new Date().getTimezoneOffset();
       const res = await fetch("/api/integrations/google-fit/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ days: 1, timezoneOffsetMinutes: tzOffset }),
       });
 
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        throw new Error(data.error || "Sync failed");
+      const json = await res.json();
+      if (!res.ok || json.error) {
+        throw new Error(json.error || "Sync failed");
       }
 
       await fetchIntegrations();
-      setGoogleMessage({
-        type: "success",
-        text: `Sync complete! Synced ${data.data?.importedSteps || 0} steps and ${data.data?.importedCalories || 0} active calories from Google Fit.`,
+      const syncData = json.data;
+
+      setGoogleStatus({
+        todaySteps: syncData?.importedSteps || 0,
+        todayCalories: syncData?.importedCalories || 0,
+        todayDistanceKm: syncData?.importedDistanceKm || 0,
+        status: syncData?.status || "SUCCESS",
+        lastSyncedAt: syncData?.lastSyncedAt || new Date().toISOString(),
       });
+
+      if (syncData?.status === "SUCCESS") {
+        setGoogleMessage({
+          type: "success",
+          text: `Sync complete! Synced ${syncData.importedSteps.toLocaleString()} steps and ${syncData.importedCalories} active calories from your Google account.`,
+        });
+      } else if (syncData?.status === "GENUINE_ZERO") {
+        setGoogleMessage({
+          type: "info",
+          text: "0 steps recorded for today in your Google account.",
+        });
+      } else if (syncData?.status === "NO_DATA_AVAILABLE") {
+        setGoogleMessage({
+          type: "info",
+          text: "No step data is currently available from your connected Google account for today.",
+        });
+      } else if (syncData?.status === "AUTH_EXPIRED") {
+        setGoogleMessage({
+          type: "error",
+          text: "Google permissions have expired. Please click Reconnect Google.",
+        });
+      } else {
+        setGoogleMessage({
+          type: "error",
+          text: syncData?.message || "Unable to sync steps right now. Please try again.",
+        });
+      }
     } catch (err: any) {
-      setGoogleMessage({ type: "error", text: err.message || "Failed to sync Google Fit telemetry" });
+      setGoogleMessage({ type: "error", text: err.message || "Failed to sync Google Health telemetry" });
     } finally {
       setGoogleSyncing(false);
     }
   };
 
-  // Disconnect Google Fit
+  // Disconnect Google Health
   const handleDisconnectGoogle = async () => {
-    if (!confirm("Are you sure you want to disconnect Google Fit? Local data will remain preserved.")) {
+    if (!confirm("Are you sure you want to disconnect Google Account? Local activity history will remain preserved.")) {
       return;
     }
 
@@ -215,13 +306,24 @@ export function ConnectedServicesSection() {
       const res = await fetch("/api/integrations/google-fit/disconnect", { method: "POST" });
       if (res.ok) {
         await fetchIntegrations();
-        setGoogleMessage({ type: "success", text: "Google Fit disconnected successfully." });
+        setGoogleStatus(null);
+        setGoogleMessage({ type: "success", text: "Google account disconnected successfully." });
       }
     } catch (err: any) {
-      setGoogleMessage({ type: "error", text: err.message || "Failed to disconnect Google Fit" });
+      setGoogleMessage({ type: "error", text: err.message || "Failed to disconnect Google account" });
     } finally {
       setLoading(false);
     }
+  };
+
+  const formatRelativeTime = (isoString?: string | null) => {
+    if (!isoString) return "Never";
+    const date = new Date(isoString);
+    const diffSeconds = Math.floor((Date.now() - date.getTime()) / 1000);
+    if (diffSeconds < 60) return "Just now";
+    if (diffSeconds < 3600) return `${Math.floor(diffSeconds / 60)}m ago`;
+    if (diffSeconds < 86400) return `${Math.floor(diffSeconds / 3600)}h ago`;
+    return date.toLocaleDateString();
   };
 
   return (
@@ -359,10 +461,36 @@ export function ConnectedServicesSection() {
               Synchronize full-day steps, active calorie expenditure, and walk/run distance directly from <strong>Android Health Connect</strong>, Samsung Health, Google Account, or device motion sensors.
             </p>
 
-            {isGoogleConnected && (
-              <div className="p-3 rounded-2xl bg-background-elevated border border-border-subtle text-xs space-y-1 text-foreground-secondary">
-                <div>Source: <span className="font-semibold text-foreground-primary">{googleConn?.externalUsername || "Android Health Connect"}</span></div>
-                <div>Last Synced: <span className="font-mono text-foreground-muted">{googleConn?.lastSyncAt ? new Date(googleConn.lastSyncAt).toLocaleString() : "Never"}</span></div>
+            {isGoogleConnected ? (
+              <div className="p-4 rounded-2xl bg-background-elevated border border-border-subtle space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wider font-semibold text-foreground-muted">Today&apos;s Steps</div>
+                    <div className="text-2xl font-black text-foreground-primary tracking-tight">
+                      {(googleStatus?.todaySteps || 0).toLocaleString()}{" "}
+                      <span className="text-xs font-medium text-foreground-muted">steps</span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[11px] uppercase tracking-wider font-semibold text-foreground-muted">Last Synced</div>
+                    <div className="text-xs font-mono font-semibold text-emerald-400">
+                      {formatRelativeTime(googleStatus?.lastSyncedAt || googleConn?.lastSyncAt)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-border-subtle/60 flex items-center justify-between text-xs text-foreground-secondary">
+                  <span>Account: <strong className="text-foreground-primary">{googleConn?.externalUsername || "Google User"}</strong></span>
+                  <span className="text-emerald-400 font-medium flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    Auto-Sync Active
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 rounded-2xl bg-neutral-900/50 border border-neutral-800 text-xs text-foreground-secondary space-y-1">
+                <div className="font-semibold text-foreground-primary">Automatic Google Step Sync</div>
+                <p>Connect your Google Account once from your laptop. Today&apos;s steps and active calories will sync automatically.</p>
               </div>
             )}
 
@@ -371,24 +499,19 @@ export function ConnectedServicesSection() {
                 className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
                   googleMessage.type === "success"
                     ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400"
+                    : googleMessage.type === "info"
+                    ? "bg-blue-500/10 border border-blue-500/20 text-blue-400"
                     : "bg-rose-500/10 border border-rose-500/20 text-rose-400"
                 }`}
               >
-                {googleMessage.type === "success" ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+                {googleMessage.type === "success" ? (
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                )}
                 <span>{googleMessage.text}</span>
               </div>
             )}
-
-            {/* Health Connect Companion Sync Info */}
-            <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs space-y-1.5">
-              <div className="font-bold text-emerald-300 flex items-center gap-1.5">
-                <Shield className="w-4 h-4 text-emerald-400" />
-                Modern Android Health Connect Bridge
-              </div>
-              <p className="text-foreground-secondary text-[11px] leading-relaxed">
-                Connect your account or use the on-device sensor pedometer to track daily steps with zero data distortion.
-              </p>
-            </div>
           </div>
 
           <div className="pt-2 border-t border-border-subtle flex flex-col gap-2">
