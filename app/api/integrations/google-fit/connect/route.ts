@@ -16,8 +16,14 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { searchParams } = new URL(req.url);
-    const redirectUri = searchParams.get("redirect_uri") || undefined;
+    const reqUrl = new URL(req.url);
+    const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || reqUrl.host;
+    const proto = req.headers.get("x-forwarded-proto") || reqUrl.protocol.replace(":", "");
+    const origin = `${proto}://${host}`;
+    const defaultCallback = `${origin}/api/integrations/google-fit/callback`;
+
+    const { searchParams } = reqUrl;
+    const redirectUri = searchParams.get("redirect_uri") || defaultCallback;
 
     const authUrl = await GoogleFitService.getAuthorizationUrl(session.user.id, redirectUri);
 

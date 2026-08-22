@@ -119,13 +119,13 @@ export class GoogleFitService {
   /**
    * Handles OAuth callback and exchanges auth code for access token
    */
-  static async handleCallback(userId: string, code: string): Promise<any> {
+  static async handleCallback(userId: string, code: string, customRedirectUri?: string): Promise<any> {
     const defaultClientId = process.env.GOOGLE_CLIENT_ID || "";
     const defaultClientSecret = process.env.GOOGLE_CLIENT_SECRET || "";
     const clientId = await SystemSettingsService.getSetting("GOOGLE_CLIENT_ID", defaultClientId);
     const clientSecret = await SystemSettingsService.getSetting("GOOGLE_CLIENT_SECRET", defaultClientSecret);
     const appUrl = process.env.NEXTAUTH_URL || "https://nutri-track-henna.vercel.app";
-    const redirectUri = `${appUrl}/api/integrations/google-fit/callback`;
+    const redirectUri = customRedirectUri || `${appUrl}/api/integrations/google-fit/callback`;
 
     let accessToken = "";
     let refreshToken = "";

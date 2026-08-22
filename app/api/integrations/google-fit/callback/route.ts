@@ -46,7 +46,13 @@ export async function GET(req: Request) {
       );
     }
 
-    await GoogleFitService.handleCallback(targetUserId, code);
+    const reqUrl = new URL(req.url);
+    const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || reqUrl.host;
+    const proto = req.headers.get("x-forwarded-proto") || reqUrl.protocol.replace(":", "");
+    const origin = `${proto}://${host}`;
+    const redirectUri = `${origin}/api/integrations/google-fit/callback`;
+
+    await GoogleFitService.handleCallback(targetUserId, code, redirectUri);
 
     return NextResponse.redirect(
       new URL("/settings?google_connected=true", req.url)
