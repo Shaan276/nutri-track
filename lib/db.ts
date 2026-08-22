@@ -1699,6 +1699,18 @@ const postgresDbClient = {
       const values: any[] = [];
       let idx = 1;
       if (where) {
+        if (where.email) {
+          query += ` AND LOWER(email) = LOWER($${idx++})`;
+          values.push(where.email.trim());
+        }
+        if (where.id && typeof where.id === "string") {
+          query += ` AND id = $${idx++}`;
+          values.push(where.id);
+        }
+        if (where.username && typeof where.username === "string") {
+          query += ` AND LOWER(username) = LOWER($${idx++})`;
+          values.push(where.username.trim());
+        }
         if (where.id?.not) {
           query += ` AND id != $${idx++}`;
           values.push(where.id.not);
