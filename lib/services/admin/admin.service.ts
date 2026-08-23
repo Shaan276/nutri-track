@@ -408,6 +408,44 @@ export class AdminService {
   }
 
   /**
+   * Wipes all nutrition logs, hydration, activities, workouts, AI chat history, and custom foods for a specific user
+   * while keeping their user account, credentials, and profile active.
+   */
+  static async clearUserData(targetUserId: string, adminUserId: string) {
+    const pool = prisma as any;
+    const user = await pool.user.findUnique({ where: { id: targetUserId } });
+    if (!user) {
+      throw new Error("User not found.");
+    }
+
+    const [meals, hydration, activities, workouts, aiConvs, aiMems, customFoods, goals, plans] = await Promise.all([
+      typeof pool.mealLog?.deleteMany === "function" ? pool.mealLog.deleteMany({ where: { userId: targetUserId } }) : { count: 0 },
+      typeof pool.hydrationLog?.deleteMany === "function" ? pool.hydrationLog.deleteMany({ where: { userId: targetUserId } }) : { count: 0 },
+      typeof pool.activityLog?.deleteMany === "function" ? pool.activityLog.deleteMany({ where: { userId: targetUserId } }) : { count: 0 },
+      typeof pool.workoutSession?.deleteMany === "function" ? pool.workoutSession.deleteMany({ where: { userId: targetUserId } }) : { count: 0 },
+      typeof pool.aiConversation?.deleteMany === "function" ? pool.aiConversation.deleteMany({ where: { userId: targetUserId } }) : { count: 0 },
+      typeof pool.aiMemory?.deleteMany === "function" ? pool.aiMemory.deleteMany({ where: { userId: targetUserId } }) : { count: 0 },
+      typeof pool.food?.deleteMany === "function" ? pool.food.deleteMany({ where: { userId: targetUserId, isSystemFood: false } }) : { count: 0 },
+      typeof pool.goal?.deleteMany === "function" ? pool.goal.deleteMany({ where: { userId: targetUserId } }) : { count: 0 },
+      typeof pool.weeklyPlan?.deleteMany === "function" ? pool.weeklyPlan.deleteMany({ where: { userId: targetUserId } }) : { count: 0 },
+    ]);
+
+    return {
+      success: true,
+      message: `Cleared all personal tracking data for "${user.name}" (${user.email}).`,
+      deletedCounts: {
+        meals: meals.count,
+        hydration: hydration.count,
+        activities: activities.count,
+        workouts: workouts.count,
+        aiConversations: aiConvs.count,
+        aiMemories: aiMems.count,
+        customFoods: customFoods.count,
+      },
+    };
+  }
+
+  /**
    * Deletes a user account and associated user data.
    */
   static async deleteUser(targetUserId: string, adminUserId: string) {

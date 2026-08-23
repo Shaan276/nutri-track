@@ -20,6 +20,7 @@ import {
   Calendar,
   Flame,
   Footprints,
+  RotateCcw,
 } from "lucide-react";
 
 type DetailTab = "OVERVIEW" | "NUTRITION" | "HYDRATION" | "ACTIVITIES" | "WORKOUTS" | "REQUESTS";
@@ -89,6 +90,32 @@ export default function AdminUserDetailPage() {
     } catch (err) {
       console.error("Role update error:", err);
       alert("Failed to update role.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleClearUserData = async () => {
+    if (
+      !confirm(
+        `Are you sure you want to clear all tracking data (meals, hydration, workouts, AI chat history) for "${dossier?.user?.name}"? The user account and credentials will remain active.`
+      )
+    )
+      return;
+
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/clear-data`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to clear user data");
+
+      alert(data.message || `Successfully cleared all tracking data for "${dossier?.user?.name}".`);
+      await fetchUserDetail();
+    } catch (err: any) {
+      console.error("Clear user data error:", err);
+      alert(err.message || "Failed to clear user data.");
     } finally {
       setActionLoading(false);
     }
@@ -241,6 +268,16 @@ export default function AdminUserDetailPage() {
               Restore User Access
             </button>
           )}
+
+          <button
+            onClick={handleClearUserData}
+            disabled={actionLoading}
+            className="px-3.5 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/30 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+            title="Clear all tracking logs, meals, hydration, workouts, and AI conversations for this user"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            <span>Clear User Data</span>
+          </button>
         </div>
       </div>
 

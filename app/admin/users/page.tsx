@@ -131,6 +131,32 @@ export default function AdminUsersPage() {
     }
   };
 
+  const handleClearUserData = async (userId: string, userName: string) => {
+    if (
+      !confirm(
+        `Are you sure you want to clear all tracking data (meals, hydration, workouts, AI chat history) for "${userName}"? The user account and credentials will remain active.`
+      )
+    )
+      return;
+
+    setActionLoadingId(userId);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/clear-data`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to clear user data");
+
+      alert(data.message || `Successfully cleared all tracking data for "${userName}".`);
+      fetchUsers(pagination.page || 1);
+    } catch (err: any) {
+      console.error("Clear user data error:", err);
+      alert(err.message || "Failed to clear user data.");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
   const statusTabs = [
     { key: "ALL", label: "All Users" },
     { key: "PENDING_APPROVAL", label: "Pending Approval" },
@@ -335,6 +361,15 @@ export default function AdminUsersPage() {
                               Approve
                             </button>
                           )}
+
+                          <button
+                            onClick={() => handleClearUserData(user.id, user.name)}
+                            disabled={isBusy}
+                            className="p-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/25 text-amber-400 border border-amber-500/30 transition-all cursor-pointer disabled:opacity-50"
+                            title="Clear User Tracking Data (Reset Logs & Meals)"
+                          >
+                            <RotateCcw className="h-3.5 w-3.5" />
+                          </button>
 
                           <Link
                             href={`/admin/users/${user.id}`}
