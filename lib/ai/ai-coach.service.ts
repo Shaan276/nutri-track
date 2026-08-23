@@ -223,11 +223,21 @@ export class AICoachService {
       tokensUsed: aiResult.tokensUsed || null,
     };
 
+    let finalReply = aiResult.reply;
+
+    // If tools were executed successfully, but LLM response returned unavailable fallback, use the tool execution message directly!
+    if (aiResult.toolsExecuted.length > 0 && finalReply.includes("AI Coach is currently unavailable")) {
+      finalReply = aiResult.toolsExecuted
+        .map((t) => t.result?.message || `Successfully executed ${t.toolName}! ✨`)
+        .filter(Boolean)
+        .join("\n\n");
+    }
+
     const assistantMsg = await (prisma as any).aiMessage.create({
       data: {
         conversationId,
         role: "assistant",
-        content: aiResult.reply,
+        content: finalReply,
         metadata: JSON.stringify(metadataObj),
       },
     });

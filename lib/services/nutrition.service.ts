@@ -340,17 +340,31 @@ export class NutritionService {
     const allIngredients = customFood?.ingredients || ingredients || [];
     let snapshot = this.calculateNutritionSnapshot(targetFood, quantity);
 
-    // If explicit custom food values were passed and matched the portion, preserve exact calculated numbers
+    // If explicit custom food values were passed, preserve exact calculated numbers directly
     if (customFood && !allIngredients.length && customFood.calories !== undefined) {
-      const mult = quantity && Number(targetFood.servingSize) > 0 ? quantity / Number(targetFood.servingSize) : 1;
+      const explicitCal = Number(customFood.calories);
+      const explicitProt = Number(customFood.protein || 0);
+      const explicitCarb = Number(customFood.carbs || 0);
+      const explicitFat = Number(customFood.fat || 0);
+      const explicitFib = Number((customFood as any).fiber || 0);
+      const explicitSug = Number((customFood as any).sugar || 0);
+
       snapshot = {
-        calculatedCalories: Math.round(Number(customFood.calories) * mult * 10) / 10,
-        calculatedProtein: Math.round(Number(customFood.protein || 0) * mult * 10) / 10,
-        calculatedCarbs: Math.round(Number(customFood.carbs || 0) * mult * 10) / 10,
-        calculatedFat: Math.round(Number(customFood.fat || 0) * mult * 10) / 10,
-        calculatedFiber: Math.round(Number((customFood as any).fiber || 0) * mult * 10) / 10,
-        calculatedSugar: Math.round(Number((customFood as any).sugar || 0) * mult * 10) / 10,
+        calculatedCalories: Math.round(explicitCal * 10) / 10,
+        calculatedProtein: Math.round(explicitProt * 10) / 10,
+        calculatedCarbs: Math.round(explicitCarb * 10) / 10,
+        calculatedFat: Math.round(explicitFat * 10) / 10,
+        calculatedFiber: Math.round(explicitFib * 10) / 10,
+        calculatedSugar: Math.round(explicitSug * 10) / 10,
       };
+    }
+
+    // Safety fallback: If calculated calories ended up 0 but targetFood has calories, use targetFood calories
+    if (snapshot.calculatedCalories === 0 && Number(targetFood.calories) > 0) {
+      snapshot.calculatedCalories = Number(targetFood.calories);
+      snapshot.calculatedProtein = Number(targetFood.protein || 0);
+      snapshot.calculatedCarbs = Number(targetFood.carbohydrates || 0);
+      snapshot.calculatedFat = Number(targetFood.fat || 0);
     }
 
     // If explicit macro breakdown with ingredients was submitted, use exact calculation

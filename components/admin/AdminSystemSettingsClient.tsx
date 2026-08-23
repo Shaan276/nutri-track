@@ -532,6 +532,54 @@ export function AdminSystemSettingsClient({ initialSettings }: AdminSystemSettin
               </div>
             </div>
           </div>
+
+          {/* General AI Rules & Coaching Principles (Admin Configurable) */}
+          <div className="p-6 rounded-2xl bg-background-surface border border-border-subtle space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h2 className="text-sm font-bold uppercase tracking-wider text-foreground-secondary flex items-center gap-2">
+                  <Bot className="w-4 h-4 text-emerald-400" />
+                  General AI Rules & Coaching Principles (System-Wide)
+                </h2>
+                <p className="text-xs text-foreground-muted mt-0.5">
+                  Define baseline principles (e.g. Ayurveda-first priority, scientific modern nutrition synergy, empathy, exact macros, and hydration). Injected automatically into the AI system prompt.
+                </p>
+              </div>
+              <span className="text-[10px] px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold self-start">
+                🌿 Ayurveda + Modern Science Active
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-foreground-secondary">
+                System General AI Rules Prompt Directive
+              </label>
+              <textarea
+                rows={6}
+                value={settings.GENERAL_AI_RULES !== undefined ? settings.GENERAL_AI_RULES : `1. Ayurveda-First Priority: Always prioritize authentic Ayurvedic principles first (Ahara Rasas/6 tastes, Agni/digestive fire, Dosha balance: Vata/Pitta/Kapha, Viruddha Ahara/incompatible foods, and seasonal eating/Ritucharya), followed immediately by modern evidence-based sports & nutritional science.
+2. Empathy & Motivation: Communicate with genuine human warmth, uplifting encouragement, and lively emojis (🥗, 🍗, 🏃‍♂️, ✨, 💪).
+3. Exact Nutritional Data: Always calculate and output specific calories, protein (g), carbs (g), fats (g), key minerals (Iron, Calcium, Potassium, Magnesium, Zinc), and vitamins with every meal recommendation or recipe log.
+4. Holistic Recovery & Hydration: Integrate hydration balance, electrolyte replenishment, and active recovery routines.`}
+                onChange={(e) => handleInputChange("GENERAL_AI_RULES", e.target.value)}
+                placeholder="Enter general AI rules directives..."
+                className="w-full p-3.5 rounded-xl bg-background-elevated border border-border-subtle text-foreground-primary text-xs focus:outline-none focus:border-brand-500 font-mono leading-relaxed"
+              />
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-950/60 text-emerald-400 border border-emerald-800/40">
+                  🌿 1. Ayurveda Priority
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-blue-950/60 text-blue-400 border border-blue-800/40">
+                  🔬 2. Modern Science Synergy
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-purple-950/60 text-purple-400 border border-purple-800/40">
+                  💖 3. Warm Empathy
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-amber-950/60 text-amber-400 border border-amber-800/40">
+                  📊 4. Full Micronutrients
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

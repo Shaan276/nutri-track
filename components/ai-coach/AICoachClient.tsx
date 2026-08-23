@@ -133,12 +133,13 @@ export function AICoachClient() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const toggleListening = () => {
+  const toggleListening = async () => {
     if (isListening || shouldKeepListeningRef.current) {
       shouldKeepListeningRef.current = false;
       if (recognitionRef.current) {
         try {
-          recognitionRef.current.stop();
+          recognitionRef.current.abort?.();
+          recognitionRef.current.stop?.();
         } catch {}
       }
       setIsListening(false);
@@ -156,6 +157,15 @@ export function AICoachClient() {
     }
 
     try {
+      // Ensure microphone permission is granted and audio track is active
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        try {
+          await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (permErr) {
+          console.warn("Microphone permission check:", permErr);
+        }
+      }
+
       baseTextRef.current = inputText.trim();
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
@@ -187,24 +197,21 @@ export function AICoachClient() {
           setIsListening(false);
           alert("Microphone permission was denied. Please allow microphone access in your browser settings to use voice input.");
         }
-        // Don't turn off for "no-speech" or momentary pauses
+        // Don't terminate for momentary pauses or silence
       };
 
       recognition.onend = () => {
-        // If user hasn't explicitly stopped, restart continuous listening immediately
+        // Safe delayed restart to let browser audio pipeline reset cleanly
         if (shouldKeepListeningRef.current) {
-          try {
-            recognition.start();
-          } catch {
-            // Handle browser cooldown if needed
-            setTimeout(() => {
-              if (shouldKeepListeningRef.current) {
-                try {
-                  recognition.start();
-                } catch {}
+          setTimeout(() => {
+            if (shouldKeepListeningRef.current) {
+              try {
+                recognition.start();
+              } catch (startErr) {
+                console.warn("Speech restart retry:", startErr);
               }
-            }, 250);
-          }
+            }
+          }, 150);
         } else {
           setIsListening(false);
         }

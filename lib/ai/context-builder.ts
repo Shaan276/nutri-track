@@ -1,5 +1,6 @@
 import { HealthContextService } from "@/lib/services/health-context.service";
 import { ReportService } from "@/lib/services/report.service";
+import { AIRulesEngine } from "./rules-engine";
 import { prisma } from "@/lib/db";
 
 export interface AssembledAIContext {
@@ -69,8 +70,22 @@ export class AIContextBuilder {
       content: m.content,
     }));
 
+    // --- Retrieve User Record for Dynamic Daily Age Calculation ---
+    const userRecord = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { profile: true },
+    });
+
     // --- Retrieve Centralized Health Context Snapshot ---
     const snapshot = await HealthContextService.getHealthSnapshot(userId, todayStr);
+
+    // --- Layer 0: AI Governance Rules Engine (General Rules + Personalized Goal Rules + Daily Age) ---
+    const rulesPrompt = await AIRulesEngine.buildAIRulesPrompt(
+      userId,
+      snapshot.profile.primaryGoal,
+      userRecord?.profile?.dateOfBirth,
+      userRecord?.createdAt
+    );
 
     // --- Layer 2: User Memories & Saved Preferences ---
     let memoryContext = "";
@@ -159,7 +174,7 @@ ${activePlan.items.map((i) => `  - [${i.date}] (${i.category}) ${i.title}: ${i.i
       } catch {}
     }
 
-    const systemPrompt = `${profileContext}${memoryContext}${liveDataContext}`;
+    const systemPrompt = `${rulesPrompt}\n${profileContext}${memoryContext}${liveDataContext}`;
 
     return {
       systemPrompt,

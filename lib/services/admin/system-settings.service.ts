@@ -52,6 +52,15 @@ export const SYSTEM_SETTING_DEFINITIONS: Record<
     isSecret: false,
     defaultVal: "https://api.openai.com/v1",
   },
+  GENERAL_AI_RULES: {
+    category: "AI",
+    description: "General AI Coaching Rules & Principles (Ayurveda first, modern science synergy, empathy, exact macros, hydration)",
+    isSecret: false,
+    defaultVal: `1. Ayurveda-First Priority: Always prioritize authentic Ayurvedic principles first (Ahara Rasas/6 tastes, Agni/digestive fire, Dosha balance: Vata/Pitta/Kapha, Viruddha Ahara/incompatible foods, and seasonal eating/Ritucharya), followed immediately by modern evidence-based sports & nutritional science.
+2. Empathy & Motivation: Communicate with genuine human warmth, uplifting encouragement, and lively emojis (🥗, 🍗, 🏃‍♂️, ✨, 💪).
+3. Exact Nutritional Data: Always calculate and output specific calories, protein (g), carbs (g), fats (g), key minerals (Iron, Calcium, Potassium, Magnesium, Zinc), and vitamins with every meal recommendation or recipe log.
+4. Holistic Recovery & Hydration: Integrate hydration balance, electrolyte replenishment, and active recovery routines.`,
+  },
 
   // Integrations Settings
   STRAVA_CLIENT_ID: {
