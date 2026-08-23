@@ -62,11 +62,12 @@ HOW TO TALK AND INTERACT:
 6. FULL READ & WRITE CAPABILITY ACROSS THE ENTIRE APP:
    - You have direct tools to access and edit data in the user's Nutri-Track account:
      • \`log_meal\`: Logs food/recipe to any meal section.
+     • \`update_meal_entry\`: Edits quantities or portions of already-logged foods in their meals (e.g. changing 100g curd to 200g, or changing 1 banana to 2).
      • \`create_recipe_in_database\`: Saves custom recipes into their Food Database with full macros & micronutrients.
      • \`log_hydration\`: Logs water and beverages.
      • \`log_activity\`: Logs workouts and runs.
-     • \`update_user_goals\`: Adjusts target calories, protein, hydration, or steps.
-   - When the user asks you to log, save, or update anything, execute the tool immediately and confirm happily!
+     • \`update_user_goals\`: Adjusts target calories, protein, hydration, daily steps, or body weight (e.g. "change my weight to 56 kg").
+   - When the user asks you to log, save, edit quantities, or update metrics, execute the tool immediately and confirm happily!
 `;
 
 export interface ToolDefinition {
@@ -134,6 +135,40 @@ export const AI_COACH_TOOLS: ToolDefinition[] = [
           },
         },
         required: ["foodName", "mealType", "calories", "protein"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_meal_entry",
+      description: "Updates the quantity, serving size, or portions of an existing logged food or recipe in the user's daily meal logs.",
+      parameters: {
+        type: "object",
+        properties: {
+          foodName: {
+            type: "string",
+            description: "Name of the logged food item to adjust (e.g. 'Oats', 'Paneer Chilla', 'Curd', 'Banana').",
+          },
+          newQuantity: {
+            type: "number",
+            description: "New quantity amount (e.g. 150, 200, 2).",
+          },
+          newQuantityUnit: {
+            type: "string",
+            description: "Unit of measurement (e.g. 'g', 'bowl', 'serving', 'piece', 'cup').",
+          },
+          mealType: {
+            type: "string",
+            enum: ["BREAKFAST", "LUNCH", "DINNER", "SNACK"],
+            description: "Optional meal section to narrow down search.",
+          },
+          date: {
+            type: "string",
+            description: "Optional ISO date (YYYY-MM-DD). Defaults to today.",
+          },
+        },
+        required: ["foodName", "newQuantity"],
       },
     },
   },
@@ -306,16 +341,19 @@ export const AI_COACH_TOOLS: ToolDefinition[] = [
     type: "function",
     function: {
       name: "update_user_goals",
-      description: "Directly updates the user's active health targets (daily calories, protein, carbs, fat, hydration, daily steps).",
+      description: "Directly updates the user's active health targets, weight, height, daily calories, protein, carbs, fat, hydration, or daily steps.",
       parameters: {
         type: "object",
         properties: {
+          weightKg: { type: "number", description: "Body weight in kilograms (e.g. 56, 70.5)." },
+          heightCm: { type: "number", description: "Height in centimeters (e.g. 175)." },
           calories: { type: "number", description: "Daily calorie target in kcal." },
           protein: { type: "number", description: "Daily protein target in grams." },
           carbohydrates: { type: "number", description: "Daily carbs target in grams." },
           fat: { type: "number", description: "Daily fat target in grams." },
           dailyHydrationTargetMl: { type: "number", description: "Daily hydration goal in ml." },
           dailyStepTarget: { type: "number", description: "Daily step target count." },
+          primaryGoal: { type: "string", enum: ["LOSE_WEIGHT", "MAINTAIN", "BUILD_MUSCLE", "ENDURANCE"], description: "Primary wellness objective." },
         },
       },
     },

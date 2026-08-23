@@ -147,6 +147,50 @@ export class AIToolRegistry {
         };
       }
 
+      case "update_meal_entry": {
+        const { foodName, newQuantity, newQuantityUnit, mealType, date } = args;
+        const dateStr = date || new Date().toISOString().split("T")[0];
+
+        // Find existing meal entry by matching food name on that date
+        const daily = await NutritionService.getDailyNutrition(userId, dateStr);
+        let foundEntry: any = null;
+        let foundMealType: any = null;
+
+        for (const meal of daily.meals) {
+          if (mealType && meal.mealType !== mealType) continue;
+          for (const ent of meal.entries) {
+            const entName = ent.foodName || "";
+            if (entName.toLowerCase().includes(String(foodName).toLowerCase()) || String(foodName).toLowerCase().includes(entName.toLowerCase())) {
+              foundEntry = ent;
+              foundMealType = meal.mealType;
+              break;
+            }
+          }
+          if (foundEntry) break;
+        }
+
+        if (!foundEntry) {
+          return {
+            success: false,
+            message: `Could not find an existing entry for "${foodName}" in your ${dateStr} logs to edit.`,
+          };
+        }
+
+        const updated = await NutritionService.updateMealEntry(userId, foundEntry.id, {
+          quantity: Number(newQuantity),
+          quantityUnit: newQuantityUnit || foundEntry.quantityUnit,
+        });
+
+        const updatedDaily = await NutritionService.getDailyNutrition(userId, dateStr);
+
+        return {
+          success: true,
+          message: `Successfully updated "${foundEntry.foodName}" in ${foundMealType} to ${newQuantity} ${newQuantityUnit || foundEntry.quantityUnit}! 📊 New calories: ${updated.calculatedCalories} kcal, protein: ${updated.calculatedProtein}g.`,
+          updatedEntry: updated,
+          newDailyTotals: updatedDaily.totals,
+        };
+      }
+
       case "create_recipe_in_database": {
         const {
           name,
@@ -254,7 +298,7 @@ export class AIToolRegistry {
       }
 
       case "update_user_goals": {
-        const { calories, protein, carbohydrates, fat, dailyHydrationTargetMl, dailyStepTarget } = args;
+        const { calories, protein, carbohydrates, fat, dailyHydrationTargetMl, dailyStepTarget, weightKg, heightCm, primaryGoal } = args;
 
         const updated = await UserSettingsService.updateUserSettings(userId, {
           nutritionGoals: {
@@ -264,15 +308,20 @@ export class AIToolRegistry {
             ...(fat !== undefined && { fat: Number(fat) }),
           },
           profile: {
+            ...(weightKg !== undefined && { weightKg: Number(weightKg) }),
+            ...(heightCm !== undefined && { heightCm: Number(heightCm) }),
             ...(dailyHydrationTargetMl !== undefined && { dailyHydrationTargetMl: Number(dailyHydrationTargetMl) }),
             ...(dailyStepTarget !== undefined && { dailyStepTarget: Number(dailyStepTarget) }),
+            ...(primaryGoal && { primaryGoal: String(primaryGoal) }),
           },
         });
 
         return {
           success: true,
-          message: `Successfully updated your health targets! 🎯`,
+          message: `Successfully updated your health profile & targets! 🎯`,
           newGoals: {
+            weightKg: updated.profile.weightKg,
+            heightCm: updated.profile.heightCm,
             calories: updated.nutritionGoals.calories,
             protein: updated.nutritionGoals.protein,
             carbs: updated.nutritionGoals.carbohydrates,
