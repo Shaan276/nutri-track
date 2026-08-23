@@ -109,6 +109,23 @@ export class AIKeyManager {
   }
 
   /**
+   * Returns all configured keys ordered by priority
+   */
+  public getAllConfiguredKeys(): Array<{ key: string; index: number; label: string }> {
+    const list: Array<{ key: string; index: number; label: string }> = [];
+    for (let i = 0; i < this.keyStates.length; i++) {
+      const rawKey = this.getRawKey(i);
+      if (rawKey && rawKey.trim().length > 0) {
+        list.push({ key: rawKey, index: i, label: this.keyStates[i].label });
+      }
+    }
+    if (list.length === 0 && this.mockMode) {
+      list.push({ key: "mock_key_tier_1", index: 0, label: "AI_API_KEY_1" });
+    }
+    return list;
+  }
+
+  /**
    * Selects the highest-priority healthy key available.
    * If Key 1 usage > 90%, preemptively rotates to Key 2 (and Key 3) before hitting hard limit!
    */

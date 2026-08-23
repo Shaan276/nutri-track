@@ -579,6 +579,19 @@ export function AICoachClient() {
         ]);
       } else {
         console.error("Send message error:", err);
+        setMessages((prev) => {
+          const filtered = prev.filter((m) => m.id !== tempUserMsg.id);
+          return [
+            ...filtered,
+            tempUserMsg,
+            {
+              id: `err_${Date.now()}`,
+              role: "assistant",
+              content: err.message || "I ran into a temporary hiccup processing your request. Please try again! 🥗✨",
+              createdAt: new Date().toISOString(),
+            },
+          ];
+        });
       }
     } finally {
       abortControllerRef.current = null;

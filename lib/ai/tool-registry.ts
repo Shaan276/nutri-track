@@ -182,11 +182,33 @@ export class AIToolRegistry {
         let foundEntry: any = null;
         let foundMealType: any = null;
 
+        const matchesFoodName = (loggedName: string, searchName: string): boolean => {
+          if (!loggedName || !searchName) return false;
+          const l = loggedName.toLowerCase().trim();
+          const s = searchName.toLowerCase().trim();
+          if (l.includes(s) || s.includes(l)) return true;
+
+          const normL = l.replace(/(.)\1+/g, "$1");
+          const normS = s.replace(/(.)\1+/g, "$1");
+          if (normL.includes(normS) || normS.includes(normL)) return true;
+
+          const wordsL = l.split(/[\s,.-]+/).filter((w) => w.length > 2);
+          const wordsS = s.split(/[\s,.-]+/).filter((w) => w.length > 2);
+          return wordsS.some((ws) =>
+            wordsL.some(
+              (wl) =>
+                wl.includes(ws) ||
+                ws.includes(wl) ||
+                wl.replace(/(.)\1+/g, "$1") === ws.replace(/(.)\1+/g, "$1")
+            )
+          );
+        };
+
         for (const meal of daily.meals) {
           if (mealType && meal.mealType !== mealType) continue;
           for (const ent of meal.entries) {
             const entName = ent.foodName || "";
-            if (entName.toLowerCase().includes(String(foodName).toLowerCase()) || String(foodName).toLowerCase().includes(entName.toLowerCase())) {
+            if (matchesFoodName(entName, String(foodName))) {
               foundEntry = ent;
               foundMealType = meal.mealType;
               break;
@@ -225,20 +247,52 @@ export class AIToolRegistry {
         let foundEntry: any = null;
         let foundMealType: any = null;
 
+        const matchesFoodName = (loggedName: string, searchName: string): boolean => {
+          if (!loggedName || !searchName) return false;
+          const l = loggedName.toLowerCase().trim();
+          const s = searchName.toLowerCase().trim();
+          if (l.includes(s) || s.includes(l)) return true;
+
+          // Normalized letter repetition (e.g. "chilla" vs "chila")
+          const normL = l.replace(/(.)\1+/g, "$1");
+          const normS = s.replace(/(.)\1+/g, "$1");
+          if (normL.includes(normS) || normS.includes(normL)) return true;
+
+          // Word token overlap
+          const wordsL = l.split(/[\s,.-]+/).filter((w) => w.length > 2);
+          const wordsS = s.split(/[\s,.-]+/).filter((w) => w.length > 2);
+          return wordsS.some((ws) =>
+            wordsL.some(
+              (wl) =>
+                wl.includes(ws) ||
+                ws.includes(wl) ||
+                wl.replace(/(.)\1+/g, "$1") === ws.replace(/(.)\1+/g, "$1")
+            )
+          );
+        };
+
         for (const meal of daily.meals) {
           if (mealType && meal.mealType !== mealType) continue;
           for (const ent of meal.entries) {
             const entName = ent.foodName || "";
-            if (
-              entName.toLowerCase().includes(String(foodName).toLowerCase()) ||
-              String(foodName).toLowerCase().includes(entName.toLowerCase())
-            ) {
+            if (matchesFoodName(entName, String(foodName))) {
               foundEntry = ent;
               foundMealType = meal.mealType;
               break;
             }
           }
           if (foundEntry) break;
+        }
+
+        // Fallback: If only 1 meal entry exists in total for today, delete it
+        if (!foundEntry) {
+          const allEntries = daily.meals.flatMap((m) =>
+            m.entries.map((e) => ({ ...e, mealType: m.mealType }))
+          );
+          if (allEntries.length === 1) {
+            foundEntry = allEntries[0];
+            foundMealType = allEntries[0].mealType;
+          }
         }
 
         if (!foundEntry) {

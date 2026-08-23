@@ -108,9 +108,17 @@ export class AIClient {
         continue;
       }
 
+      let replyContent = responsePayload.content;
+      if (toolsExecuted.length > 0 && (!replyContent || replyContent.includes("AI Coach is currently unavailable"))) {
+        replyContent = toolsExecuted
+          .map((t) => t.result?.message || `Processed ${t.toolName}! ✨`)
+          .filter(Boolean)
+          .join("\n\n");
+      }
+
       // Final assistant response generated
       return {
-        reply: responsePayload.content || "I'm ready to help with your nutrition and fitness goals.",
+        reply: replyContent || "I'm ready to help with your nutrition and fitness goals.",
         modelUsed: selectedModel,
         proposedGoal,
         toolsExecuted,
@@ -118,8 +126,16 @@ export class AIClient {
       };
     }
 
+    let finalFallback = "Based on your latest Nutri-Track data, your targets and nutrition are ready for review.";
+    if (toolsExecuted.length > 0) {
+      finalFallback = toolsExecuted
+        .map((t) => t.result?.message || `Processed ${t.toolName}! ✨`)
+        .filter(Boolean)
+        .join("\n\n");
+    }
+
     return {
-      reply: "Based on your latest Nutri-Track data, your targets and nutrition are ready for review.",
+      reply: finalFallback,
       modelUsed: selectedModel,
       proposedGoal,
       toolsExecuted,
@@ -137,7 +153,7 @@ export class AIClient {
     if (trimmed.startsWith("gsk_")) {
       return {
         baseUrl: "https://api.groq.com/openai/v1",
-        models: Array.from(new Set(["openai/gpt-oss-120b", "openai/gpt-oss-20b", "groq/compound-mini", defaultModel].filter(Boolean))),
+        models: ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b", "groq/compound-mini"],
         providerName: "Groq",
       };
     }
@@ -146,13 +162,7 @@ export class AIClient {
     if (trimmed.startsWith("AIza") || trimmed.startsWith("AQ.") || customUrl.includes("googleapis.com")) {
       return {
         baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
-        models: Array.from(new Set([
-          "gemini-flash-latest",
-          "gemini-3.1-flash-lite",
-          "gemini-2.5-flash",
-          "gemini-3.5-flash-lite",
-          defaultModel,
-        ].filter(Boolean))),
+        models: ["gemini-2.5-flash", "gemini-flash-latest"],
         providerName: "Google Gemini",
       };
     }
@@ -161,7 +171,7 @@ export class AIClient {
     if (trimmed.startsWith("sk-or-") || customUrl.includes("openrouter.ai")) {
       return {
         baseUrl: "https://openrouter.ai/api/v1",
-        models: Array.from(new Set([defaultModel || "openai/gpt-4o-mini", "openai/gpt-4o-mini", "google/gemini-2.5-flash", "meta-llama/llama-3.3-70b-instruct"].filter(Boolean))),
+        models: ["openai/gpt-4o-mini", "google/gemini-2.5-flash", "meta-llama/llama-3.3-70b-instruct"],
         providerName: "OpenRouter",
       };
     }
@@ -169,7 +179,7 @@ export class AIClient {
     // 4. OpenAI Default
     return {
       baseUrl: customUrl || "https://api.openai.com/v1",
-      models: Array.from(new Set([defaultModel || "gpt-4o-mini", "gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"].filter(Boolean))),
+      models: ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"],
       providerName: "OpenAI",
     };
   }
@@ -188,13 +198,18 @@ export class AIClient {
     await keyManager.syncWithDatabase();
 
     const configuredBaseUrl = await SystemSettingsService.getSetting("AI_BASE_URL", AI_MODEL_CONFIG.baseUrl);
+    const configuredKeys = keyManager.getAllConfiguredKeys();
 
-    // Try all available keys in priority order
-    for (let keyIdx = 0; keyIdx < 3; keyIdx++) {
-      const activeKeyInfo = keyManager.getActiveKey();
-      if (!activeKeyInfo) break;
+    if (configuredKeys.length === 0) {
+      return {
+        content:
+          "🤖 AI Coach is currently unavailable at the moment. Please configure an active AI key in the Admin Settings (/admin/settings) or contact the administrator. In the meantime, you can log your meals, hydration, workouts, and runs directly on your Dashboard!",
+      };
+    }
 
-      const safeKey = activeKeyInfo.key;
+    // Try all configured keys in priority order (Key 1 -> Key 2 -> Key 3)
+    for (const keyInfo of configuredKeys) {
+      const safeKey = keyInfo.key;
 
       // Mock mode support for testing
       if (safeKey.startsWith("mock_key_")) {
@@ -202,10 +217,10 @@ export class AIClient {
       }
 
       const provider = this.resolveProvider(safeKey, configuredBaseUrl, model);
-      let keyExhausted = false;
+      let keyFailed = false;
 
       for (const currentModel of provider.models) {
-        if (keyExhausted) break;
+        if (keyFailed) break;
 
         for (let attempt = 0; attempt < maxRetries; attempt++) {
           try {
@@ -240,23 +255,22 @@ export class AIClient {
             });
 
             if (res.status === 429) {
-              console.warn(`[AIClient] Rate limited on ${provider.providerName}. Failing over immediately to next standby key...`);
-              keyManager.recordRateLimit(activeKeyInfo.index, 3000);
-              keyExhausted = true;
+              console.warn(`[AIClient] Key ${keyInfo.label} (${provider.providerName}) rate limited (429). Failing over to next standby key...`);
+              keyManager.recordRateLimit(keyInfo.index, 3000);
+              keyFailed = true;
               break;
             }
 
             if (res.status === 401 || res.status === 402 || res.status === 403) {
-              console.warn(`[AIClient] Key ${activeKeyInfo.label} quota/auth error (${res.status}). Failing over to next key...`);
-              keyManager.recordExhaustion(activeKeyInfo.index);
-              keyExhausted = true;
+              console.warn(`[AIClient] Key ${keyInfo.label} auth/quota error (${res.status}). Failing over to next key...`);
+              keyManager.recordExhaustion(keyInfo.index);
+              keyFailed = true;
               break;
             }
 
-            // If model is temporarily overloaded (503/502/500/400/404), fail over to next model immediately
             if (res.status === 503 || res.status === 502 || res.status === 500 || res.status === 400 || res.status === 404) {
               const errText = await res.text().catch(() => "");
-              console.warn(`[AIClient] Model '${currentModel}' temporary error (${res.status}: ${errText.substring(0, 100)}). Failing over to next model...`);
+              console.warn(`[AIClient] Model '${currentModel}' on ${provider.providerName} returned ${res.status} (${errText.substring(0, 80)}). Trying next candidate...`);
               break;
             }
 
@@ -267,7 +281,7 @@ export class AIClient {
             }
 
             const data = await res.json();
-            keyManager.recordSuccess(activeKeyInfo.index);
+            keyManager.recordSuccess(keyInfo.index);
 
             const choice = data.choices?.[0]?.message;
             return {
