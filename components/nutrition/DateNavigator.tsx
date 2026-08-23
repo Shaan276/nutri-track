@@ -8,33 +8,50 @@ interface DateNavigatorProps {
   onDateChange: (newDate: string) => void;
 }
 
+function offsetDateString(dateStr: string, days: number): string {
+  const parts = (dateStr || "").split("-").map(Number);
+  if (parts.length !== 3 || isNaN(parts[0]) || isNaN(parts[1]) || isNaN(parts[2])) {
+    const fallback = new Date();
+    return `${fallback.getFullYear()}-${String(fallback.getMonth() + 1).padStart(2, "0")}-${String(fallback.getDate()).padStart(2, "0")}`;
+  }
+  const [year, month, day] = parts;
+  const targetDate = new Date(year, month - 1, day + days);
+  const y = targetDate.getFullYear();
+  const m = String(targetDate.getMonth() + 1).padStart(2, "0");
+  const d = String(targetDate.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function getLocalTodayString(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
 export function DateNavigator({ selectedDate, onDateChange }: DateNavigatorProps) {
-  const currentDateObj = new Date(selectedDate + "T00:00:00");
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = getLocalTodayString();
   const isToday = selectedDate === todayStr;
 
   const handlePrevDay = () => {
-    const d = new Date(currentDateObj);
-    d.setDate(d.getDate() - 1);
-    onDateChange(d.toISOString().split("T")[0]);
+    onDateChange(offsetDateString(selectedDate, -1));
   };
 
   const handleNextDay = () => {
-    const d = new Date(currentDateObj);
-    d.setDate(d.getDate() + 1);
-    onDateChange(d.toISOString().split("T")[0]);
+    onDateChange(offsetDateString(selectedDate, 1));
   };
 
   const handleToday = () => {
     onDateChange(todayStr);
   };
 
+  const parts = (selectedDate || todayStr).split("-").map(Number);
+  const localDateObj = new Date(parts[0] || 2026, (parts[1] || 1) - 1, parts[2] || 1);
+
   const formattedDate = new Intl.DateTimeFormat("en-US", {
     weekday: "short",
     month: "short",
     day: "numeric",
     year: "numeric",
-  }).format(currentDateObj);
+  }).format(localDateObj);
 
   return (
     <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-3 bg-background-surface border border-border-default rounded-2xl p-3 sm:px-4 shadow-sm">

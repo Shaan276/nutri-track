@@ -46,26 +46,45 @@ export default function DeepNutritionPage() {
     fetchDeepNutrition(selectedDate);
   }, [selectedDate, fetchDeepNutrition]);
 
+  function offsetDateString(dateStr: string, days: number): string {
+    const parts = (dateStr || "").split("-").map(Number);
+    if (parts.length !== 3 || isNaN(parts[0]) || isNaN(parts[1]) || isNaN(parts[2])) {
+      const fallback = new Date();
+      return `${fallback.getFullYear()}-${String(fallback.getMonth() + 1).padStart(2, "0")}-${String(fallback.getDate()).padStart(2, "0")}`;
+    }
+    const [year, month, day] = parts;
+    const targetDate = new Date(year, month - 1, day + days);
+    const y = targetDate.getFullYear();
+    const m = String(targetDate.getMonth() + 1).padStart(2, "0");
+    const d = String(targetDate.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  function getLocalTodayString(): string {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  }
+
   // Date Navigation Handlers
   const handlePrevDay = () => {
-    const d = new Date(selectedDate + "T00:00:00");
-    d.setDate(d.getDate() - 1);
-    setSelectedDate(d.toISOString().split("T")[0]);
+    setSelectedDate((prev) => offsetDateString(prev, -1));
   };
 
   const handleNextDay = () => {
-    const d = new Date(selectedDate + "T00:00:00");
-    d.setDate(d.getDate() + 1);
-    setSelectedDate(d.toISOString().split("T")[0]);
+    setSelectedDate((prev) => offsetDateString(prev, 1));
   };
 
   const handleToday = () => {
-    setSelectedDate(new Date().toISOString().split("T")[0]);
+    setSelectedDate(getLocalTodayString());
   };
 
-  const isToday = selectedDate === new Date().toISOString().split("T")[0];
+  const todayStr = getLocalTodayString();
+  const isToday = selectedDate === todayStr;
 
-  const formattedDateString = new Date(selectedDate + "T00:00:00").toLocaleDateString("en-US", {
+  const dateParts = (selectedDate || todayStr).split("-").map(Number);
+  const localDateObj = new Date(dateParts[0] || 2026, (dateParts[1] || 1) - 1, dateParts[2] || 1);
+
+  const formattedDateString = localDateObj.toLocaleDateString("en-US", {
     weekday: "long",
     year: "numeric",
     month: "long",

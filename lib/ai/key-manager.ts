@@ -161,6 +161,28 @@ export class AIKeyManager {
       }
     }
 
+    // 3. Resilient Fallback: If all keys are marked in cooldown/exhausted but a valid raw key exists, auto-recover immediately!
+    for (let i = 0; i < this.keyStates.length; i++) {
+      const raw = this.getRawKey(i);
+      if (raw && raw.trim().length > 0) {
+        const state = this.keyStates[i];
+        state.status = "HEALTHY";
+        state.cooldownUntil = null;
+        state.consecutiveErrors = 0;
+        state.totalRequests += 1;
+        state.lastUsedAt = now;
+        return {
+          key: raw,
+          index: i,
+          label: state.label,
+        };
+      }
+    }
+
+    if (this.mockMode) {
+      return { key: "mock_key_tier_1", index: 0, label: "AI_API_KEY_1" };
+    }
+
     return null;
   }
 

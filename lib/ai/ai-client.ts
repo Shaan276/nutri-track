@@ -108,120 +108,149 @@ export class AIClient {
   }
 
   /**
-   * Executes HTTP request with 3-key fallback, cooldown handling, and mock mode support
+   * Automatically resolves endpoint URL, provider, and valid candidate models based on API Key signature
+   */
+  private static resolveProvider(key: string, configuredBaseUrl?: string, defaultModel?: string) {
+    const trimmed = (key || "").trim();
+    const customUrl = (configuredBaseUrl || "").trim().replace(/\/+$/, "");
+
+    // 1. Groq Cloud API (Free, ultra-fast Llama-3.3-70B & Llama-3.1-8B)
+    if (trimmed.startsWith("gsk_")) {
+      return {
+        baseUrl: "https://api.groq.com/openai/v1",
+        models: Array.from(new Set([defaultModel || "llama-3.3-70b-versatile", "llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"].filter(Boolean))),
+        providerName: "Groq",
+      };
+    }
+
+    // 2. Google Gemini API (Free 1,500 req/day Flash models)
+    if (trimmed.startsWith("AIza") || trimmed.startsWith("AQ.") || customUrl.includes("googleapis.com")) {
+      return {
+        baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+        models: Array.from(new Set([
+          defaultModel || "gemini-flash-latest",
+          "gemini-flash-latest",
+          "gemini-3.1-flash-lite",
+          "gemini-3.5-flash-lite",
+          "gemini-2.5-flash",
+        ].filter(Boolean))),
+        providerName: "Google Gemini",
+      };
+    }
+
+    // 3. OpenRouter API
+    if (trimmed.startsWith("sk-or-") || customUrl.includes("openrouter.ai")) {
+      return {
+        baseUrl: "https://openrouter.ai/api/v1",
+        models: Array.from(new Set([defaultModel || "openai/gpt-4o-mini", "openai/gpt-4o-mini", "google/gemini-2.5-flash", "meta-llama/llama-3.3-70b-instruct"].filter(Boolean))),
+        providerName: "OpenRouter",
+      };
+    }
+
+    // 4. OpenAI Default
+    return {
+      baseUrl: customUrl || "https://api.openai.com/v1",
+      models: Array.from(new Set([defaultModel || "gpt-4o-mini", "gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"].filter(Boolean))),
+      providerName: "OpenAI",
+    };
+  }
+
+  /**
+   * Executes HTTP request with multi-key and multi-provider fallback, cooldown auto-recovery, and mock mode support
    */
   private static async executeWithFallback(
     messages: ChatCompletionMessage[],
     model: string,
     allowTools: boolean
   ): Promise<{ content: string; tool_calls?: any[]; tokensUsed?: number }> {
-    const maxRetries = 4;
+    const maxRetries = 3;
 
     // Sync custom keys from database system settings if present
     await keyManager.syncWithDatabase();
 
-    const baseUrl = await SystemSettingsService.getSetting("AI_BASE_URL", AI_MODEL_CONFIG.baseUrl);
-    const cleanBaseUrl = (baseUrl || "https://api.openai.com/v1").replace(/\/+$/, "");
+    const configuredBaseUrl = await SystemSettingsService.getSetting("AI_BASE_URL", AI_MODEL_CONFIG.baseUrl);
 
-    const isGemini = cleanBaseUrl.includes("googleapis.com");
-    const candidateModels = isGemini
-      ? Array.from(new Set([
-          model || "gemini-flash-lite-latest",
-          "gemini-flash-lite-latest",
-          "gemini-3.1-flash-lite",
-          "gemini-3.5-flash-lite",
-          "gemini-flash-latest",
-        ].filter(Boolean)))
-      : Array.from(new Set([model, "gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"].filter(Boolean)));
+    // Try all available keys in priority order
+    for (let keyIdx = 0; keyIdx < 3; keyIdx++) {
+      const activeKeyInfo = keyManager.getActiveKey();
+      if (!activeKeyInfo) break;
 
-    for (const currentModel of candidateModels) {
-      for (let attempt = 0; attempt < maxRetries; attempt++) {
-        const activeKeyInfo = keyManager.getActiveKey();
+      const safeKey = activeKeyInfo.key;
 
-        if (!activeKeyInfo) {
-          // If in mock mode or single key, recover immediately
-          const rawK = keyManager.getRawKey(0);
-          if (rawK) {
-            keyManager.recordSuccess(0);
-          } else {
-            return {
-              content:
-                "🤖 AI Coach is currently unavailable at the moment. Please configure an active AI key in the Admin Settings (/admin/settings) or contact the administrator. In the meantime, you can log your meals, hydration, workouts, and runs directly on your Dashboard!",
+      // Mock mode support for testing
+      if (safeKey.startsWith("mock_key_")) {
+        return this.generateMockResponse(messages);
+      }
+
+      const provider = this.resolveProvider(safeKey, configuredBaseUrl, model);
+
+      for (const currentModel of provider.models) {
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+          try {
+            const bodyPayload: any = {
+              model: currentModel,
+              messages,
+              temperature: AI_MODEL_CONFIG.temperature,
+              max_tokens: AI_MODEL_CONFIG.maxOutputTokens,
             };
-          }
-        }
 
-        const safeKeyInfo = activeKeyInfo || { key: keyManager.getRawKey(0), index: 0, label: "AI_API_KEY_1" };
+            if (allowTools) {
+              bodyPayload.tools = AI_COACH_TOOLS;
+              bodyPayload.tool_choice = "auto";
+            }
 
-        // Check if we are in mock mode (used for local testing / test suites)
-        if (safeKeyInfo.key.startsWith("mock_key_")) {
-          return this.generateMockResponse(messages);
-        }
+            const res = await fetch(`${provider.baseUrl}/chat/completions`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${safeKey}`,
+              },
+              body: JSON.stringify(bodyPayload),
+            });
 
-        try {
-          const bodyPayload: any = {
-            model: currentModel,
-            messages,
-            temperature: AI_MODEL_CONFIG.temperature,
-            max_tokens: AI_MODEL_CONFIG.maxOutputTokens,
-          };
+            if (res.status === 429) {
+              const waitMs = Math.min(3000, 1000 * (attempt + 1));
+              console.warn(`[AIClient] Rate limited on ${provider.providerName} (${currentModel}). Retrying after ${waitMs}ms (attempt ${attempt + 1}/${maxRetries})...`);
+              await new Promise((r) => setTimeout(r, waitMs));
+              if (attempt === maxRetries - 1) {
+                console.warn(`[AIClient] Retries exhausted for ${currentModel}. Failing over to next candidate model...`);
+                break;
+              }
+              continue;
+            }
 
-          if (allowTools) {
-            bodyPayload.tools = AI_COACH_TOOLS;
-            bodyPayload.tool_choice = "auto";
-          }
-
-          const res = await fetch(`${cleanBaseUrl}/chat/completions`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${safeKeyInfo.key}`,
-            },
-            body: JSON.stringify(bodyPayload),
-          });
-
-          if (res.status === 429) {
-            const waitMs = Math.min(4000, 1000 * (attempt + 1));
-            console.warn(`[AIClient] Rate limited on ${currentModel} (HTTP 429). Retrying after ${waitMs}ms (attempt ${attempt + 1}/${maxRetries})...`);
-            await new Promise((r) => setTimeout(r, waitMs));
-            if (attempt === maxRetries - 1) {
-              console.warn(`[AIClient] Rate limit retries exhausted on ${currentModel}. Failing over to next candidate model...`);
+            if (res.status === 401 || res.status === 402 || res.status === 403) {
+              console.warn(`[AIClient] Key ${activeKeyInfo.label} quota/auth error (${res.status}). Failing over to next key...`);
+              keyManager.recordExhaustion(activeKeyInfo.index);
               break;
             }
-            continue;
-          }
 
-          if (res.status === 401 || res.status === 402 || res.status === 403) {
-            console.warn(`[AIClient] Key ${safeKeyInfo.label} quota/auth error (${res.status}). Marking unavailable...`);
-            keyManager.recordExhaustion(safeKeyInfo.index);
-            continue; // Retry with next key in priority
-          }
+            // If model is temporarily overloaded (503/502/500/400/404), fail over to next model immediately
+            if (res.status === 503 || res.status === 502 || res.status === 500 || res.status === 400 || res.status === 404) {
+              const errText = await res.text().catch(() => "");
+              console.warn(`[AIClient] Model '${currentModel}' temporary error (${res.status}: ${errText.substring(0, 100)}). Failing over to next model...`);
+              break;
+            }
 
-          // If model is overloaded (503) or not recognized (400/404/500/502), fail over to next model immediately
-          if (res.status === 503 || res.status === 502 || res.status === 500 || res.status === 400 || res.status === 404) {
-            const errText = await res.text().catch(() => "");
-            console.warn(`[AIClient] Model '${currentModel}' temporary error (${res.status}: ${errText.substring(0, 100)}). Failing over to next model...`);
+            if (!res.ok) {
+              const errText = await res.text().catch(() => "");
+              console.error(`[AIClient] Error from ${provider.providerName} on ${currentModel}:`, res.status, errText);
+              break;
+            }
+
+            const data = await res.json();
+            keyManager.recordSuccess(activeKeyInfo.index);
+
+            const choice = data.choices?.[0]?.message;
+            return {
+              content: choice?.content || "",
+              tool_calls: choice?.tool_calls,
+              tokensUsed: data.usage?.total_tokens || 0,
+            };
+          } catch (fetchErr: any) {
+            console.error(`[AIClient] Network error on ${currentModel}:`, fetchErr.message);
             break;
           }
-
-          if (!res.ok) {
-            const errText = await res.text().catch(() => "");
-            console.error(`[AIClient] Error on ${currentModel}:`, res.status, errText);
-            break;
-          }
-
-          const data = await res.json();
-          keyManager.recordSuccess(safeKeyInfo.index);
-
-          const choice = data.choices?.[0]?.message;
-          return {
-            content: choice?.content || "",
-            tool_calls: choice?.tool_calls,
-            tokensUsed: data.usage?.total_tokens || 0,
-          };
-        } catch (fetchErr: any) {
-          console.error(`[AIClient] Network error on ${currentModel}:`, fetchErr.message);
-          break;
         }
       }
     }
