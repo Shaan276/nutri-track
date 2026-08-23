@@ -412,11 +412,21 @@ export function AICoachClient() {
 
         if (convRes?.ok) {
           const convData = await convRes.json();
-          setConversations(convData.conversations || []);
-          const defaultId = convData.defaultConversationId || convData.conversations?.[0]?.id;
-          if (defaultId) {
-            setActiveConvId(defaultId);
-            await loadMessages(defaultId);
+          const convList = convData.conversations || [];
+          setConversations(convList);
+
+          // Restore last active conversation from localStorage if valid, or default
+          let targetId = convData.defaultConversationId || convList[0]?.id;
+          try {
+            const savedId = localStorage.getItem("nt_active_conv_id");
+            if (savedId && convList.some((c: any) => c.id === savedId)) {
+              targetId = savedId;
+            }
+          } catch {}
+
+          if (targetId) {
+            setActiveConvId(targetId);
+            await loadMessages(targetId);
           }
         }
       } catch (err: any) {
@@ -531,6 +541,9 @@ export function AICoachClient() {
       pollingRef.current = null;
     }
     setActiveConvId(convId);
+    try {
+      localStorage.setItem("nt_active_conv_id", convId);
+    } catch {}
     setSidebarOpen(false);
     await loadMessages(convId);
   };
@@ -549,11 +562,14 @@ export function AICoachClient() {
         const newConv = await res.json();
         setConversations((prev) => [newConv, ...prev]);
         setActiveConvId(newConv.id);
+        try {
+          localStorage.setItem("nt_active_conv_id", newConv.id);
+        } catch {}
         setMessages([
           {
             id: `init_${Date.now()}`,
             role: "assistant",
-            content: "Hello! I am your Nutri-Track AI Coach. How can I help you optimize your health, nutrition, or training today?",
+            content: "Hello! I am your Nutri-Track AI Coach. 🥗✨ How can I help you optimize your health, nutrition, or training today?",
             createdAt: new Date().toISOString(),
           },
         ]);

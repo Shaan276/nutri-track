@@ -273,6 +273,7 @@ export class AIClient {
                 Authorization: `Bearer ${safeKey}`,
               },
               body: JSON.stringify(bodyPayload),
+              signal: AbortSignal.timeout(12000),
             });
 
             if (res.status === 429) {
@@ -303,6 +304,7 @@ export class AIClient {
                   Authorization: `Bearer ${safeKey}`,
                 },
                 body: JSON.stringify(retryBody),
+                signal: AbortSignal.timeout(12000),
               });
 
               if (retryRes.ok) {
@@ -389,8 +391,37 @@ export class AIClient {
       }
     }
 
-    // Mock tool calling triggers
-    if (lower.includes("estimate") || (lower.includes("calories") && lower.includes("run"))) {
+    // Intelligent dietary & metabolic advice generators
+    if (lower.includes("how to burn calorie") || lower.includes("burn calories") || lower.includes("fat loss") || lower.includes("lose weight")) {
+      return {
+        content: `Here is the optimal evidence-based strategy to maximize calorie burning and metabolic health! 🔥🏃‍♂️
+
+• 🏃‍♂️ **Zone 2 Aerobic Running & Cardio**:
+  - Sustained moderate-intensity running (60–70% max heart rate) optimizes mitochondrial density and maximizes fat oxidation per minute! ⚡
+• 🏋️‍♂️ **Resistance & Strength Training**:
+  - Builds metabolically active lean muscle tissue, permanently raising your Basal Metabolic Rate (BMR) even at rest! 💪
+• 🚶‍♂️ **High NEAT (Non-Exercise Activity)**:
+  - Hitting 8,000–10,000 daily steps burns 300–450 kcal passively without placing excessive fatigue on your nervous system. 👟
+• 🌿 **Ayurvedic Agni (Digestive Fire) Synergy**:
+  - Sip warm ginger-cumin tea before meals to stoke digestive metabolism and prevent sluggish lymphatic stagnation! 🫖✨`,
+      };
+    }
+
+    if (lower.includes("chilla") || lower.includes("cheela")) {
+      return {
+        content: `🥞 **Chilla Nutrition Breakdown (1 Piece)** 🥗✨
+
+• **Energy**: ~145–160 kcal
+• **Protein**: 7.5g (Rich in plant-based amino acids) 💪
+• **Carbohydrates**: 21g (Complex slow-digesting carbs) 🌾
+• **Fat**: 4.5g (Healthy cooking fats) 🥑
+• **Fiber & Micronutrients**: 3.2g dietary fiber, Iron, Magnesium, and Zinc! 🌿
+
+*Pro Tip: Pair with mint-coriander chutney or 2 tbsp Greek yogurt for enhanced protein absorption and probiotic gut health!* 🥣✨`,
+      };
+    }
+
+    if (lower.includes("estimate") || (lower.includes("calories") && lower.includes("run") && !lower.includes("how to"))) {
       return {
         content: "",
         tool_calls: [
@@ -428,7 +459,14 @@ export class AIClient {
       };
     }
 
-    if (lower.includes("protein") || lower.includes("calorie") || lower.includes("macro") || lower.includes("eat")) {
+    if (
+      lower.includes("how much protein have i eaten") ||
+      lower.includes("what did i eat today") ||
+      lower.includes("my nutrition today") ||
+      lower.includes("my macros today") ||
+      lower.includes("today's nutrition") ||
+      lower.includes("how many calories do i have remaining")
+    ) {
       return {
         content: "",
         tool_calls: [
@@ -444,7 +482,7 @@ export class AIClient {
       };
     }
 
-    if (lower.includes("water") || lower.includes("hydration") || lower.includes("drink")) {
+    if (lower.includes("how much water") || lower.includes("hydration status") || lower.includes("my water today")) {
       return {
         content: "",
         tool_calls: [
@@ -462,7 +500,7 @@ export class AIClient {
 
     return {
       content:
-        "Hello! I am your Nutri-Track AI Coach. I can help analyze your nutrition, track your macro progress, evaluate running pace trends, and optimize your workout goals. What would you like to focus on today?",
+        "Hello! I am your Nutri-Track AI Coach. 🥗✨ I can help analyze your nutrition, log meals & recipes, track your macro progress, evaluate running pace trends, and optimize your workout goals. What would you like to focus on today?",
     };
   }
 }

@@ -297,7 +297,13 @@ export class SystemSettingsService {
         return {
           providerName: "Groq Cloud",
           endpoint: "https://api.groq.com/openai/v1/chat/completions",
-          models: Array.from(new Set(["qwen/qwen3.6-27b", "openai/gpt-oss-120b", "openai/gpt-oss-20b", "groq/compound-mini", customModel].filter(Boolean))) as string[],
+          models: Array.from(new Set([
+            customModel,
+            "llama-3.3-70b-versatile",
+            "llama-3.1-8b-instant",
+            "mixtral-8x7b-32768",
+            "gemma2-9b-it",
+          ].filter(Boolean))) as string[],
         };
       }
       if (trimmed.startsWith("AIza") || trimmed.startsWith("AQ.") || (customBaseUrl && customBaseUrl.includes("googleapis.com"))) {
@@ -305,11 +311,12 @@ export class SystemSettingsService {
           providerName: "Google Gemini",
           endpoint: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
           models: Array.from(new Set([
-            "gemini-flash-latest",
-            "gemini-2.5-flash",
-            "gemini-3.1-flash-lite",
-            "gemini-3.5-flash-lite",
             customModel,
+            "gemini-1.5-flash",
+            "gemini-2.0-flash",
+            "gemini-1.5-pro",
+            "gemini-2.5-flash",
+            "gemini-flash-latest",
           ].filter(Boolean))) as string[],
         };
       }
@@ -317,7 +324,7 @@ export class SystemSettingsService {
         return {
           providerName: "OpenRouter",
           endpoint: "https://openrouter.ai/api/v1/chat/completions",
-          models: Array.from(new Set([customModel, "openai/gpt-4o-mini", "google/gemini-2.5-flash"].filter(Boolean))) as string[],
+          models: Array.from(new Set([customModel, "openai/gpt-4o-mini", "google/gemini-2.5-flash", "meta-llama/llama-3.3-70b-instruct"].filter(Boolean))) as string[],
         };
       }
       return {
@@ -361,6 +368,7 @@ export class SystemSettingsService {
               messages: [{ role: "user", content: "ping" }],
               max_tokens: 5,
             }),
+            signal: AbortSignal.timeout(7000),
           });
 
           lastLatency = Date.now() - startTime;
