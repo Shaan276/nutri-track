@@ -1044,6 +1044,47 @@ export class AIToolRegistry {
         };
       }
 
+      case "propose_health_goals":
+      case "propose_nutrition_blueprint": {
+        const {
+          calories,
+          protein,
+          carbohydrates,
+          carbs,
+          fat,
+          fats,
+          fiber,
+          dailyHydrationTargetMl,
+          hydrationMl,
+          dailyStepTarget,
+          steps,
+          primaryGoal,
+          reason,
+        } = args;
+
+        const pkgProposal = {
+          isProposal: true,
+          isPackage: true,
+          package: {
+            calories: calories !== undefined ? Number(calories) : undefined,
+            protein: protein !== undefined ? Number(protein) : undefined,
+            carbohydrates: (carbohydrates ?? carbs) !== undefined ? Number(carbohydrates ?? carbs) : undefined,
+            fat: (fat ?? fats) !== undefined ? Number(fat ?? fats) : undefined,
+            fiber: fiber !== undefined ? Number(fiber) : undefined,
+            dailyHydrationTargetMl: (dailyHydrationTargetMl ?? hydrationMl) !== undefined ? Number(dailyHydrationTargetMl ?? hydrationMl) : undefined,
+            dailyStepTarget: (dailyStepTarget ?? steps) !== undefined ? Number(dailyStepTarget ?? steps) : undefined,
+            primaryGoal: primaryGoal ? String(primaryGoal) : undefined,
+            reason: reason || "Personalized blueprint calculated based on your body metrics, activity level, and fitness goals.",
+          },
+          status: "PENDING_CONFIRMATION",
+        };
+
+        return {
+          message: `Proposed a personalized nutrition & fitness blueprint (${pkgProposal.package.calories} kcal, ${pkgProposal.package.protein}g protein, ${pkgProposal.package.dailyHydrationTargetMl}ml water)! A confirmation action has been presented to the user. 🎯✨`,
+          proposal: pkgProposal,
+        };
+      }
+
       case "estimate_exercise_calories": {
         const { exerciseType = "RUNNING", durationMinutes = 30, intensity = "MODERATE", distanceKm } = args;
 

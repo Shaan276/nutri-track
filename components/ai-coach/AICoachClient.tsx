@@ -897,6 +897,10 @@ export function AICoachClient() {
                         onConfirmed={async () => {
                           await loadHealthSnapshot();
                         }}
+                        onModify={(text) => {
+                          setInputText(text);
+                          inputRef.current?.focus();
+                        }}
                       />
                     )}
                   </div>

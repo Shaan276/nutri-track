@@ -298,14 +298,54 @@ export class AICoachService {
    */
   static async confirmGoalUpdate(
     userId: string,
-    targetKey: string,
-    newValue: number
+    targetKeyOrPackage: string | Record<string, any>,
+    newValue?: number
   ): Promise<{ success: boolean; message: string; updatedSettings: any }> {
     const currentSettings = await UserSettingsService.getUserSettings(userId);
 
     const profileData = { ...currentSettings.profile };
     const nutritionGoals = { ...currentSettings.nutritionGoals };
 
+    if (typeof targetKeyOrPackage === "object") {
+      // Full goals package proposal confirmation
+      const pkg = targetKeyOrPackage;
+      if (pkg.calories !== undefined) nutritionGoals.calories = Number(pkg.calories);
+      if (pkg.protein !== undefined) nutritionGoals.protein = Number(pkg.protein);
+      if (pkg.carbohydrates !== undefined || pkg.carbs !== undefined) nutritionGoals.carbohydrates = Number(pkg.carbohydrates ?? pkg.carbs);
+      if (pkg.fat !== undefined || pkg.fats !== undefined) nutritionGoals.fat = Number(pkg.fat ?? pkg.fats);
+      if (pkg.fiber !== undefined) nutritionGoals.fiber = Number(pkg.fiber);
+      if (pkg.dailyHydrationTargetMl !== undefined || pkg.hydrationMl !== undefined) {
+        profileData.dailyHydrationTargetMl = Number(pkg.dailyHydrationTargetMl ?? pkg.hydrationMl);
+      }
+      if (pkg.dailyStepTarget !== undefined || pkg.steps !== undefined) {
+        profileData.dailyStepTarget = Number(pkg.dailyStepTarget ?? pkg.steps);
+      }
+      if (pkg.primaryGoal) {
+        profileData.primaryGoal = String(pkg.primaryGoal) as any;
+      }
+
+      const updated = await UserSettingsService.updateUserSettings(userId, {
+        profile: profileData,
+        nutritionGoals,
+      });
+
+      // Mark AI Assessment as COMPLETED
+      await prisma.userProfile.update({
+        where: { userId },
+        data: {
+          aiAssessmentStatus: "COMPLETED",
+          aiAssessmentCompletedAt: new Date(),
+        },
+      }).catch(() => {});
+
+      return {
+        success: true,
+        message: "Successfully applied your personalized health & nutrition blueprint! 🎯✨",
+        updatedSettings: updated,
+      };
+    }
+
+    const targetKey = String(targetKeyOrPackage);
     const macroKeys = ["calories", "protein", "carbohydrates", "fat", "fiber", "sugar"];
     if (macroKeys.includes(targetKey)) {
       (nutritionGoals as any)[targetKey] = Number(newValue);
@@ -320,7 +360,7 @@ export class AICoachService {
 
     return {
       success: true,
-      message: `Successfully updated your ${targetKey} target to ${newValue}!`,
+      message: `Successfully updated your ${targetKey} target to ${newValue}! 🎯✨`,
       updatedSettings: updated,
     };
   }

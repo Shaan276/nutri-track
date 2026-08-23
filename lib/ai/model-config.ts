@@ -879,6 +879,28 @@ export const AI_COACH_TOOLS: ToolDefinition[] = [
   {
     type: "function",
     function: {
+      name: "propose_health_goals",
+      description: "Proposes a complete personalized nutrition & fitness blueprint package (calories, protein, carbs, fat, hydration, steps, primary goal) for the user to review and confirm with one click.",
+      parameters: {
+        type: "object",
+        properties: {
+          calories: { type: "number", description: "Proposed daily calories target in kcal." },
+          protein: { type: "number", description: "Proposed daily protein target in grams." },
+          carbohydrates: { type: "number", description: "Proposed daily carbs target in grams." },
+          fat: { type: "number", description: "Proposed daily fats target in grams." },
+          fiber: { type: "number", description: "Proposed daily dietary fiber target in grams." },
+          dailyHydrationTargetMl: { type: "number", description: "Proposed daily water intake goal in ml." },
+          dailyStepTarget: { type: "number", description: "Proposed daily step count target." },
+          primaryGoal: { type: "string", enum: ["LOSE_WEIGHT", "MAINTAIN", "BUILD_MUSCLE", "ENDURANCE"], description: "Proposed primary goal." },
+          reason: { type: "string", description: "Clear explanation of why this personalized blueprint was calculated for the user." },
+        },
+        required: ["calories", "protein", "reason"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "estimate_exercise_calories",
       description: "Calculates an approximate energy expenditure range using MET (Metabolic Equivalent of Task) values based on user's body weight, exercise duration, intensity, and distance. Output is explicitly labelled as an estimate.",
       parameters: {

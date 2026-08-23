@@ -13,10 +13,18 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { targetKey, newValue } = body;
+    const { targetKey, newValue, goalsPackage } = body;
+
+    if (goalsPackage && typeof goalsPackage === "object") {
+      const result = await AICoachService.confirmGoalUpdate(
+        session.user.id,
+        goalsPackage
+      );
+      return NextResponse.json(result);
+    }
 
     if (!targetKey || newValue === undefined || isNaN(Number(newValue))) {
-      return NextResponse.json({ error: "Valid targetKey and numeric newValue are required" }, { status: 400 });
+      return NextResponse.json({ error: "Valid targetKey and numeric newValue or goalsPackage are required" }, { status: 400 });
     }
 
     const result = await AICoachService.confirmGoalUpdate(

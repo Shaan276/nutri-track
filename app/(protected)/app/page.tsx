@@ -24,6 +24,7 @@ import { formatDuration } from "@/lib/validations/activity";
 
 import { SmartInsightsService } from "@/lib/services/insights/smart-insights.service";
 import { SmartInsightsWidget } from "@/components/dashboard/SmartInsightsWidget";
+import { AIAssessmentWelcomeModal } from "@/components/dashboard/AIAssessmentWelcomeModal";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +65,9 @@ export default async function ProtectedAppPage() {
 
   return (
     <div className="w-full space-y-6 text-left animate-fade-in">
+      {/* First-Login / Resumable AI Assessment Modal & Banner */}
+      <AIAssessmentWelcomeModal initialStatus={profile.aiAssessmentStatus} />
+
       {/* Top Greeting Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-background-surface border border-border-default rounded-3xl p-6 sm:p-7 shadow-surface-card">
         <div>
