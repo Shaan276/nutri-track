@@ -6,6 +6,7 @@ import { UserSettingsService } from "@/lib/services/user-settings.service";
 import { FoodService } from "@/lib/services/food.service";
 import { ActivityService } from "@/lib/services/activity.service";
 import { FoodNLP, LoggedMealCandidate } from "@/lib/nlp/food-nlp";
+import { DynamicNutritionService } from "@/lib/services/dynamic-nutrition.service";
 import { prisma } from "@/lib/db";
 
 export interface ToolExecutionContext {
@@ -336,6 +337,100 @@ export class AIToolRegistry {
         };
       }
 
+      case "delete_recipe_from_database": {
+        const { recipeName, foodName, name } = args;
+        const targetQuery = (recipeName || foodName || name || "").trim();
+
+        if (!targetQuery) {
+          return {
+            success: false,
+            message: "Please specify the recipe name you want to delete from your Food Database.",
+          };
+        }
+
+        const userFoods = await prisma.food.findMany({
+          where: { userId },
+        });
+
+        if (userFoods.length === 0) {
+          return {
+            success: false,
+            message: "Your Food Database is currently empty.",
+          };
+        }
+
+        const candidates: LoggedMealCandidate[] = userFoods.map((f) => ({
+          id: f.id,
+          foodName: f.name,
+          mealType: "CUSTOM_RECIPE",
+          calories: Number(f.calories),
+          protein: Number(f.protein),
+        }));
+
+        const match = FoodNLP.findBestMatch(targetQuery, candidates);
+
+        if (!match || !match.bestMatch) {
+          const suggestions = userFoods.slice(0, 6).map((f) => `• "${f.name}" (${f.calories} kcal, ${f.protein}g protein)`).join("\n");
+          return {
+            success: false,
+            message: `Could not find a recipe matching "${targetQuery}" in your Food Database.\n\nYour saved recipes:\n${suggestions}`,
+          };
+        }
+
+        const matchedRecipe = match.bestMatch;
+        await FoodService.deleteFood(matchedRecipe.id, userId);
+
+        return {
+          success: true,
+          message: `Deleted recipe "${matchedRecipe.foodName}" from your Food Database! 🗑️📖✨`,
+          deletedRecipe: {
+            id: matchedRecipe.id,
+            name: matchedRecipe.foodName,
+          },
+        };
+      }
+
+      case "update_recipe_in_database": {
+        const { recipeName, foodName, name, newName, calories, protein, carbohydrates, fat, fiber, servingSize, servingUnit, notes } = args;
+        const targetQuery = (recipeName || foodName || name || "").trim();
+
+        const userFoods = await prisma.food.findMany({ where: { userId } });
+        const candidates: LoggedMealCandidate[] = userFoods.map((f) => ({
+          id: f.id,
+          foodName: f.name,
+          mealType: "CUSTOM_RECIPE",
+          calories: Number(f.calories),
+          protein: Number(f.protein),
+        }));
+
+        const match = FoodNLP.findBestMatch(targetQuery, candidates);
+        if (!match || !match.bestMatch) {
+          return {
+            success: false,
+            message: `Could not find recipe "${targetQuery}" to update in your Food Database.`,
+          };
+        }
+
+        const matchedRecipe = match.bestMatch;
+        const updated = await FoodService.updateFood(matchedRecipe.id, userId, {
+          ...(newName && { name: newName }),
+          ...(calories !== undefined && { calories: Number(calories) }),
+          ...(protein !== undefined && { protein: Number(protein) }),
+          ...(carbohydrates !== undefined && { carbohydrates: Number(carbohydrates) }),
+          ...(fat !== undefined && { fat: Number(fat) }),
+          ...(fiber !== undefined && { fiber: Number(fiber) }),
+          ...(servingSize !== undefined && { servingSize: Number(servingSize) }),
+          ...(servingUnit && { servingUnit: String(servingUnit) }),
+          ...(notes !== undefined && { notes: String(notes) }),
+        });
+
+        return {
+          success: true,
+          message: `Updated recipe "${updated.name}" in your Food Database! (${updated.calories} kcal, ${updated.protein}g protein, ${updated.carbohydrates}g carbs, ${updated.fat}g fat) 🍳✨`,
+          updatedRecipe: updated,
+        };
+      }
+
       case "log_hydration": {
         const { amountMl, beverageType = "WATER", date, notes } = args;
         const dateStr = date || new Date().toISOString().split("T")[0];
@@ -424,6 +519,71 @@ export class AIToolRegistry {
             dailyHydrationTargetMl: updated.profile.dailyHydrationTargetMl,
             dailyStepTarget: updated.profile.dailyStepTarget,
           },
+        };
+      }
+
+      case "delete_hydration_log": {
+        const dateStr = args.date || new Date().toISOString().split("T")[0];
+        const hyd = await HydrationService.getDailyHydration(userId, dateStr);
+        if (hyd.entries.length === 0) {
+          return {
+            success: false,
+            message: `No hydration entries found for ${dateStr}.`,
+          };
+        }
+        const lastLog = hyd.entries[hyd.entries.length - 1];
+        await prisma.hydrationLog.delete({ where: { id: lastLog.id } });
+        const updated = await HydrationService.getDailyHydration(userId, dateStr);
+        return {
+          success: true,
+          message: `Deleted ${lastLog.amountMl}ml ${lastLog.beverageType.toLowerCase()} from ${dateStr}. Current hydration: ${updated.totalMl}ml / ${updated.targetMl}ml (${updated.percentage}%). 💧🗑️`,
+          updatedTotals: updated,
+        };
+      }
+
+      case "delete_activity_log": {
+        const dateStr = args.date || new Date().toISOString().split("T")[0];
+        const actSummary = await ActivityService.getDailyActivity(userId, dateStr);
+        if (actSummary.activities.length === 0) {
+          return {
+            success: false,
+            message: `No activity logs found for ${dateStr}.`,
+          };
+        }
+        const toDelete = actSummary.activities[actSummary.activities.length - 1];
+        await ActivityService.deleteActivity(toDelete.id, userId);
+        return {
+          success: true,
+          message: `Deleted activity "${toDelete.activityType.toLowerCase()}" from ${dateStr}! 🏃‍♂️🗑️`,
+        };
+      }
+
+      case "toggle_dynamic_nutrition": {
+        const enabled = args.enabled !== undefined ? Boolean(args.enabled) : true;
+        const res = await DynamicNutritionService.setDynamicNutritionEnabled(userId, enabled);
+        const opt = await DynamicNutritionService.calculateDynamicOptimization(userId);
+        return {
+          success: true,
+          isDynamicNutritionEnabled: res,
+          message: res
+            ? `⚡ Dynamic Nutrition is now ENABLED! Today's targets are automatically optimized based on yesterday's activity, workouts, and intake.`
+            : `Dynamic Nutrition is now DISABLED. Targets are set to your static profile baseline.`,
+          dynamicPlan: opt,
+        };
+      }
+
+      case "get_yesterdays_data_and_dynamic_targets": {
+        const opt = await DynamicNutritionService.calculateDynamicOptimization(userId, args.date);
+        return {
+          success: true,
+          date: opt.date,
+          yesterdayDate: opt.yesterdayDate,
+          isDynamicEnabled: opt.isDynamicEnabled,
+          baselineTargets: opt.baseline,
+          optimizedTargets: opt.optimized,
+          adjustments: opt.adjustments,
+          aiCoachingInsight: opt.aiCoachingInsight,
+          yesterdaysSummary: opt.yesterdaysSummary,
         };
       }
 

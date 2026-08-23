@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, Zap, User, Calendar } from "lucide-react";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import { DynamicNutritionToggle } from "@/components/dynamic-nutrition/DynamicNutritionToggle";
 
 interface HeaderProps {
   onToggleMobileSidebar: () => void;
@@ -41,6 +42,8 @@ export function Header({ onToggleMobileSidebar, onOpenQuickLog }: HeaderProps) {
     pageTitle = "Community & Friends";
   } else if (pathname.startsWith("/insights")) {
     pageTitle = "Health Insights";
+  } else if (pathname.startsWith("/yesterday")) {
+    pageTitle = "Yesterday's Data & Intelligence";
   } else if (pathname.startsWith("/ai-coach")) {
     pageTitle = "AI Health Coach";
   }
@@ -78,6 +81,9 @@ export function Header({ onToggleMobileSidebar, onOpenQuickLog }: HeaderProps) {
 
         {/* Central Notification Center */}
         <NotificationCenter />
+
+        {/* Dynamic Nutrition Toggle */}
+        <DynamicNutritionToggle />
 
         <button
           onClick={onOpenQuickLog}

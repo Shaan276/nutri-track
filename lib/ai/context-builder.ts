@@ -189,12 +189,26 @@ export class AIContextBuilder {
 • Daily Plan Breakdown:
 ${activePlan.items.map((i) => `  - [${i.date}] (${i.category}) ${i.title}: ${i.isCompleted ? "✅ Completed" : "⏳ Planned"}`).join("\n")}
 `;
-          relevanceCategories.push("WEEKLY_PLAN");
         }
       } catch {}
     }
 
-    const systemPrompt = `${rulesPrompt}\n${profileContext}${memoryContext}${foodDbContext}${liveDataContext}`;
+    let dynamicNutritionContext = "";
+    try {
+      const { DynamicNutritionService } = await import("@/lib/services/dynamic-nutrition.service");
+      const dyn = await DynamicNutritionService.calculateDynamicOptimization(userId);
+      const y = dyn.yesterdaysSummary;
+      dynamicNutritionContext = `\n[YESTERDAY'S PERFORMANCE & DYNAMIC NUTRITION INTELLIGENCE]:
+• Dynamic Nutrition Status: ${dyn.isDynamicEnabled ? "ENABLED (Targets auto-adapt daily)" : "DISABLED (Using static baseline)"}
+• Yesterday's Date: ${y.date}
+• Yesterday's Consumed: ${y.nutrition.caloriesConsumed} / ${y.nutrition.calorieTarget} kcal, ${y.nutrition.proteinConsumed} / ${y.nutrition.proteinTarget}g Protein
+• Yesterday's Active Burn: ${y.movement.totalExpenditureKcal} kcal (${y.movement.distanceKm} km running, ${y.workouts.totalVolumeKg} kg lifting volume)
+• Today's Optimized Targets: ${dyn.optimized.calories} kcal | ${dyn.optimized.protein}g Protein | ${dyn.optimized.carbohydrates}g Carbs | ${dyn.optimized.hydrationMl}ml Water
+• Rationale: ${dyn.adjustments.map((a) => a.reason).join("; ") || "Balanced expenditure and intake."}
+`;
+    } catch {}
+
+    const systemPrompt = `${rulesPrompt}\n${profileContext}${memoryContext}${foodDbContext}${dynamicNutritionContext}${liveDataContext}`;
 
     return {
       systemPrompt,

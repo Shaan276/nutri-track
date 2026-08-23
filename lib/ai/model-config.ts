@@ -64,15 +64,21 @@ HOW TO TALK AND INTERACT:
      • **NEVER output raw database keys or null strings like "vitaminE: null" or list unpresent vitamins as null/0**. Only showcase the actual nourishing vitamins and minerals in the dish!
      • These automatically fill the user's **Deep Nutrition** tracker in the app! 🥗✨
 
-6. FULL READ & WRITE CAPABILITY ACROSS THE ENTIRE APP:
-   - You have direct tools to access and edit data in the user's Nutri-Track account:
+6. FULL READ, WRITE, EDIT & DELETE CAPABILITY ACROSS THE ENTIRE APP:
+   - You have complete tools to create, edit, update, or delete ANY data in the user's account:
      • \`log_meal\`: Logs food/recipe to any meal section.
-     • \`update_meal_entry\`: Edits quantities or portions of already-logged foods in their meals (e.g. changing 100g curd to 200g, or changing 1 banana to 2).
-     • \`create_recipe_in_database\`: Saves custom recipes into their Food Database with full macros & micronutrients.
-     • \`log_hydration\`: Logs water and beverages.
-     • \`log_activity\`: Logs workouts and runs.
-     • \`update_user_goals\`: Adjusts target calories, protein, hydration, daily steps, or body weight (e.g. "change my weight to 56 kg").
-   - When the user asks you to log, save, edit quantities, or update metrics, execute the tool immediately and confirm happily!
+     • \`update_meal_entry\`: Edits quantities or portions of already-logged foods in their meals (e.g. changing 100g curd to 200g).
+     • \`delete_meal_entry\`: Deletes a specific food or dish from today's meals (e.g. "remove chilla from breakfast").
+     • \`clear_day_logs\`: Resets all food logs or hydration for today.
+     • \`create_recipe_in_database\`: Saves custom recipes into their Food Database (after user shares ingredients).
+     • \`delete_recipe_from_database\`: Permanently removes or deletes a custom recipe from their Food Database (e.g. "delete besan chilla from the database").
+     • \`update_recipe_in_database\`: Modifies macros, name, or ingredients of an existing saved recipe.
+     • \`log_hydration\` & \`delete_hydration_log\`: Logs or deletes water/beverage entries.
+     • \`log_activity\` & \`delete_activity_log\`: Logs or deletes workouts and runs.
+     • \`update_user_goals\`: Adjusts target calories, protein, hydration, daily steps, or body weight.
+     • \`toggle_dynamic_nutrition\`: Enables/disables Dynamic Nutrition intelligence.
+     • \`get_yesterdays_data_and_dynamic_targets\`: Explains how yesterday's workouts/nutrition optimized today's targets.
+   - When the user asks you to delete, edit, or adjust anything, execute the appropriate tool immediately and confirm warmly!
 `;
 
 export interface ToolDefinition {
@@ -356,6 +362,46 @@ export const AI_COACH_TOOLS: ToolDefinition[] = [
   {
     type: "function",
     function: {
+      name: "delete_recipe_from_database",
+      description: "Deletes or removes a custom recipe or food item permanently from the user's Food Database (e.g. 'delete besan chilla from database', 'remove oats bowl from my food database').",
+      parameters: {
+        type: "object",
+        properties: {
+          recipeName: {
+            type: "string",
+            description: "Name of the recipe or food item to delete from the database.",
+          },
+        },
+        required: ["recipeName"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_recipe_in_database",
+      description: "Updates or edits the macronutrients, ingredients, serving size, or name of an existing custom recipe in the user's Food Database.",
+      parameters: {
+        type: "object",
+        properties: {
+          recipeName: { type: "string", description: "Name of the existing recipe to update." },
+          newName: { type: "string", description: "New name for the recipe (optional)." },
+          calories: { type: "number", description: "Updated total calories." },
+          protein: { type: "number", description: "Updated protein (g)." },
+          carbohydrates: { type: "number", description: "Updated carbs (g)." },
+          fat: { type: "number", description: "Updated fat (g)." },
+          fiber: { type: "number", description: "Updated fiber (g)." },
+          servingSize: { type: "number", description: "Updated reference serving quantity." },
+          servingUnit: { type: "string", description: "Updated reference serving unit." },
+          notes: { type: "string", description: "Updated ingredients list / instructions." },
+        },
+        required: ["recipeName"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "log_hydration",
       description: "Logs a water or beverage intake entry directly into the user's daily hydration tracker.",
       parameters: {
@@ -442,6 +488,59 @@ export const AI_COACH_TOOLS: ToolDefinition[] = [
           dailyHydrationTargetMl: { type: "number", description: "Daily hydration goal in ml." },
           dailyStepTarget: { type: "number", description: "Daily step target count." },
           primaryGoal: { type: "string", enum: ["LOSE_WEIGHT", "MAINTAIN", "BUILD_MUSCLE", "ENDURANCE"], description: "Primary wellness objective." },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "delete_hydration_log",
+      description: "Deletes the most recent water or hydration log entry for today or a specific date.",
+      parameters: {
+        type: "object",
+        properties: {
+          date: { type: "string", description: "Optional ISO date (YYYY-MM-DD)." },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "delete_activity_log",
+      description: "Deletes the most recent workout, run, or activity log for today or a specific date.",
+      parameters: {
+        type: "object",
+        properties: {
+          date: { type: "string", description: "Optional ISO date (YYYY-MM-DD)." },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "toggle_dynamic_nutrition",
+      description: "Enables or disables Dynamic Nutrition auto-optimization (e.g. 'enable dynamic nutrition', 'turn off dynamic nutrition').",
+      parameters: {
+        type: "object",
+        properties: {
+          enabled: { type: "boolean", description: "Set true to enable Dynamic Nutrition, false to disable." },
+        },
+        required: ["enabled"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_yesterdays_data_and_dynamic_targets",
+      description: "Retrieves Yesterday's complete data breakdown (calories, protein, runs, workouts) and today's AI-optimized dynamic targets.",
+      parameters: {
+        type: "object",
+        properties: {
+          date: { type: "string", description: "Optional reference date (defaults to today)." },
         },
       },
     },

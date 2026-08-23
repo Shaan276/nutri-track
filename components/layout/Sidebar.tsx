@@ -21,6 +21,7 @@ import {
   MessageSquarePlus,
   Target,
   Trophy,
+  History,
 } from "lucide-react";
 import { NutriTrackLogo } from "@/components/branding/NutriTrackLogo";
 import { LogoutButton } from "@/components/auth/LogoutButton";
@@ -52,6 +53,13 @@ export function Sidebar({ onOpenQuickLog, onCloseMobile }: SidebarProps) {
       href: "/app",
       icon: LayoutDashboard,
       active: pathname === "/app",
+    },
+    {
+      name: "Yesterday's Data",
+      href: "/yesterday",
+      icon: History,
+      badge: "AI ⚡",
+      active: pathname.startsWith("/yesterday"),
     },
     {
       name: "Goals",

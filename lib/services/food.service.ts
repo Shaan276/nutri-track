@@ -263,7 +263,7 @@ export class FoodService {
   }
 
   /**
-   * Deletes a food item permanently
+   * Permanently deletes a custom food item
    */
   static async deleteFood(foodId: string, userId: string) {
     const existing = await prisma.food.findUnique({
