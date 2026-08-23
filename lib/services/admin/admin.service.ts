@@ -1,5 +1,7 @@
+import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { HealthContextService } from "@/lib/services/health-context.service";
+import { NotificationService } from "@/lib/services/notification.service";
 
 export interface AdminMetricsDto {
   totalUsers: number;
@@ -291,6 +293,51 @@ export class AdminService {
   }
 
   /**
+   * Updates an existing user's password directly as an administrator.
+   */
+  static async updateUserPassword(adminId: string, targetUserId: string, newPassword: string) {
+    if (!newPassword || newPassword.length < 6) {
+      throw new Error("Password must be at least 6 characters long.");
+    }
+
+    const targetUser = await (prisma as any).user.findUnique({
+      where: { id: targetUserId },
+    });
+
+    if (!targetUser) {
+      throw new Error("User not found.");
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+
+    const updated = await (prisma as any).user.update({
+      where: { id: targetUserId },
+      data: {
+        passwordHash,
+        updatedAt: new Date(),
+      },
+    });
+
+    try {
+      await NotificationService.createNotification({
+        userId: targetUserId,
+        category: "SYSTEM",
+        type: "SYSTEM_ANNOUNCEMENT",
+        title: "Password Updated",
+        message: "Your Nutri-Track account password was updated by an administrator.",
+      });
+    } catch (err) {
+      console.error("Failed to send password update notification:", err);
+    }
+
+    return {
+      success: true,
+      userId: updated.id,
+      email: updated.email,
+    };
+  }
+
+  /**
    * Retrieves all pre-approved allowlist entries.
    */
   static async getPreApprovedUsers() {
@@ -300,17 +347,102 @@ export class AdminService {
   }
 
   /**
-   * Adds an email to the pre-approved allowlist.
+   * Adds an email to the pre-approved allowlist, with optional pre-configured password.
+   * If password is provided and user does not exist, creates the approved account ready to login.
+   * If user already exists, updates their password and ensures account is approved.
    */
-  static async addPreApproval(adminId: string, email: string, notes?: string) {
+  static async addPreApproval(
+    adminId: string,
+    email: string,
+    notes?: string,
+    password?: string
+  ) {
     const normalizedEmail = email.toLowerCase().trim();
+
+    // If a preset password was provided
+    if (password && password.trim().length >= 6) {
+      const passwordHash = await bcrypt.hash(password.trim(), 12);
+      const existingUser = await (prisma as any).user.findUnique({
+        where: { email: normalizedEmail },
+      });
+
+      if (existingUser) {
+        // Update existing user's credentials and approve
+        await (prisma as any).user.update({
+          where: { id: existingUser.id },
+          data: {
+            passwordHash,
+            accountStatus: "APPROVED",
+            approvedAt: new Date(),
+            approvedByAdminId: adminId,
+          },
+        });
+      } else {
+        // Create user directly
+        const baseName = normalizedEmail.split("@")[0];
+        const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+        const username = `${baseName.replace(/[^a-zA-Z0-9]/g, "")}${randomSuffix}`;
+
+        const newUser = await (prisma as any).user.create({
+          data: {
+            name: baseName.charAt(0).toUpperCase() + baseName.slice(1),
+            username,
+            email: normalizedEmail,
+            passwordHash,
+            role: "USER",
+            accountStatus: "APPROVED",
+            approvedAt: new Date(),
+            approvedByAdminId: adminId,
+          },
+        });
+
+        // Initialize user profile & nutrient targets
+        await (prisma as any).userProfile.create({
+          data: {
+            userId: newUser.id,
+            dateOfBirth: new Date("1995-01-01"),
+            biologicalSex: "MALE",
+            heightCm: 175,
+            weightKg: 70,
+            activityLevel: "MODERATELY_ACTIVE",
+            dailyHydrationTargetMl: 2500,
+            dailyStepTarget: 10000,
+            weeklyRunningDistanceKm: 15.0,
+            weeklyWorkoutSessions: 3,
+            primaryGoal: "MAINTAIN",
+          },
+        }).catch(() => null);
+
+        await (prisma as any).userNutrientTarget.create({
+          data: {
+            userId: newUser.id,
+            calories: 2000,
+            protein: 120,
+            carbohydrates: 250,
+            fat: 65,
+            fiber: 30,
+            sugar: 35,
+          },
+        }).catch(() => null);
+      }
+    }
+
     const existing = await (prisma as any).preApprovedUser.findUnique({
       where: { identifier: normalizedEmail },
     });
 
     if (existing) {
+      if (password) {
+        return (prisma as any).preApprovedUser.update({
+          where: { id: existing.id },
+          data: {
+            notes: notes || existing.notes,
+            consumedAt: new Date(),
+          },
+        });
+      }
       if (existing.consumedAt) {
-        throw new Error("This email has already been consumed by an existing user.");
+        throw new Error("This email has already been registered in the system.");
       }
       return existing;
     }
@@ -321,6 +453,7 @@ export class AdminService {
         identifierType: "EMAIL",
         notes: notes || null,
         createdByAdminId: adminId,
+        consumedAt: password ? new Date() : null,
       },
     });
   }

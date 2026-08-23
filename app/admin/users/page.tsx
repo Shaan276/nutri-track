@@ -15,6 +15,11 @@ import {
   ShieldCheck,
   ShieldAlert,
   Trash2,
+  Key,
+  Eye,
+  EyeOff,
+  X,
+  Lock,
 } from "lucide-react";
 
 export default function AdminUsersPage() {
@@ -24,6 +29,14 @@ export default function AdminUsersPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+
+  // Password reset modal state
+  const [passwordModalUser, setPasswordModalUser] = useState<any | null>(null);
+  const [newPassword, setNewPassword] = useState<string>("");
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
+  const [isSubmittingPassword, setIsSubmittingPassword] = useState<boolean>(false);
 
   const fetchUsers = async (page = 1) => {
     setIsLoading(true);
@@ -154,6 +167,48 @@ export default function AdminUsersPage() {
       alert(err.message || "Failed to clear user data.");
     } finally {
       setActionLoadingId(null);
+    }
+  };
+
+  const handleOpenPasswordModal = (user: any) => {
+    setPasswordModalUser(user);
+    setNewPassword("");
+    setShowPassword(false);
+    setPasswordError(null);
+    setPasswordSuccess(null);
+  };
+
+  const handleChangePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!passwordModalUser) return;
+
+    if (!newPassword || newPassword.trim().length < 6) {
+      setPasswordError("Password must be at least 6 characters long.");
+      return;
+    }
+
+    setIsSubmittingPassword(true);
+    setPasswordError(null);
+    setPasswordSuccess(null);
+
+    try {
+      const res = await fetch(`/api/admin/users/${passwordModalUser.id}/password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: newPassword.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update password");
+
+      setPasswordSuccess(`Password updated successfully for "${passwordModalUser.name}"!`);
+      setNewPassword("");
+      setTimeout(() => {
+        setPasswordModalUser(null);
+      }, 1500);
+    } catch (err: any) {
+      setPasswordError(err.message || "Failed to update password.");
+    } finally {
+      setIsSubmittingPassword(false);
     }
   };
 
@@ -363,6 +418,15 @@ export default function AdminUsersPage() {
                           )}
 
                           <button
+                            onClick={() => handleOpenPasswordModal(user)}
+                            disabled={isBusy}
+                            className="p-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/25 text-blue-400 border border-blue-500/30 transition-all cursor-pointer disabled:opacity-50"
+                            title="Change User Password"
+                          >
+                            <Key className="h-3.5 w-3.5" />
+                          </button>
+
+                          <button
                             onClick={() => handleClearUserData(user.id, user.name)}
                             disabled={isBusy}
                             className="p-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/25 text-amber-400 border border-amber-500/30 transition-all cursor-pointer disabled:opacity-50"
@@ -427,6 +491,91 @@ export default function AdminUsersPage() {
           </div>
         )}
       </div>
+
+      {/* Admin Change Password Modal */}
+      {passwordModalUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-md bg-neutral-900 border border-blue-500/40 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-5 text-left">
+            <button
+              onClick={() => setPasswordModalUser(null)}
+              className="absolute top-5 right-5 p-1.5 text-neutral-400 hover:text-white rounded-full hover:bg-neutral-800 transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/15 border border-blue-500/30 text-blue-400 text-xs font-semibold uppercase tracking-wider">
+              <Lock className="w-3.5 h-3.5" />
+              Administrative Password Reset
+            </div>
+
+            <div>
+              <h2 className="text-xl font-extrabold text-white tracking-tight">
+                Change Password for {passwordModalUser.name}
+              </h2>
+              <p className="text-xs text-neutral-400 mt-1 font-mono">
+                {passwordModalUser.email}
+              </p>
+            </div>
+
+            {passwordError && (
+              <div className="p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs font-semibold">
+                {passwordError}
+              </div>
+            )}
+
+            {passwordSuccess && (
+              <div className="p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-semibold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>{passwordSuccess}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleChangePasswordSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-neutral-300">New Password (min 6 chars) *</label>
+                <div className="relative">
+                  <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-500" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    minLength={6}
+                    placeholder="Enter new password for user"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full pl-9 pr-9 py-2.5 bg-neutral-950 border border-neutral-800 rounded-xl text-xs text-white placeholder:text-neutral-600 focus:border-blue-500 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white p-1 cursor-pointer"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5 text-blue-400" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setPasswordModalUser(null)}
+                  disabled={isSubmittingPassword}
+                  className="px-4 py-2.5 rounded-xl bg-neutral-800 text-neutral-300 text-xs font-bold hover:text-white cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingPassword}
+                  className="px-5 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white font-extrabold text-xs shadow-md shadow-blue-500/20 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {isSubmittingPassword ? "Updating..." : "Update Password"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

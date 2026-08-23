@@ -7,9 +7,13 @@ import {
   Trash2,
   RefreshCw,
   Mail,
+  Key,
+  Eye,
+  EyeOff,
   CheckCircle2,
   Clock,
   AlertCircle,
+  ShieldCheck,
 } from "lucide-react";
 
 export default function AdminPreApprovalsPage() {
@@ -17,6 +21,8 @@ export default function AdminPreApprovalsPage() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isAdding, setIsAdding] = useState<boolean>(false);
   const [newEmail, setNewEmail] = useState<string>("");
+  const [newPassword, setNewPassword] = useState<string>("");
+  const [showPassword, setShowPassword] = useState<boolean>(false);
   const [newNotes, setNewNotes] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -46,19 +52,33 @@ export default function AdminPreApprovalsPage() {
       return;
     }
 
+    if (newPassword && newPassword.length < 6) {
+      setError("Preset password must be at least 6 characters long.");
+      return;
+    }
+
     setError(null);
     setSuccess(null);
     try {
       const res = await fetch("/api/admin/pre-approvals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: newEmail.trim(), notes: newNotes.trim() }),
+        body: JSON.stringify({
+          email: newEmail.trim(),
+          password: newPassword.trim() || undefined,
+          notes: newNotes.trim() || undefined,
+        }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to add email");
+      if (!res.ok) throw new Error(data.error || "Failed to pre-approve user");
 
-      setSuccess(`Successfully pre-approved: ${newEmail.trim().toLowerCase()}`);
+      if (newPassword.trim()) {
+        setSuccess(`Successfully pre-approved & created active credentials for: ${newEmail.trim().toLowerCase()}`);
+      } else {
+        setSuccess(`Successfully pre-approved email: ${newEmail.trim().toLowerCase()}`);
+      }
       setNewEmail("");
+      setNewPassword("");
       setNewNotes("");
       setIsAdding(false);
       await fetchPreApprovals();
@@ -138,7 +158,7 @@ export default function AdminPreApprovalsPage() {
         >
           <h3 className="text-sm font-bold text-foreground-primary">Pre-Approve New Email Address</h3>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-foreground-secondary">Email Address *</label>
               <div className="relative">
@@ -155,15 +175,47 @@ export default function AdminPreApprovalsPage() {
             </div>
 
             <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-foreground-secondary">Preset Password</label>
+                <span className="text-[10px] text-brand-400 font-mono">Optional</span>
+              </div>
+              <div className="relative">
+                <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-foreground-muted" />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Preset password (min 6 chars)"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full pl-9 pr-9 py-2.5 bg-background-elevated border border-border-subtle rounded-xl text-xs text-foreground-primary placeholder:text-foreground-muted focus:border-brand-500 outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-foreground-muted hover:text-foreground-primary p-1 cursor-pointer"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5 text-brand-400" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
               <label className="text-xs font-semibold text-foreground-secondary">Administrative Notes</label>
               <input
                 type="text"
-                placeholder="e.g. VIP Beta tester, Coach referral"
+                placeholder="e.g. VIP client, Coach referral"
                 value={newNotes}
                 onChange={(e) => setNewNotes(e.target.value)}
                 className="w-full px-4 py-2.5 bg-background-elevated border border-border-subtle rounded-xl text-xs text-foreground-primary placeholder:text-foreground-muted focus:border-brand-500 outline-none"
               />
             </div>
+          </div>
+
+          <div className="p-3 bg-brand-500/10 border border-brand-500/20 rounded-xl text-[11px] text-foreground-secondary flex items-start gap-2">
+            <ShieldCheck className="w-4 h-4 text-brand-400 shrink-0 mt-0.5" />
+            <span>
+              <strong>Pro-tip:</strong> If you set a password, an approved user account is created immediately with these credentials so the member can sign in right away. If left blank, the user will be auto-approved when they register themselves.
+            </span>
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

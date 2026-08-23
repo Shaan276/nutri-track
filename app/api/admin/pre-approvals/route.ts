@@ -28,12 +28,16 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { email, notes } = body;
+    const { email, notes, password } = body;
     if (!email || !email.includes("@")) {
       return NextResponse.json({ error: "A valid email address is required." }, { status: 400 });
     }
 
-    const entry = await AdminService.addPreApproval(session.user.id, email, notes);
+    if (password && password.trim().length < 6) {
+      return NextResponse.json({ error: "Password must be at least 6 characters long." }, { status: 400 });
+    }
+
+    const entry = await AdminService.addPreApproval(session.user.id, email, notes, password);
     return NextResponse.json({ success: true, entry }, { status: 201 });
   } catch (error: any) {
     console.error("Admin pre-approval creation error:", error);
