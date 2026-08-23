@@ -23,6 +23,7 @@ import {
   Camera,
   ImagePlus,
   ChevronLeft,
+  Square,
 } from "lucide-react";
 import { GoalConfirmationCard } from "./GoalConfirmationCard";
 import { LiveHealthSnapshotDrawer } from "./LiveHealthSnapshotDrawer";
@@ -132,6 +133,8 @@ export function AICoachClient() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const isSendingRef = useRef(false);
 
   const toggleListening = async () => {
     if (isListening || shouldKeepListeningRef.current) {
@@ -324,7 +327,7 @@ export function AICoachClient() {
     };
   }, []);
 
-  // 2. Resilient message loader with background auto-polling for uninterrupted responses across page navigation
+  // 2. Resilient message loader
   const loadMessages = async (convId: string, isPoll = false) => {
     try {
       const res = await fetch(`/api/ai/conversations/${convId}`);
@@ -333,38 +336,37 @@ export function AICoachClient() {
         const fetchedMsgs: MessageItem[] = data.messages || [];
         setMessages(fetchedMsgs);
 
-        // Check if the latest message is a user prompt without an assistant reply yet (generating in background)
+        // Check if the latest message is a user prompt without an assistant reply yet
         const lastMsg = fetchedMsgs[fetchedMsgs.length - 1];
-        if (lastMsg && lastMsg.role === "user") {
+        const msgAgeMs = lastMsg ? Date.now() - new Date(lastMsg.createdAt).getTime() : Infinity;
+
+        if (lastMsg && lastMsg.role === "user" && msgAgeMs < 25000 && isSendingRef.current) {
           setIsLoading(true);
-          // Start / continue polling until assistant reply arrives
           if (pollingRef.current) clearTimeout(pollingRef.current);
           pollingRef.current = setTimeout(() => {
             loadMessages(convId, true);
-          }, 1000);
+          }, 1500);
         } else {
-          // Assistant response arrived or thread is idle
           if (pollingRef.current) {
             clearTimeout(pollingRef.current);
             pollingRef.current = null;
           }
-          setIsLoading(false);
-          if (typeof window !== "undefined") {
-            localStorage.removeItem("nutritrack_pending_ai");
+          if (!isSendingRef.current) {
+            setIsLoading(false);
           }
         }
       }
     } catch (err) {
       console.error("Load messages error:", err);
-      if (!isPoll) setIsLoading(false);
+      if (!isPoll && !isSendingRef.current) setIsLoading(false);
     }
   };
 
-  // Re-sync messages on window focus or tab visibility change
+  // Re-sync messages on window focus or tab visibility change without re-executing
   useEffect(() => {
     const handleFocusSync = () => {
-      if (activeConvId) {
-        loadMessages(activeConvId);
+      if (document.visibilityState === "visible" && activeConvId && !isSendingRef.current) {
+        loadMessages(activeConvId, false);
         loadHealthSnapshot();
       }
     };
@@ -454,12 +456,29 @@ export function AICoachClient() {
     }
   };
 
-  // 6. Send User Message
+  // 6. Stop AI Generation
+  const handleStopGenerating = () => {
+    if (abortControllerRef.current) {
+      try {
+        abortControllerRef.current.abort();
+      } catch {}
+      abortControllerRef.current = null;
+    }
+    if (pollingRef.current) {
+      clearTimeout(pollingRef.current);
+      pollingRef.current = null;
+    }
+    isSendingRef.current = false;
+    setIsLoading(false);
+  };
+
+  // 7. Send User Message
   const handleSendMessage = async (textToSend?: string) => {
     const imageToSend = selectedImageBase64;
     const text = (textToSend || inputText).trim();
-    if ((!text && !imageToSend) || isLoading) return;
+    if ((!text && !imageToSend) || isSendingRef.current) return;
 
+    isSendingRef.current = true;
     setInputText("");
     setSelectedImageBase64(null);
     setSelectedImageName(null);
@@ -469,7 +488,8 @@ export function AICoachClient() {
     shouldKeepListeningRef.current = false;
     if (recognitionRef.current) {
       try {
-        recognitionRef.current.stop();
+        recognitionRef.current.abort?.();
+        recognitionRef.current.stop?.();
       } catch {}
       setIsListening(false);
     }
@@ -502,14 +522,8 @@ export function AICoachClient() {
     setMessages((prev) => [...prev, tempUserMsg]);
     setIsLoading(true);
 
-    if (typeof window !== "undefined" && convIdToUse) {
-      try {
-        localStorage.setItem(
-          "nutritrack_pending_ai",
-          JSON.stringify({ convId: convIdToUse, text: text || "Food photo", sentAt: Date.now() })
-        );
-      } catch {}
-    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     try {
       const res = await fetch("/api/ai/chat", {
@@ -520,6 +534,7 @@ export function AICoachClient() {
           message: text,
           imageBase64: imageToSend,
         }),
+        signal: controller.signal,
       });
 
       if (!res.ok) {
@@ -532,7 +547,13 @@ export function AICoachClient() {
       // Replace messages with updated assistant response
       setMessages((prev) => {
         const filtered = prev.filter((m) => m.id !== tempUserMsg.id);
-        return [...filtered, data.userMessage, data.assistantMessage];
+        const assistantMsg = data.assistantMessage || {
+          id: `asst_${Date.now()}`,
+          role: "assistant",
+          content: "I've processed your request! 🥗✨",
+          createdAt: new Date().toISOString(),
+        };
+        return [...filtered, data.userMessage || tempUserMsg, assistantMsg];
       });
 
       // Update conversation title if provided
@@ -545,18 +566,24 @@ export function AICoachClient() {
       // Refresh health context snapshot in background to reflect any new memories or logged state
       loadHealthSnapshot();
     } catch (err: any) {
-      console.error("Send message error:", err);
-      // If user navigated away or aborted, let the background poller recover it
-      if (convIdToUse) {
-        loadMessages(convIdToUse, true);
+      if (err.name === "AbortError") {
+        console.log("AI response stopped by user.");
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `stop_${Date.now()}`,
+            role: "assistant",
+            content: "⏹️ *Response generation was stopped.*",
+            createdAt: new Date().toISOString(),
+          },
+        ]);
+      } else {
+        console.error("Send message error:", err);
       }
     } finally {
+      abortControllerRef.current = null;
+      isSendingRef.current = false;
       setIsLoading(false);
-      if (typeof window !== "undefined") {
-        try {
-          localStorage.removeItem("nutritrack_pending_ai");
-        } catch {}
-      }
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   };
@@ -964,14 +991,26 @@ export function AICoachClient() {
                 className="flex-1 bg-transparent px-2 sm:px-3 py-2 text-xs sm:text-sm text-white placeholder-neutral-500 focus:outline-none disabled:opacity-50 min-w-0"
               />
 
-              <button
-                onClick={() => handleSendMessage()}
-                disabled={(!inputText.trim() && !selectedImageBase64) || isLoading}
-                className="p-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-semibold disabled:opacity-30 disabled:hover:bg-emerald-500 transition-colors cursor-pointer shrink-0"
-                title="Send message"
-              >
-                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              </button>
+              {isLoading ? (
+                <button
+                  type="button"
+                  onClick={handleStopGenerating}
+                  className="p-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold transition-all cursor-pointer shrink-0 flex items-center justify-center shadow-md shadow-rose-900/30 hover:scale-105 active:scale-95"
+                  title="Stop generating response ⏹️"
+                >
+                  <Square className="w-4 h-4 fill-white" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleSendMessage()}
+                  disabled={!inputText.trim() && !selectedImageBase64}
+                  className="p-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-semibold disabled:opacity-30 disabled:hover:bg-emerald-500 transition-colors cursor-pointer shrink-0"
+                  title="Send message"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
         </div>
