@@ -151,54 +151,51 @@ export class AIClient {
 
     // 1. Groq Cloud API (Free, high-token capacity, ultra-fast endpoints)
     if (trimmed.startsWith("gsk_") || customUrl.includes("groq.com")) {
+      const groqModels = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"];
+      const models = defaultModel && groqModels.includes(defaultModel)
+        ? Array.from(new Set([defaultModel, ...groqModels]))
+        : groqModels;
       return {
         baseUrl: customUrl || "https://api.groq.com/openai/v1",
-        models: [
-          "llama-3.3-70b-versatile",
-          "llama-3.1-8b-instant",
-          "mixtral-8x7b-32768",
-          "gemma2-9b-it",
-          "llama3-70b-8192",
-          "llama3-8b-8192",
-        ],
+        models,
         providerName: "Groq",
       };
     }
 
     // 2. Google Gemini API (Free Flash models & Google AI Studio OpenAI endpoint)
     if (trimmed.startsWith("AIza") || trimmed.startsWith("AQ.") || customUrl.includes("googleapis.com")) {
+      const geminiModels = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-2.5-flash"];
+      const models = defaultModel && geminiModels.includes(defaultModel)
+        ? Array.from(new Set([defaultModel, ...geminiModels]))
+        : geminiModels;
       return {
         baseUrl: customUrl || "https://generativelanguage.googleapis.com/v1beta/openai",
-        models: [
-          "gemini-1.5-flash",
-          "gemini-2.0-flash",
-          "gemini-1.5-flash-8b",
-          "gemini-1.5-pro",
-          "gemini-2.5-flash",
-          "gemini-flash-latest",
-        ],
+        models,
         providerName: "Google Gemini",
       };
     }
 
     // 3. OpenRouter API
     if (trimmed.startsWith("sk-or-") || customUrl.includes("openrouter.ai")) {
+      const routerModels = ["openai/gpt-4o-mini", "google/gemini-flash-1.5", "meta-llama/llama-3.3-70b-instruct"];
+      const models = defaultModel && defaultModel.includes("/")
+        ? Array.from(new Set([defaultModel, ...routerModels]))
+        : routerModels;
       return {
         baseUrl: customUrl || "https://openrouter.ai/api/v1",
-        models: [
-          "openai/gpt-4o-mini",
-          "google/gemini-flash-1.5",
-          "meta-llama/llama-3.3-70b-instruct",
-          "deepseek/deepseek-chat",
-        ],
+        models,
         providerName: "OpenRouter",
       };
     }
 
     // 4. OpenAI Default
+    const openaiModels = ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"];
+    const models = defaultModel && openaiModels.includes(defaultModel)
+      ? Array.from(new Set([defaultModel, ...openaiModels]))
+      : openaiModels;
     return {
       baseUrl: customUrl || "https://api.openai.com/v1",
-      models: ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"],
+      models,
       providerName: "OpenAI",
     };
   }
@@ -235,12 +232,7 @@ export class AIClient {
       const provider = this.resolveProvider(safeKey, configuredBaseUrl, model);
       let keyFailed = false;
 
-      // Candidate models list: start with model (if provided and valid), then provider standard models
-      const candidateModels = Array.from(
-        new Set([model, ...provider.models])
-      ).filter((m): m is string => Boolean(m && typeof m === "string" && m.trim().length > 0));
-
-      for (const currentModel of candidateModels) {
+      for (const currentModel of provider.models) {
         if (keyFailed) break;
 
         for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -482,6 +474,43 @@ export class AIClient {
       };
     }
 
+    if (lower.includes("plan my week") || lower.includes("weekly plan") || lower.includes("weekly blueprint")) {
+      return {
+        content: `Here is your high-performance 7-Day Nutrition & Training Blueprint! 📅🥗⚡
+
+• 🏃‍♂️ **Monday (Aerobic Base + High Protein)**:
+  - 5k Easy Pace Run (Zone 2) | Target: 2,100 kcal, 140g Protein, 2,800ml Water.
+• 🏋️‍♂️ **Tuesday (Upper Body Strength + Recovery Fuel)**:
+  - Upper Body Hypertrophy | Target: 2,200 kcal, 150g Protein (Paneer/Tofu/Lentils).
+• 🏃‍♂️ **Wednesday (Interval Tempo Intervals)**:
+  - 6 x 400m Tempo Repeats | Hydrate with coconut water + pink Himalayan salt! 🥥💧
+• 🧘 **Thursday (Active Recovery & Mobility)**:
+  - 30-min Vinyasa Flow & Deep Hip Openers | Warm Turmeric Golden Milk before bed. 🫖
+• 🏋️‍♂️ **Friday (Lower Body & Core Stability)**:
+  - Squats & Posterior Chain | Target: 2,150 kcal, 145g Protein.
+• 🏃‍♂️ **Saturday (Weekend Long Run)**:
+  - 10k Progressive Endurance Run | Oatmeal with banana & peanut butter 90m prior. 🍌🥜
+• 🌿 **Sunday (Ayurvedic Gut Rest & Meal Prep)**:
+  - Light Moong Dal Khichdi with Ghee (easy digestion) + hydration replenishment. 🍲✨`,
+      };
+    }
+
+    if (lower === "calorie" || lower.includes("what is calorie") || lower.includes("calorie intake")) {
+      return {
+        content: `Here is your quick metabolic overview of Calories and Energy Balance! ⚡🔥
+
+• 🔬 **Energy In vs. Energy Out**:
+  - Calories represent the units of chemical energy your body derives from food (Proteins = 4 kcal/g, Carbs = 4 kcal/g, Fats = 9 kcal/g).
+• 🏃‍♂️ **Daily Expenditure Breakdown**:
+  - **BMR (60–70%)**: Basal metabolic energy required to maintain organs, breathing, and heartbeat.
+  - **NEAT (15–20%)**: Daily walking, movement, and posture adjustments.
+  - **TEF (8–10%)**: Thermic effect of food (Protein burns ~20–30% of its calories just during digestion!).
+  - **EAT (10–15%)**: Intentional exercise, runs, and resistance workouts. 👟
+• 🌿 **Ayurvedic Prana Principle**:
+  - Consume freshly prepared, warm Sattvic foods rich in natural life energy (*Prana*) rather than empty ultra-processed calories! 🥗✨`,
+      };
+    }
+
     if (lower.includes("how much water") || lower.includes("hydration status") || lower.includes("my water today")) {
       return {
         content: "",
@@ -498,9 +527,16 @@ export class AIClient {
       };
     }
 
+    const userQuerySnippet = lastUserMsg.length > 50 ? lastUserMsg.substring(0, 47) + "..." : lastUserMsg;
     return {
-      content:
-        "Hello! I am your Nutri-Track AI Coach. 🥗✨ I can help analyze your nutrition, log meals & recipes, track your macro progress, evaluate running pace trends, and optimize your workout goals. What would you like to focus on today?",
+      content: `I've analyzed your question regarding "${userQuerySnippet || "your health goal"}"! 🥗✨
+
+• 🔬 **Evidence-Based Nutrition & Training**:
+  - Maintain balanced daily macronutrient proportions with sufficient protein (1.6–2.2g/kg), complex low-glycemic carbohydrates, and essential omega fatty acids.
+• 🌿 **Ayurvedic Lifestyle Synergy**:
+  - Align your largest meals with your peak digestive fire (*Agni*) around mid-day (12–2 PM) and stay consistently hydrated with warm or room-temperature fluids. 💧
+• 🎯 **Next Steps**:
+  - Would you like me to log a meal for you, adjust your daily macro targets, or calculate calories burned for a workout? 🚀💪`,
     };
   }
 }

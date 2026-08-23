@@ -293,44 +293,47 @@ export class SystemSettingsService {
 
     const resolveProvider = (rawKey: string, customBaseUrl?: string, customModel?: string) => {
       const trimmed = rawKey.trim();
-      if (trimmed.startsWith("gsk_")) {
+      if (trimmed.startsWith("gsk_") || (customBaseUrl && customBaseUrl.includes("groq.com"))) {
+        const groqModels = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"];
+        const models = customModel && groqModels.includes(customModel)
+          ? Array.from(new Set([customModel, ...groqModels]))
+          : groqModels;
         return {
           providerName: "Groq Cloud",
-          endpoint: "https://api.groq.com/openai/v1/chat/completions",
-          models: Array.from(new Set([
-            customModel,
-            "llama-3.3-70b-versatile",
-            "llama-3.1-8b-instant",
-            "mixtral-8x7b-32768",
-            "gemma2-9b-it",
-          ].filter(Boolean))) as string[],
+          endpoint: `${(customBaseUrl && customBaseUrl.includes("groq.com") ? customBaseUrl : "https://api.groq.com/openai/v1").replace(/\/+$/, "")}/chat/completions`,
+          models,
         };
       }
       if (trimmed.startsWith("AIza") || trimmed.startsWith("AQ.") || (customBaseUrl && customBaseUrl.includes("googleapis.com"))) {
+        const geminiModels = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-2.5-flash"];
+        const models = customModel && geminiModels.includes(customModel)
+          ? Array.from(new Set([customModel, ...geminiModels]))
+          : geminiModels;
         return {
           providerName: "Google Gemini",
-          endpoint: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-          models: Array.from(new Set([
-            customModel,
-            "gemini-1.5-flash",
-            "gemini-2.0-flash",
-            "gemini-1.5-pro",
-            "gemini-2.5-flash",
-            "gemini-flash-latest",
-          ].filter(Boolean))) as string[],
+          endpoint: `${(customBaseUrl && customBaseUrl.includes("googleapis.com") ? customBaseUrl : "https://generativelanguage.googleapis.com/v1beta/openai").replace(/\/+$/, "")}/chat/completions`,
+          models,
         };
       }
       if (trimmed.startsWith("sk-or-") || (customBaseUrl && customBaseUrl.includes("openrouter.ai"))) {
+        const routerModels = ["openai/gpt-4o-mini", "google/gemini-flash-1.5", "meta-llama/llama-3.3-70b-instruct"];
+        const models = customModel && customModel.includes("/")
+          ? Array.from(new Set([customModel, ...routerModels]))
+          : routerModels;
         return {
           providerName: "OpenRouter",
           endpoint: "https://openrouter.ai/api/v1/chat/completions",
-          models: Array.from(new Set([customModel, "openai/gpt-4o-mini", "google/gemini-2.5-flash", "meta-llama/llama-3.3-70b-instruct"].filter(Boolean))) as string[],
+          models,
         };
       }
+      const openaiModels = ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"];
+      const models = customModel && openaiModels.includes(customModel)
+        ? Array.from(new Set([customModel, ...openaiModels]))
+        : openaiModels;
       return {
         providerName: "OpenAI",
         endpoint: `${(customBaseUrl || "https://api.openai.com/v1").replace(/\/+$/, "")}/chat/completions`,
-        models: Array.from(new Set([customModel, "gpt-4o-mini", "gpt-4o"].filter(Boolean))) as string[],
+        models,
       };
     };
 

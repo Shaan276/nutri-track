@@ -180,6 +180,9 @@ export class AICoachService {
     const promptText = cleanText || (imageBase64 ? "📸 [Attached Food Image for Nutrition Analysis]" : "");
     if (!promptText) throw new Error("Message or food image cannot be empty");
 
+    const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    console.log(`[AICoachService:${requestId}] Processing message for user ${userId}, conv ${conversationId}: "${promptText.substring(0, 50)}"`);
+
     // 1. Verify conversation ownership
     const conv = await (prisma as any).aiConversation.findUnique({
       where: { id: conversationId },
@@ -200,7 +203,7 @@ export class AICoachService {
         conversationId,
         role: "user",
         content: promptText,
-        metadata: imageBase64 ? JSON.stringify({ hasImage: true }) : null,
+        metadata: JSON.stringify({ requestId, hasImage: !!imageBase64 }),
       },
     });
 
@@ -223,7 +226,7 @@ export class AICoachService {
         { imageBase64 }
       );
     } catch (genErr: any) {
-      console.error("[AICoachService] Error generating response:", genErr);
+      console.error(`[AICoachService:${requestId}] Error generating response:`, genErr);
       aiResult = {
         reply: "I ran into a temporary hiccup processing your request. Please try again! 🥗✨",
         modelUsed: "fallback",
@@ -233,6 +236,7 @@ export class AICoachService {
 
     // 6. Save assistant message with metadata
     const metadataObj = {
+      requestId,
       modelUsed: aiResult.modelUsed,
       toolsExecuted: aiResult.toolsExecuted.map((t) => t.toolName),
       executedActions: aiResult.toolsExecuted.map((t) => ({
