@@ -93,8 +93,8 @@ export class PrivacyService {
       if (legacyRecord && legacyKey && legacyRecord[legacyKey]) {
         return legacyRecord[legacyKey] as PrivacyVisibility;
       }
-      // If user has zero settings configured, we initialize or default to PRIVATE (fail-safe)
-      return "PRIVATE";
+      // Visible to friends by default unless intentionally set to PRIVATE in settings
+      return "FRIENDS";
     };
 
     const profile = resolveCategory("PROFILE");
@@ -126,7 +126,7 @@ export class PrivacyService {
   }
 
   /**
-   * Returns visibility for a specific category with fail-safe fallback to PRIVATE.
+   * Returns visibility for a specific category with default fallback to FRIENDS.
    */
   static async getCategoryVisibility(
     userId: string,
@@ -156,9 +156,10 @@ export class PrivacyService {
         if (category === "ACTIVITIES" && legacy.shareActivities) return legacy.shareActivities;
         if (category === "WORKOUTS" && legacy.shareWorkouts) return legacy.shareWorkouts;
       }
-      return "PRIVATE";
+      // Visible to friends by default unless intentionally set to PRIVATE in settings
+      return "FRIENDS";
     } catch {
-      return "PRIVATE";
+      return "FRIENDS";
     }
   }
 
@@ -345,7 +346,7 @@ export class PrivacyService {
     const targetPrivacy = await this.getPrivacySettings(targetUserId);
 
     for (const cat of categories) {
-      let vis: PrivacyVisibility = "PRIVATE";
+      let vis: PrivacyVisibility = "FRIENDS";
       if (cat === "PROFILE") vis = targetPrivacy.profile;
       else if (cat === "NUTRITION") vis = targetPrivacy.nutrition;
       else if (cat === "DEEP_NUTRITION") vis = targetPrivacy.deepNutrition;

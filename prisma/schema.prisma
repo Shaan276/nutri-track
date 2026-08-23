@@ -675,17 +675,17 @@ model Friendship {
   @@map("friendships")
 }
 
-/// User privacy & sharing permissions (defaults to PRIVATE for all categories)
+/// User privacy & sharing permissions (defaults to FRIENDS for all categories)
 model UserPrivacySettings {
   id                String            @id @default(cuid())
   userId            String            @unique @map("user_id")
   user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  shareHealthScore  SharingPermission @default(PRIVATE) @map("share_health_score")
-  shareNutrition    SharingPermission @default(PRIVATE) @map("share_nutrition")
-  shareHydration    SharingPermission @default(PRIVATE) @map("share_hydration")
-  shareActivities   SharingPermission @default(PRIVATE) @map("share_activities")
-  shareWorkouts     SharingPermission @default(PRIVATE) @map("share_workouts")
-  shareAchievements SharingPermission @default(PRIVATE) @map("share_achievements")
+  shareHealthScore  SharingPermission @default(FRIENDS) @map("share_health_score")
+  shareNutrition    SharingPermission @default(FRIENDS) @map("share_nutrition")
+  shareHydration    SharingPermission @default(FRIENDS) @map("share_hydration")
+  shareActivities   SharingPermission @default(FRIENDS) @map("share_activities")
+  shareWorkouts     SharingPermission @default(FRIENDS) @map("share_workouts")
+  shareAchievements SharingPermission @default(FRIENDS) @map("share_achievements")
   createdAt         DateTime          @default(now()) @map("created_at")
   updatedAt         DateTime          @updatedAt @map("updated_at")
 
