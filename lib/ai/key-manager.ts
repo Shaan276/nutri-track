@@ -37,8 +37,8 @@ export class AIKeyManager {
    */
   public initializeKeys(): void {
     const rawKeys = [
-      this.customKeys[0] || process.env.AI_API_KEY_1 || process.env.OPENAI_API_KEY || process.env.AI_API_KEY || "",
-      this.customKeys[1] || process.env.AI_API_KEY_2 || process.env.OPENAI_API_KEY_FALLBACK_1 || "",
+      this.customKeys[0] || process.env.AI_API_KEY_1 || process.env.OPENAI_API_KEY || process.env.AI_API_KEY || process.env.GEMINI_API_KEY || process.env.GROQ_API_KEY || "",
+      this.customKeys[1] || process.env.AI_API_KEY_2 || process.env.OPENAI_API_KEY_FALLBACK_1 || process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY || "",
       this.customKeys[2] || process.env.AI_API_KEY_3 || process.env.OPENAI_API_KEY_FALLBACK_2 || "",
     ];
 
@@ -78,10 +78,10 @@ export class AIKeyManager {
       return this.customKeys[index];
     }
     if (index === 0) {
-      return process.env.AI_API_KEY_1 || process.env.OPENAI_API_KEY || process.env.AI_API_KEY || "";
+      return process.env.AI_API_KEY_1 || process.env.OPENAI_API_KEY || process.env.AI_API_KEY || process.env.GEMINI_API_KEY || process.env.GROQ_API_KEY || "";
     }
     if (index === 1) {
-      return process.env.AI_API_KEY_2 || process.env.OPENAI_API_KEY_FALLBACK_1 || "";
+      return process.env.AI_API_KEY_2 || process.env.OPENAI_API_KEY_FALLBACK_1 || process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY || "";
     }
     if (index === 2) {
       return process.env.AI_API_KEY_3 || process.env.OPENAI_API_KEY_FALLBACK_2 || "";
@@ -94,15 +94,21 @@ export class AIKeyManager {
    */
   public async syncWithDatabase(): Promise<void> {
     try {
-      const [k1, k2, k3] = await Promise.all([
+      const [k1, k2, k3, geminiK, groqK] = await Promise.all([
         SystemSettingsService.getSetting("OPENAI_API_KEY").catch(() => null),
         SystemSettingsService.getSetting("OPENAI_API_KEY_FALLBACK_1").catch(() => null),
         SystemSettingsService.getSetting("OPENAI_API_KEY_FALLBACK_2").catch(() => null),
+        SystemSettingsService.getSetting("GEMINI_API_KEY").catch(() => null),
+        SystemSettingsService.getSetting("GROQ_API_KEY").catch(() => null),
       ]);
 
-      if (k1) this.setCustomKey(0, k1);
-      if (k2) this.setCustomKey(1, k2);
-      if (k3) this.setCustomKey(2, k3);
+      const primary = k1 || geminiK || groqK;
+      const fallback1 = k2 || (groqK && groqK !== primary ? groqK : (geminiK && geminiK !== primary ? geminiK : null));
+      const fallback2 = k3;
+
+      if (primary) this.setCustomKey(0, primary);
+      if (fallback1) this.setCustomKey(1, fallback1);
+      if (fallback2) this.setCustomKey(2, fallback2);
     } catch {
       // Safe fallback
     }

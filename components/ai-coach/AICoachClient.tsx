@@ -188,6 +188,7 @@ export function AICoachClient() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const isSendingRef = useRef(false);
+  const lastSyncTimeRef = useRef<number>(0);
 
   const toggleListening = async () => {
     if (isListening || shouldKeepListeningRef.current) {
@@ -446,14 +447,37 @@ export function AICoachClient() {
     };
   }, []);
 
-  // 2. Resilient message loader
+  // 2. Resilient message loader with non-destructive merge
   const loadMessages = async (convId: string, isPoll = false) => {
     try {
       const res = await fetch(`/api/ai/conversations/${convId}`);
       if (res.ok) {
         const data = await res.json();
         const fetchedMsgs: MessageItem[] = data.messages || [];
-        setMessages(fetchedMsgs);
+
+        setMessages((prev) => {
+          // If server returned messages, merge cleanly preserving any pending optimistic user message
+          if (fetchedMsgs.length > 0) {
+            const pendingTemp = prev.filter(
+              (m) => m.id.startsWith("temp_") && !fetchedMsgs.some((fm) => fm.content === m.content)
+            );
+            return [...fetchedMsgs, ...pendingTemp];
+          }
+
+          // If server returned 0 messages (e.g. freshly created conversation), preserve current welcome message if present
+          if (prev.length > 0) {
+            return prev;
+          }
+
+          return [
+            {
+              id: `init_${Date.now()}`,
+              role: "assistant",
+              content: "Hello! I am your Nutri-Track AI Coach. 🥗✨ How can I help you optimize your health, nutrition, or training today?",
+              createdAt: new Date().toISOString(),
+            },
+          ];
+        });
 
         // Check if the latest message is a user prompt without an assistant reply yet
         const lastMsg = fetchedMsgs[fetchedMsgs.length - 1];
@@ -481,10 +505,13 @@ export function AICoachClient() {
     }
   };
 
-  // Re-sync messages on window focus or tab visibility change without re-executing
+  // Re-sync messages on window focus or tab visibility change with 10s throttling
   useEffect(() => {
     const handleFocusSync = () => {
+      const now = Date.now();
+      if (now - lastSyncTimeRef.current < 10000) return; // 10s debounce
       if (document.visibilityState === "visible" && activeConvId && !isSendingRef.current) {
+        lastSyncTimeRef.current = now;
         loadMessages(activeConvId, false);
         loadHealthSnapshot();
       }

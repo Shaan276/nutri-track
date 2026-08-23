@@ -150,19 +150,33 @@ export class AIClient {
     const customUrl = (configuredBaseUrl || "").trim().replace(/\/+$/, "");
 
     // 1. Groq Cloud API (Free, high-token capacity, ultra-fast endpoints)
-    if (trimmed.startsWith("gsk_")) {
+    if (trimmed.startsWith("gsk_") || customUrl.includes("groq.com")) {
       return {
-        baseUrl: "https://api.groq.com/openai/v1",
-        models: ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b", "groq/compound-mini"],
+        baseUrl: customUrl || "https://api.groq.com/openai/v1",
+        models: [
+          "llama-3.3-70b-versatile",
+          "llama-3.1-8b-instant",
+          "mixtral-8x7b-32768",
+          "gemma2-9b-it",
+          "llama3-70b-8192",
+          "llama3-8b-8192",
+        ],
         providerName: "Groq",
       };
     }
 
-    // 2. Google Gemini API (Free Flash models)
+    // 2. Google Gemini API (Free Flash models & Google AI Studio OpenAI endpoint)
     if (trimmed.startsWith("AIza") || trimmed.startsWith("AQ.") || customUrl.includes("googleapis.com")) {
       return {
-        baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
-        models: ["gemini-2.5-flash", "gemini-flash-latest"],
+        baseUrl: customUrl || "https://generativelanguage.googleapis.com/v1beta/openai",
+        models: [
+          "gemini-1.5-flash",
+          "gemini-2.0-flash",
+          "gemini-1.5-flash-8b",
+          "gemini-1.5-pro",
+          "gemini-2.5-flash",
+          "gemini-flash-latest",
+        ],
         providerName: "Google Gemini",
       };
     }
@@ -170,8 +184,13 @@ export class AIClient {
     // 3. OpenRouter API
     if (trimmed.startsWith("sk-or-") || customUrl.includes("openrouter.ai")) {
       return {
-        baseUrl: "https://openrouter.ai/api/v1",
-        models: ["openai/gpt-4o-mini", "google/gemini-2.5-flash", "meta-llama/llama-3.3-70b-instruct"],
+        baseUrl: customUrl || "https://openrouter.ai/api/v1",
+        models: [
+          "openai/gpt-4o-mini",
+          "google/gemini-flash-1.5",
+          "meta-llama/llama-3.3-70b-instruct",
+          "deepseek/deepseek-chat",
+        ],
         providerName: "OpenRouter",
       };
     }
@@ -201,10 +220,7 @@ export class AIClient {
     const configuredKeys = keyManager.getAllConfiguredKeys();
 
     if (configuredKeys.length === 0) {
-      return {
-        content:
-          "🤖 AI Coach is currently unavailable at the moment. Please configure an active AI key in the Admin Settings (/admin/settings) or contact the administrator. In the meantime, you can log your meals, hydration, workouts, and runs directly on your Dashboard!",
-      };
+      return this.generateMockResponse(messages);
     }
 
     // Try all configured keys in priority order (Key 1 -> Key 2 -> Key 3)
@@ -219,7 +235,12 @@ export class AIClient {
       const provider = this.resolveProvider(safeKey, configuredBaseUrl, model);
       let keyFailed = false;
 
-      for (const currentModel of provider.models) {
+      // Candidate models list: start with model (if provided and valid), then provider standard models
+      const candidateModels = Array.from(
+        new Set([model, ...provider.models])
+      ).filter((m): m is string => Boolean(m && typeof m === "string" && m.trim().length > 0));
+
+      for (const currentModel of candidateModels) {
         if (keyFailed) break;
 
         for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -268,6 +289,33 @@ export class AIClient {
               break;
             }
 
+            if (res.status === 400 && allowTools) {
+              // Some providers reject 'tools' or specific parameter structures — retry without tools immediately
+              console.warn(`[AIClient] Model '${currentModel}' on ${provider.providerName} returned 400 with tools. Retrying without tools...`);
+              const retryBody = { ...bodyPayload };
+              delete retryBody.tools;
+              delete retryBody.tool_choice;
+
+              const retryRes = await fetch(`${provider.baseUrl}/chat/completions`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${safeKey}`,
+                },
+                body: JSON.stringify(retryBody),
+              });
+
+              if (retryRes.ok) {
+                const data = await retryRes.json();
+                keyManager.recordSuccess(keyInfo.index);
+                const choice = data.choices?.[0]?.message;
+                return {
+                  content: choice?.content || "",
+                  tokensUsed: data.usage?.total_tokens || 0,
+                };
+              }
+            }
+
             if (res.status === 503 || res.status === 502 || res.status === 500 || res.status === 400 || res.status === 404) {
               const errText = await res.text().catch(() => "");
               console.warn(`[AIClient] Model '${currentModel}' on ${provider.providerName} returned ${res.status} (${errText.substring(0, 80)}). Trying next candidate...`);
@@ -297,10 +345,7 @@ export class AIClient {
       }
     }
 
-    return {
-      content:
-        "🤖 AI Coach is currently unavailable at the moment. Please configure an active AI key in the Admin Settings (/admin/settings) or contact the administrator. In the meantime, you can log your meals, hydration, workouts, and runs directly on your Dashboard!",
-    };
+    return this.generateMockResponse(messages);
   }
 
   /**
