@@ -48,22 +48,28 @@ CRITICAL RESPONSE STYLE & FORMAT RULES:
      • 🍽️ **Macros**: Calories kcal | Protein g | Carbs g | Fat g | Fiber g
      • 🌟 **Key Micronutrients**: Only list genuine vitamins & minerals present (e.g. Iron: 3.8mg | Calcium: 240mg | Potassium: 620mg). Never output nulls or zeroes!
 
-6. FULL READ, WRITE, EDIT & DELETE CAPABILITY ACROSS THE ENTIRE APP:
-   - You have complete tools to create, edit, update, or delete ANY data in the user's account:
-     • \`log_meal\`: Logs food/recipe to any meal section.
-     • \`update_meal_entry\`: Edits quantities or portions of already-logged foods in their meals.
-     • \`delete_meal_entry\`: Deletes a specific food or dish from today's meals (e.g. "remove chilla from breakfast", "delete today's log").
-     • \`clear_day_logs\`: Resets all food logs or hydration for today.
-     • \`create_recipe_in_database\`: Saves custom recipes into their Food Database (after user shares ingredients).
-     • \`delete_recipe_from_database\`: Permanently removes or deletes a custom recipe from their Food Database (e.g. "delete it from the database", "remove the meal from database", "delete besan chilla from database").
-     • \`update_recipe_in_database\`: Modifies macros, name, or ingredients of an existing saved recipe.
+6. FULL AUTONOMOUS READ, WRITE, EDIT & DELETE DATA ACCESS ACROSS NUTRI-TRACK:
+   - You have authorized, server-side permissions to manage the user's health data on their behalf:
+     • \`update_weight\`: Updates the user's body weight immediately (e.g. "Change my weight to 58 kg" -> execute update_weight directly!).
+     • \`update_user_profile\`: Updates weight, height, activity level, date of birth, biological sex, or primary goal.
+     • \`update_user_goals\`: Updates daily calorie target, protein, carbohydrates, fats, fiber, hydration target, daily steps, running targets, or workout targets.
+     • \`update_micronutrient_targets\`: Customizes micronutrient RDA targets for Deep Nutrition (Iron, Calcium, Magnesium, Zinc, Vitamins, etc.).
+     • \`log_meal\` / \`create_meal_log\`: Logs foods & recipes to any meal section.
+     • \`update_meal_entry\`: Edits quantities or portions of already-logged foods.
+     • \`delete_meal_entry\`: Deletes a specific food or dish from today's meals.
+     • \`clear_day_logs\`: Resets all food logs, hydration, or activity logs for a date.
      • \`log_hydration\` & \`delete_hydration_log\`: Logs or deletes water/beverage entries.
-     • \`log_activity\` & \`delete_activity_log\`: Logs or deletes workouts and runs.
-     • \`update_user_goals\`: Adjusts target calories, protein, hydration, daily steps, or body weight.
+     • \`log_activity\`, \`update_activity\` & \`delete_activity_log\`: Logs, edits, or deletes workouts and runs.
+     • \`create_workout\`, \`update_workout\` & \`delete_workout_session\`: Manages strength training sessions with sets and reps.
+     • \`create_recipe_in_database\`, \`update_recipe_in_database\` & \`delete_recipe_from_database\`: Manages custom Food Database recipes.
      • \`toggle_dynamic_nutrition\`: Enables/disables Dynamic Nutrition intelligence.
-     • \`get_yesterdays_data_and_dynamic_targets\`: Explains how yesterday's workouts/nutrition optimized today's targets.
-   - When the user asks you to delete, edit, or adjust anything, execute the appropriate tool immediately and confirm in short, cheerful bullet points!
-   - NEVER tell the user that you cannot delete items, do not have access, or lack tools. You have full deletion and modification tools for both daily logs and the permanent food database!
+     • \`generate_next_day_recommendations\`: Projects tomorrow's dynamic nutrition & recovery blueprint based on today's training.
+     • \`get_daily_health_review\`: Generates a comprehensive daily review (successes, focus areas, priorities).
+     • \`update_user_setting\` & \`save_user_memory\`: Saves long-term user preferences, dietary restrictions, or coaching agreements.
+   - **CONFIRMATION RULES**:
+     • For direct user requests (e.g. "Change my weight to 58 kg", "Set protein target to 120g", "Set hydration to 3L", "Log 500ml water"): EXECUTE THE TOOL IMMEDIATELY without asking for confirmation!
+     • For open requests (e.g. "Set my calories"): Inspect available data, ask only for genuinely missing information (e.g. primary goal or rate of change), then calculate and apply using \`update_user_goals\`.
+   - **CRITICAL PERMISSION RULE**: NEVER say "I can't update the database", "I don't have permission to change your weight", or "I can't modify that information". You have full server-side permission for the authenticated user's records!
 `;
 
 export interface ToolDefinition {
@@ -459,20 +465,232 @@ export const AI_COACH_TOOLS: ToolDefinition[] = [
   {
     type: "function",
     function: {
-      name: "update_user_goals",
-      description: "Directly updates the user's active health targets, weight, height, daily calories, protein, carbs, fat, hydration, or daily steps.",
+      name: "update_user_profile",
+      description: "Directly updates the user's physical profile, body weight, height, activity level, date of birth, biological sex, or primary health goal in their account settings.",
       parameters: {
         type: "object",
         properties: {
-          weightKg: { type: "number", description: "Body weight in kilograms (e.g. 56, 70.5)." },
+          weightKg: { type: "number", description: "Body weight in kilograms (e.g. 58, 70.5)." },
+          heightCm: { type: "number", description: "Height in centimeters (e.g. 175)." },
+          dateOfBirth: { type: "string", description: "Date of birth (YYYY-MM-DD)." },
+          biologicalSex: { type: "string", enum: ["MALE", "FEMALE", "OTHER"], description: "Biological sex." },
+          activityLevel: { type: "string", enum: ["SEDENTARY", "LIGHTLY_ACTIVE", "MODERATELY_ACTIVE", "VERY_ACTIVE", "EXTRA_ACTIVE"], description: "Daily lifestyle movement activity level." },
+          primaryGoal: { type: "string", enum: ["LOSE_WEIGHT", "MAINTAIN", "BUILD_MUSCLE", "ENDURANCE"], description: "Primary wellness objective." },
+          dailyHydrationTargetMl: { type: "number", description: "Daily water goal in ml." },
+          dailyStepTarget: { type: "number", description: "Daily steps target." },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_weight",
+      description: "Shortcut to update the user's body weight immediately in their profile settings (e.g. 'Change my weight to 58 kg').",
+      parameters: {
+        type: "object",
+        properties: {
+          weightKg: { type: "number", description: "Current or updated body weight in kilograms (e.g. 58, 65.5)." },
+        },
+        required: ["weightKg"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_user_goals",
+      description: "Directly updates the user's active health targets, daily calories, protein, carbs, fat, fiber, hydration, daily steps, running target, or workout target.",
+      parameters: {
+        type: "object",
+        properties: {
+          weightKg: { type: "number", description: "Body weight in kilograms (e.g. 58, 70.5)." },
           heightCm: { type: "number", description: "Height in centimeters (e.g. 175)." },
           calories: { type: "number", description: "Daily calorie target in kcal." },
           protein: { type: "number", description: "Daily protein target in grams." },
           carbohydrates: { type: "number", description: "Daily carbs target in grams." },
           fat: { type: "number", description: "Daily fat target in grams." },
+          fiber: { type: "number", description: "Daily dietary fiber target in grams." },
           dailyHydrationTargetMl: { type: "number", description: "Daily hydration goal in ml." },
           dailyStepTarget: { type: "number", description: "Daily step target count." },
+          weeklyRunningDistanceKm: { type: "number", description: "Weekly running distance target in km." },
+          weeklyWorkoutSessions: { type: "number", description: "Weekly strength/workout sessions target." },
           primaryGoal: { type: "string", enum: ["LOSE_WEIGHT", "MAINTAIN", "BUILD_MUSCLE", "ENDURANCE"], description: "Primary wellness objective." },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_micronutrient_targets",
+      description: "Customizes user's micronutrient RDA targets for Deep Nutrition (Iron, Calcium, Potassium, Magnesium, Zinc, Vitamins).",
+      parameters: {
+        type: "object",
+        properties: {
+          iron: { type: "number", description: "Daily iron target in mg." },
+          calcium: { type: "number", description: "Daily calcium target in mg." },
+          potassium: { type: "number", description: "Daily potassium target in mg." },
+          magnesium: { type: "number", description: "Daily magnesium target in mg." },
+          zinc: { type: "number", description: "Daily zinc target in mg." },
+          sodium: { type: "number", description: "Daily sodium target in mg." },
+          vitaminC: { type: "number", description: "Daily Vitamin C target in mg." },
+          vitaminD: { type: "number", description: "Daily Vitamin D target in mcg/IU." },
+          vitaminB12: { type: "number", description: "Daily Vitamin B12 target in mcg." },
+          vitaminA: { type: "number", description: "Daily Vitamin A target in mcg." },
+          folate: { type: "number", description: "Daily Folate / B9 target in mcg." },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_workout",
+      description: "Logs a strength training, calisthenics, gym, or home workout session with exercises, sets, reps, and weights.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Workout name (e.g. 'Push Day Strength', 'Full Body Dumbbells', 'Legs & Core')." },
+          workoutType: { type: "string", enum: ["STRENGTH", "HIIT", "CALISTHENICS", "CARDIO", "FLEXIBILITY", "OTHER"], description: "Type of session." },
+          durationMinutes: { type: "number", description: "Duration in minutes." },
+          caloriesBurned: { type: "number", description: "Estimated calories burned." },
+          exercises: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string", description: "Exercise name (e.g. 'Barbell Bench Press', 'Squats', 'Pull-ups')." },
+                category: { type: "string", description: "Muscle category (e.g. 'CHEST', 'LEGS', 'BACK', 'ARMS', 'CORE')." },
+                sets: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      reps: { type: "number", description: "Repetitions completed." },
+                      weightKg: { type: "number", description: "Weight lifted in kg." },
+                      durationSeconds: { type: "number", description: "Duration of set in seconds (optional)." },
+                    },
+                  },
+                },
+              },
+              required: ["name"],
+            },
+            description: "List of exercises performed with sets and reps.",
+          },
+          notes: { type: "string", description: "Workout notes or intensity feedback." },
+          date: { type: "string", description: "Optional ISO date (YYYY-MM-DD)." },
+        },
+        required: ["name"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_workout",
+      description: "Updates an existing workout session's duration, name, or calories burned.",
+      parameters: {
+        type: "object",
+        properties: {
+          workoutId: { type: "string", description: "Workout session ID to update." },
+          name: { type: "string", description: "Updated workout name." },
+          durationMinutes: { type: "number", description: "Updated duration in minutes." },
+          caloriesBurned: { type: "number", description: "Updated calories burned." },
+          notes: { type: "string", description: "Updated notes." },
+          date: { type: "string", description: "Updated date (YYYY-MM-DD)." },
+        },
+        required: ["workoutId"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "delete_workout_session",
+      description: "Deletes a strength training or gym workout session from the user's workout journal.",
+      parameters: {
+        type: "object",
+        properties: {
+          workoutId: { type: "string", description: "Optional workout session ID to delete." },
+          name: { type: "string", description: "Optional name of the workout to delete." },
+          date: { type: "string", description: "Optional ISO date (defaults to today)." },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_activity",
+      description: "Edits or updates an existing logged run, walk, or cardio activity (duration, distance, steps, calories).",
+      parameters: {
+        type: "object",
+        properties: {
+          logId: { type: "string", description: "Activity log ID to update." },
+          activityType: { type: "string", enum: ["RUNNING", "WALKING", "CYCLING", "WORKOUT", "SWIMMING", "YOGA", "HIIT", "OTHER"], description: "Type of activity." },
+          durationMinutes: { type: "number", description: "Updated moving duration in minutes." },
+          distanceKm: { type: "number", description: "Updated distance in km." },
+          caloriesBurned: { type: "number", description: "Updated calories burned." },
+          steps: { type: "number", description: "Updated step count." },
+          notes: { type: "string", description: "Updated notes." },
+          date: { type: "string", description: "Updated date (YYYY-MM-DD)." },
+        },
+        required: ["logId"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "generate_next_day_recommendations",
+      description: "Projects Tomorrow's Dynamic Nutrition and recovery recommendations based on today's actual workouts, runs, and nutrient intake.",
+      parameters: {
+        type: "object",
+        properties: {
+          date: { type: "string", description: "Reference date (defaults to today)." },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_daily_health_review",
+      description: "Generates a full AI Daily Health Review (What went well today, focus areas, priorities, and tomorrow's forecast).",
+      parameters: {
+        type: "object",
+        properties: {
+          date: { type: "string", description: "Reference date (defaults to today)." },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "save_user_memory",
+      description: "Saves a useful long-term coaching note, dietary restriction, food preference, or goal agreement to the user's isolated AI Memory.",
+      parameters: {
+        type: "object",
+        properties: {
+          category: { type: "string", enum: ["GOAL", "PREFERENCE", "CONSTRAINT", "COACHING_NOTE"], description: "Category of preference." },
+          content: { type: "string", description: "The specific preference or constraint to remember." },
+        },
+        required: ["content"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "delete_user_memory",
+      description: "Deletes a stored preference or constraint from the user's isolated AI Memory.",
+      parameters: {
+        type: "object",
+        properties: {
+          memoryId: { type: "string", description: "Optional specific memory ID to delete." },
+          contentQuery: { type: "string", description: "Optional text query matching the memory item." },
         },
       },
     },

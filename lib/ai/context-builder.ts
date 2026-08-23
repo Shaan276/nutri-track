@@ -129,17 +129,43 @@ export class AIContextBuilder {
     }
 
     // --- Layer 4: Live Dynamic Health Snapshot (Relevance-Driven) ---
-    let liveDataContext = "\n[LIVE HEALTH DATA SNAPSHOT]:";
+    const n = snapshot.nutrition;
+    const h = snapshot.hydration;
+    const m = snapshot.movement;
+    const w = snapshot.workouts;
+
+    const carbsTarget = n.carbsTarget || 250;
+    const carbsConsumed = n.carbsConsumed || 0;
+    const carbsRemaining = Math.max(0, carbsTarget - carbsConsumed);
+    const carbsPct = Math.round((carbsConsumed / carbsTarget) * 100);
+
+    const fatsTarget = n.fatsTarget || 65;
+    const fatsConsumed = n.fatsConsumed || 0;
+    const fatsRemaining = Math.max(0, fatsTarget - fatsConsumed);
+    const fatsPct = Math.round((fatsConsumed / fatsTarget) * 100);
+
+    const fiberTarget = 30;
+    const fiberConsumed = n.fiberConsumed || 0;
+    const fiberRemaining = Math.max(0, fiberTarget - fiberConsumed);
+    const fiberPct = Math.round((fiberConsumed / fiberTarget) * 100);
+
+    const calPct = Math.round((n.caloriesConsumed / (n.calorieTarget || 2000)) * 100);
+    const protPct = Math.round((n.proteinConsumed / (n.proteinTarget || 120)) * 100);
+
+    let liveDataContext = "\n[LIVE HEALTH DATA & COMPLETE MACRONUTRIENT QUANTITIES]:";
 
     liveDataContext += `
-• Date: ${todayStr}
-• Today's Nutrition State: ${snapshot.nutrition.dataState === "LOGGED" ? "DATA_LOGGED" : "NOT_LOGGED_YET (User has not entered food logs today)"}
-• Calories Logged Today: ${snapshot.nutrition.caloriesConsumed} / ${snapshot.nutrition.calorieTarget} kcal (${snapshot.nutrition.caloriesRemaining} kcal remaining)
-• Protein Logged Today: ${snapshot.nutrition.proteinConsumed} / ${snapshot.nutrition.proteinTarget} g (${snapshot.nutrition.proteinRemaining}g remaining)
-• Carbs: ${snapshot.nutrition.carbsConsumed} / ${snapshot.nutrition.carbsTarget} g | Fat: ${snapshot.nutrition.fatsConsumed} / ${snapshot.nutrition.fatsTarget} g
-• Hydration Logged Today: ${snapshot.hydration.consumedMl} / ${snapshot.hydration.targetMl} ml (${snapshot.hydration.remainingMl} ml remaining, Streak: ${snapshot.hydration.streakDays} days)
-• Movement & Activity: ${snapshot.movement.todaySteps.toLocaleString()} steps today (${snapshot.movement.stepPercentage}% of target), ${snapshot.movement.todayDistanceKm} km covered
-• Active Energy Burned Today: ${snapshot.movement.totalActiveCalories} kcal (${snapshot.movement.activityCalories} kcal cardio/activities + ${snapshot.movement.workoutCalories} kcal workouts)
+• Date: ${todayStr} (Current day in progress — incomplete logging during the day is normal, not a failure)
+• Nutrition State: ${n.dataState === "LOGGED" ? "DATA_LOGGED" : "NOT_LOGGED_YET (No meals recorded yet today)"}
+• Calories: ${n.caloriesConsumed.toLocaleString()} / ${(n.calorieTarget || 2000).toLocaleString()} kcal (${calPct}% achieved | ${n.caloriesRemaining} kcal remaining)
+• Protein: ${n.proteinConsumed}g / ${n.proteinTarget || 120}g (${protPct}% achieved | ${n.proteinRemaining}g remaining)
+• Carbohydrates: ${carbsConsumed}g / ${carbsTarget}g (${carbsPct}% achieved | ${carbsRemaining}g remaining)
+• Healthy Fats: ${fatsConsumed}g / ${fatsTarget}g (${fatsPct}% achieved | ${fatsRemaining}g remaining)
+• Dietary Fiber: ${fiberConsumed}g / ${fiberTarget}g (${fiberPct}% achieved | ${fiberRemaining}g remaining)
+• Sugar Intake: ${n.sugarConsumed}g
+• Hydration Logged Today: ${h.consumedMl.toLocaleString()} / ${(h.targetMl || 2500).toLocaleString()} ml (${h.percentage}% achieved | ${h.remainingMl} ml remaining, Streak: ${h.streakDays} days)
+• Movement & Steps: ${m.todaySteps.toLocaleString()} / ${m.dailyStepTarget.toLocaleString()} steps (${m.stepPercentage}% of target | ${m.todayDistanceKm} km covered)
+• Active Energy Burned Today: ${m.totalActiveCalories} kcal (${m.activityCalories} kcal cardio/activities + ${m.workoutCalories} kcal workouts)
 • 7-Day Health Score: ${snapshot.healthScore.isPending ? "PENDING (Getting Started)" : `${snapshot.healthScore.score}/100 (Grade: ${snapshot.healthScore.letterGrade})`}
 `;
     relevanceCategories.push("NUTRITION", "HYDRATION");

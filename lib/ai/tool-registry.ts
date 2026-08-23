@@ -5,6 +5,8 @@ import { ReportService } from "@/lib/services/report.service";
 import { UserSettingsService } from "@/lib/services/user-settings.service";
 import { FoodService } from "@/lib/services/food.service";
 import { ActivityService } from "@/lib/services/activity.service";
+import { WorkoutService } from "@/lib/services/workout.service";
+import { AIMemoryService } from "@/lib/ai/memory-service";
 import { FoodNLP, LoggedMealCandidate } from "@/lib/nlp/food-nlp";
 import { DynamicNutritionService } from "@/lib/services/dynamic-nutrition.service";
 import { prisma } from "@/lib/db";
@@ -100,7 +102,8 @@ export class AIToolRegistry {
     const { userId } = context;
 
     switch (toolName) {
-      case "log_meal": {
+      case "log_meal":
+      case "create_meal_log": {
         const {
           foodName,
           mealType = "LUNCH",
@@ -175,7 +178,8 @@ export class AIToolRegistry {
         };
       }
 
-      case "update_meal_entry": {
+      case "update_meal_entry":
+      case "update_meal_log": {
         const { foodName, newQuantity, newQuantityUnit, mealType, date } = args;
         const dateStr = date || new Date().toISOString().split("T")[0];
 
@@ -440,7 +444,8 @@ export class AIToolRegistry {
         };
       }
 
-      case "log_hydration": {
+      case "log_hydration":
+      case "create_hydration_log": {
         const { amountMl, beverageType = "WATER", date, notes } = args;
         const dateStr = date || new Date().toISOString().split("T")[0];
 
@@ -464,7 +469,8 @@ export class AIToolRegistry {
         };
       }
 
-      case "log_activity": {
+      case "log_activity":
+      case "create_activity": {
         const {
           activityType = "WORKOUT",
           durationMinutes = 30,
@@ -496,38 +502,278 @@ export class AIToolRegistry {
         };
       }
 
-      case "update_user_goals": {
-        const { calories, protein, carbohydrates, fat, dailyHydrationTargetMl, dailyStepTarget, weightKg, heightCm, primaryGoal } = args;
+      case "update_user_profile":
+      case "update_profile": {
+        const {
+          weightKg,
+          heightCm,
+          dateOfBirth,
+          biologicalSex,
+          activityLevel,
+          primaryGoal,
+          dailyHydrationTargetMl,
+          dailyStepTarget,
+          weeklyRunningDistanceKm,
+          weeklyWorkoutSessions,
+        } = args;
+
+        const updated = await UserSettingsService.updateUserSettings(userId, {
+          profile: {
+            ...(weightKg !== undefined && { weightKg: Number(weightKg) }),
+            ...(heightCm !== undefined && { heightCm: Number(heightCm) }),
+            ...(dateOfBirth && { dateOfBirth: String(dateOfBirth) }),
+            ...(biologicalSex && { biologicalSex: biologicalSex as any }),
+            ...(activityLevel && { activityLevel: activityLevel as any }),
+            ...(primaryGoal && { primaryGoal: primaryGoal as any }),
+            ...(dailyHydrationTargetMl !== undefined && { dailyHydrationTargetMl: Number(dailyHydrationTargetMl) }),
+            ...(dailyStepTarget !== undefined && { dailyStepTarget: Number(dailyStepTarget) }),
+            ...(weeklyRunningDistanceKm !== undefined && { weeklyRunningDistanceKm: Number(weeklyRunningDistanceKm) }),
+            ...(weeklyWorkoutSessions !== undefined && { weeklyWorkoutSessions: Number(weeklyWorkoutSessions) }),
+          },
+        });
+
+        const changes: string[] = [];
+        if (weightKg !== undefined) changes.push(`Weight: ${updated.profile.weightKg} kg`);
+        if (heightCm !== undefined) changes.push(`Height: ${updated.profile.heightCm} cm`);
+        if (activityLevel) changes.push(`Activity: ${updated.profile.activityLevel}`);
+        if (primaryGoal) changes.push(`Goal: ${updated.profile.primaryGoal}`);
+
+        return {
+          success: true,
+          message: `Done — I've updated your profile! ⚖️✨ ${changes.join(" | ")} (New BMR: ${updated.metabolic.bmr} kcal, TDEE: ${updated.metabolic.tdee} kcal/day).`,
+          updatedProfile: updated.profile,
+          metabolic: updated.metabolic,
+        };
+      }
+
+      case "update_weight": {
+        const { weightKg } = args;
+        if (weightKg === undefined || isNaN(Number(weightKg))) {
+          return { success: false, message: "Please provide a valid weight in kilograms." };
+        }
+        const updated = await UserSettingsService.updateUserSettings(userId, {
+          profile: { weightKg: Number(weightKg) },
+        });
+        return {
+          success: true,
+          message: `Done — I've updated your weight to ${updated.profile.weightKg} kg! ⚖️✨ (Updated TDEE: ${updated.metabolic.tdee} kcal/day).`,
+          weightKg: updated.profile.weightKg,
+          metabolic: updated.metabolic,
+        };
+      }
+
+      case "update_user_goals":
+      case "update_goals":
+      case "update_calorie_target":
+      case "update_protein_target":
+      case "update_hydration_target": {
+        const {
+          calories,
+          protein,
+          carbohydrates,
+          carbs,
+          fat,
+          fats,
+          fiber,
+          dailyHydrationTargetMl,
+          hydrationMl,
+          dailyStepTarget,
+          stepsTarget,
+          weeklyRunningDistanceKm,
+          runningTargetKm,
+          weeklyWorkoutSessions,
+          workoutTarget,
+          weightKg,
+          heightCm,
+          primaryGoal,
+        } = args;
+
+        const effectiveCarbs = carbohydrates !== undefined ? carbohydrates : carbs;
+        const effectiveFat = fat !== undefined ? fat : fats;
+        const effectiveHydration = dailyHydrationTargetMl !== undefined ? dailyHydrationTargetMl : hydrationMl;
+        const effectiveSteps = dailyStepTarget !== undefined ? dailyStepTarget : stepsTarget;
+        const effectiveRunning = weeklyRunningDistanceKm !== undefined ? weeklyRunningDistanceKm : runningTargetKm;
+        const effectiveWorkouts = weeklyWorkoutSessions !== undefined ? weeklyWorkoutSessions : workoutTarget;
 
         const updated = await UserSettingsService.updateUserSettings(userId, {
           nutritionGoals: {
             ...(calories !== undefined && { calories: Number(calories) }),
             ...(protein !== undefined && { protein: Number(protein) }),
-            ...(carbohydrates !== undefined && { carbohydrates: Number(carbohydrates) }),
-            ...(fat !== undefined && { fat: Number(fat) }),
+            ...(effectiveCarbs !== undefined && { carbohydrates: Number(effectiveCarbs) }),
+            ...(effectiveFat !== undefined && { fat: Number(effectiveFat) }),
+            ...(fiber !== undefined && { fiber: Number(fiber) }),
           },
           profile: {
             ...(weightKg !== undefined && { weightKg: Number(weightKg) }),
             ...(heightCm !== undefined && { heightCm: Number(heightCm) }),
-            ...(dailyHydrationTargetMl !== undefined && { dailyHydrationTargetMl: Number(dailyHydrationTargetMl) }),
-            ...(dailyStepTarget !== undefined && { dailyStepTarget: Number(dailyStepTarget) }),
-            ...(primaryGoal && { primaryGoal: String(primaryGoal) }),
+            ...(effectiveHydration !== undefined && { dailyHydrationTargetMl: Number(effectiveHydration) }),
+            ...(effectiveSteps !== undefined && { dailyStepTarget: Number(effectiveSteps) }),
+            ...(effectiveRunning !== undefined && { weeklyRunningDistanceKm: Number(effectiveRunning) }),
+            ...(effectiveWorkouts !== undefined && { weeklyWorkoutSessions: Number(effectiveWorkouts) }),
+            ...(primaryGoal && { primaryGoal: String(primaryGoal) as any }),
           },
         });
 
+        const targetBullets: string[] = [];
+        if (calories !== undefined) targetBullets.push(`Calories: ${updated.nutritionGoals.calories} kcal`);
+        if (protein !== undefined) targetBullets.push(`Protein: ${updated.nutritionGoals.protein}g`);
+        if (effectiveCarbs !== undefined) targetBullets.push(`Carbs: ${updated.nutritionGoals.carbohydrates}g`);
+        if (effectiveFat !== undefined) targetBullets.push(`Fats: ${updated.nutritionGoals.fat}g`);
+        if (effectiveHydration !== undefined) targetBullets.push(`Water: ${updated.profile.dailyHydrationTargetMl}ml`);
+        if (effectiveSteps !== undefined) targetBullets.push(`Steps: ${updated.profile.dailyStepTarget.toLocaleString()}/day`);
+        if (primaryGoal) targetBullets.push(`Primary Goal: ${updated.profile.primaryGoal}`);
+
         return {
           success: true,
-          message: `Successfully updated your health profile & targets! 🎯`,
+          message: `Done — I've updated your daily targets! 🎯✨\n${targetBullets.map((b) => `• ${b}`).join("\n")}`,
           newGoals: {
-            weightKg: updated.profile.weightKg,
-            heightCm: updated.profile.heightCm,
             calories: updated.nutritionGoals.calories,
             protein: updated.nutritionGoals.protein,
             carbs: updated.nutritionGoals.carbohydrates,
             fat: updated.nutritionGoals.fat,
+            fiber: updated.nutritionGoals.fiber,
             dailyHydrationTargetMl: updated.profile.dailyHydrationTargetMl,
             dailyStepTarget: updated.profile.dailyStepTarget,
+            primaryGoal: updated.profile.primaryGoal,
           },
+        };
+      }
+
+      case "update_micronutrient_targets": {
+        const {
+          iron,
+          calcium,
+          potassium,
+          magnesium,
+          zinc,
+          sodium,
+          vitaminA,
+          vitaminC,
+          vitaminD,
+          vitaminE,
+          vitaminB12,
+          vitaminB6,
+          folate,
+        } = args;
+
+        const updated = await DeepNutritionService.updateUserTargets(userId, {
+          ...(iron !== undefined && { iron: Number(iron) }),
+          ...(calcium !== undefined && { calcium: Number(calcium) }),
+          ...(potassium !== undefined && { potassium: Number(potassium) }),
+          ...(magnesium !== undefined && { magnesium: Number(magnesium) }),
+          ...(zinc !== undefined && { zinc: Number(zinc) }),
+          ...(sodium !== undefined && { sodium: Number(sodium) }),
+          ...(vitaminA !== undefined && { vitaminA: Number(vitaminA) }),
+          ...(vitaminC !== undefined && { vitaminC: Number(vitaminC) }),
+          ...(vitaminD !== undefined && { vitaminD: Number(vitaminD) }),
+          ...(vitaminE !== undefined && { vitaminE: Number(vitaminE) }),
+          ...(vitaminB12 !== undefined && { vitaminB12: Number(vitaminB12) }),
+          ...(vitaminB6 !== undefined && { vitaminB6: Number(vitaminB6) }),
+          ...(folate !== undefined && { folate: Number(folate) }),
+        });
+
+        return {
+          success: true,
+          message: "Updated your personalized micronutrient targets in Deep Nutrition! 🥗🔬✨",
+          targets: updated,
+        };
+      }
+
+      case "create_workout":
+      case "log_workout": {
+        const {
+          name = "Strength Training",
+          workoutType = "STRENGTH",
+          durationMinutes = 45,
+          caloriesBurned,
+          exercises,
+          notes,
+          date,
+        } = args;
+
+        const dateStr = date || new Date().toISOString().split("T")[0];
+        const durationSeconds = Math.round(Number(durationMinutes) * 60);
+
+        const session = await WorkoutService.createWorkoutSession(userId, {
+          name,
+          workoutType: workoutType as any,
+          date: dateStr,
+          durationSeconds,
+          caloriesBurned: caloriesBurned ? Number(caloriesBurned) : undefined,
+          notes,
+          exercises: exercises || [],
+        });
+
+        return {
+          success: true,
+          message: `Logged workout "${session.name}" (${durationMinutes} mins${caloriesBurned ? `, ~${caloriesBurned} kcal burned` : ""}) with ${session.exercises.length} exercises! 💪🔥`,
+          workoutId: session.id,
+        };
+      }
+
+      case "update_workout": {
+        const { workoutId, name, durationMinutes, caloriesBurned, notes, date } = args;
+        if (!workoutId) {
+          return { success: false, message: "Please provide the workout ID to update." };
+        }
+        const updated = await WorkoutService.updateWorkoutSession(userId, workoutId, {
+          ...(name && { name }),
+          ...(durationMinutes !== undefined && { durationSeconds: Math.round(Number(durationMinutes) * 60) }),
+          ...(caloriesBurned !== undefined && { caloriesBurned: Number(caloriesBurned) }),
+          ...(notes !== undefined && { notes }),
+          ...(date && { date }),
+        });
+        return {
+          success: true,
+          message: `Updated workout session "${updated.name}"! 💪✨`,
+          workout: updated,
+        };
+      }
+
+      case "delete_workout_session":
+      case "delete_workout": {
+        const { workoutId, date, name } = args;
+        let targetId = workoutId;
+
+        if (!targetId) {
+          const dateStr = date || new Date().toISOString().split("T")[0];
+          const daily = await WorkoutService.getDailyWorkouts(userId, dateStr);
+          if (daily.sessions.length === 0) {
+            return { success: false, message: `No workout sessions found for ${dateStr}.` };
+          }
+          if (name) {
+            const found = daily.sessions.find((s) => s.name.toLowerCase().includes(name.toLowerCase()));
+            targetId = found ? found.id : daily.sessions[daily.sessions.length - 1].id;
+          } else {
+            targetId = daily.sessions[daily.sessions.length - 1].id;
+          }
+        }
+
+        await WorkoutService.deleteWorkoutSession(userId, targetId);
+        return {
+          success: true,
+          message: `Deleted workout session! 🗑️💪`,
+        };
+      }
+
+      case "update_activity": {
+        const { logId, activityType, durationMinutes, distanceKm, caloriesBurned, steps, notes, date } = args;
+        if (!logId) {
+          return { success: false, message: "Please provide the activity log ID to update." };
+        }
+        const updated = await ActivityService.updateActivity(userId, logId, {
+          ...(activityType && { activityType: activityType as any }),
+          ...(durationMinutes !== undefined && { movingDurationSeconds: Math.round(Number(durationMinutes) * 60) }),
+          ...(distanceKm !== undefined && { distanceKm: Number(distanceKm) }),
+          ...(caloriesBurned !== undefined && { caloriesBurned: Number(caloriesBurned) }),
+          ...(steps !== undefined && { steps: Number(steps) }),
+          ...(notes !== undefined && { notes }),
+          ...(date && { date }),
+        });
+        return {
+          success: true,
+          message: `Updated activity log! 🏃‍♂️✨`,
+          activity: updated,
         };
       }
 
@@ -560,11 +806,65 @@ export class AIToolRegistry {
           };
         }
         const toDelete = actSummary.activities[actSummary.activities.length - 1];
-        await ActivityService.deleteActivity(toDelete.id, userId);
+        await ActivityService.deleteActivity(userId, toDelete.id);
         return {
           success: true,
           message: `Deleted activity "${toDelete.activityType.toLowerCase()}" from ${dateStr}! 🏃‍♂️🗑️`,
         };
+      }
+
+      case "generate_next_day_recommendations":
+      case "get_tomorrow_recommendations": {
+        const forecast = await DynamicNutritionService.generateNextDayForecast(userId, args.date);
+        return {
+          success: true,
+          message: forecast.coachingSummary,
+          forecast,
+        };
+      }
+
+      case "get_daily_health_review": {
+        const review = await DynamicNutritionService.getDailyHealthReview(userId, args.date);
+        return {
+          success: true,
+          message: `Daily Health Review for ${review.date}:\n• What Went Well: ${review.whatWentWell.join(", ")}\n• Focus Areas: ${review.whatNeedsFocus.join(", ")}`,
+          review,
+        };
+      }
+
+      case "update_user_setting":
+      case "save_user_memory": {
+        const { key, category = "PREFERENCE", content, value } = args;
+        const memoryContent = content || (key ? `${key}: ${value}` : "");
+        if (!memoryContent) {
+          return { success: false, message: "Please provide a preference or setting content to save." };
+        }
+        const saved = await AIMemoryService.addMemory(userId, {
+          category: category as any,
+          content: memoryContent,
+        });
+        return {
+          success: true,
+          message: `Saved your preference to AI Memory: "${saved?.content || memoryContent}" 🧠✨`,
+          memoryId: saved?.id,
+        };
+      }
+
+      case "delete_user_memory": {
+        const { memoryId, contentQuery } = args;
+        if (memoryId) {
+          await AIMemoryService.deleteMemory(userId, memoryId);
+          return { success: true, message: `Deleted memory item. 🗑️🧠` };
+        }
+        const memories = await AIMemoryService.getUserMemories(userId);
+        if (contentQuery) {
+          const matched = memories.find((m: any) => m.content.toLowerCase().includes(contentQuery.toLowerCase()));
+          if (matched) {
+            await AIMemoryService.deleteMemory(userId, matched.id);
+            return { success: true, message: `Deleted memory item: "${matched.content}" 🗑️🧠` };
+          }
+        }
+        return { success: false, message: "Could not find a matching memory item to delete." };
       }
 
       case "toggle_dynamic_nutrition": {

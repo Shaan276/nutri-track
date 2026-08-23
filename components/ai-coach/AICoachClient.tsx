@@ -568,6 +568,9 @@ export function AICoachClient() {
 
       // Refresh health context snapshot in background to reflect any new memories or logged state
       loadHealthSnapshot();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("nutritrack:data-updated"));
+      }
     } catch (err: any) {
       if (err.name === "AbortError") {
         console.log("AI response stopped by user.");
@@ -858,17 +861,32 @@ export function AICoachClient() {
                       {isUser ? msg.content : renderFormattedMessage(msg.content)}
                     </div>
 
-                    {/* Tool badges */}
-                    {!isUser && metadata.toolsExecuted && metadata.toolsExecuted.length > 0 && (
-                      <div className="flex flex-wrap gap-1 px-1">
-                        {metadata.toolsExecuted.map((tool: string, tIdx: number) => (
-                          <span
-                            key={tIdx}
-                            className="text-[10px] text-neutral-500 bg-neutral-950 px-1.5 py-0.5 rounded border border-neutral-800"
-                          >
-                            ⚡ {tool}
-                          </span>
-                        ))}
+                    {/* Tool badges & action confirmations */}
+                    {!isUser && ((metadata.executedActions && metadata.executedActions.length > 0) || (metadata.toolsExecuted && metadata.toolsExecuted.length > 0)) && (
+                      <div className="flex flex-wrap gap-1.5 px-1">
+                        {(metadata.executedActions || metadata.toolsExecuted.map((t: string) => ({ toolName: t, success: true }))).map((act: any, tIdx: number) => {
+                          const name = typeof act === "string" ? act : act.toolName;
+                          const isOk = typeof act === "object" ? act.success !== false : true;
+                          const cleanLabel = name
+                            .replace(/_/g, " ")
+                            .replace(/^log /, "logged ")
+                            .replace(/^update /, "updated ")
+                            .replace(/^create /, "created ")
+                            .replace(/^delete /, "deleted ");
+                          return (
+                            <span
+                              key={tIdx}
+                              className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md border shadow-2xs ${
+                                isOk
+                                  ? "text-emerald-300 bg-emerald-950/40 border-emerald-800/60"
+                                  : "text-rose-300 bg-rose-950/40 border-rose-800/60"
+                              }`}
+                            >
+                              <Zap className="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+                              <span className="capitalize">{cleanLabel}</span>
+                            </span>
+                          );
+                        })}
                       </div>
                     )}
 

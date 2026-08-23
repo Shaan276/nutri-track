@@ -47,13 +47,19 @@ export class AICoachService {
       },
     });
 
-    // Add welcoming message
+    // Check if user has an active goal configured
+    const userProfile = await prisma.userProfile.findUnique({ where: { userId } });
+    const goalText = userProfile?.primaryGoal
+      ? `reach your ${userProfile.primaryGoal.toLowerCase().replace(/_/g, " ")} goals`
+      : "set up your personalized nutrition and fitness blueprint";
+
+    // Add welcoming message with goal discovery
     await (prisma as any).aiMessage.create({
       data: {
         conversationId: created.id,
         role: "assistant",
         content:
-          "Hello! I am your Nutri-Track AI Coach. I'm connected directly to your logged nutrition, hydration, runs, and workouts. How can I help you reach your goals today?",
+          `Hello! I am your Nutri-Track AI Coach — your autonomous partner in nutrition, performance, and recovery! 🌟💪\n\n• I'm connected directly to your real-time meals, hydration, runs, workouts, and Dynamic Nutrition.\n• How can I help you ${goalText} today? ✨`,
       },
     });
 
@@ -229,6 +235,11 @@ export class AICoachService {
     const metadataObj = {
       modelUsed: aiResult.modelUsed,
       toolsExecuted: aiResult.toolsExecuted.map((t) => t.toolName),
+      executedActions: aiResult.toolsExecuted.map((t) => ({
+        toolName: t.toolName,
+        message: t.result?.message || `Processed ${t.toolName}! ✨`,
+        success: t.result?.success !== false,
+      })),
       proposedGoal: aiResult.proposedGoal || null,
       tokensUsed: aiResult.tokensUsed || null,
     };
