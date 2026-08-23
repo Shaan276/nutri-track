@@ -117,12 +117,15 @@ export function AICoachClient() {
   const [selectedImageName, setSelectedImageName] = useState<string | null>(null);
 
   const recognitionRef = useRef<any>(null);
+  const shouldKeepListeningRef = useRef(false);
+  const baseTextRef = useRef("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const toggleListening = () => {
-    if (isListening) {
+    if (isListening || shouldKeepListeningRef.current) {
+      shouldKeepListeningRef.current = false;
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
@@ -143,38 +146,65 @@ export function AICoachClient() {
     }
 
     try {
+      baseTextRef.current = inputText.trim();
       const recognition = new SpeechRecognition();
-      recognition.continuous = false;
+      recognition.continuous = true;
       recognition.interimResults = true;
-      recognition.lang = "en-US";
+      recognition.lang = navigator.language || "en-US";
+      recognition.maxAlternatives = 1;
+
+      shouldKeepListeningRef.current = true;
 
       recognition.onstart = () => {
         setIsListening(true);
       };
 
       recognition.onresult = (event: any) => {
-        let transcript = "";
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          transcript += event.results[i][0].transcript;
+        let accumulated = "";
+        for (let i = 0; i < event.results.length; i++) {
+          accumulated += event.results[i][0].transcript + " ";
         }
-        if (transcript) {
-          setInputText((prev) => (prev ? `${prev.trim()} ${transcript}` : transcript));
-        }
+        const fullText = baseTextRef.current
+          ? `${baseTextRef.current} ${accumulated.trim()}`
+          : accumulated.trim();
+        setInputText(fullText);
       };
 
       recognition.onerror = (event: any) => {
         console.warn("Speech recognition notice:", event.error);
-        setIsListening(false);
+        if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+          shouldKeepListeningRef.current = false;
+          setIsListening(false);
+          alert("Microphone permission was denied. Please allow microphone access in your browser settings to use voice input.");
+        }
+        // Don't turn off for "no-speech" or momentary pauses
       };
 
       recognition.onend = () => {
-        setIsListening(false);
+        // If user hasn't explicitly stopped, restart continuous listening immediately
+        if (shouldKeepListeningRef.current) {
+          try {
+            recognition.start();
+          } catch {
+            // Handle browser cooldown if needed
+            setTimeout(() => {
+              if (shouldKeepListeningRef.current) {
+                try {
+                  recognition.start();
+                } catch {}
+              }
+            }, 250);
+          }
+        } else {
+          setIsListening(false);
+        }
       };
 
       recognitionRef.current = recognition;
       recognition.start();
     } catch (err) {
       console.error("Speech recognition init error:", err);
+      shouldKeepListeningRef.current = false;
       setIsListening(false);
     }
   };
@@ -419,7 +449,8 @@ export function AICoachClient() {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
-    if (isListening && recognitionRef.current) {
+    shouldKeepListeningRef.current = false;
+    if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
       } catch {}
