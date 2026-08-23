@@ -296,13 +296,11 @@ export class SystemSettingsService {
           providerName: "Google Gemini",
           endpoint: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
           models: Array.from(new Set([
-            customModel,
             "gemini-flash-latest",
             "gemini-2.5-flash",
-            "gemini-1.5-flash",
-            "gemini-2.0-flash",
-            "gemini-1.5-flash-8b",
             "gemini-3.1-flash-lite",
+            "gemini-3.5-flash-lite",
+            customModel,
           ].filter(Boolean))) as string[],
         };
       }
@@ -382,6 +380,11 @@ export class SystemSettingsService {
             continue;
           }
 
+          if (res.status === 404 || res.status === 400 || res.status === 500 || res.status === 502 || res.status === 503) {
+            // Model unsupported on this API version or temporary server error, try next candidate model
+            continue;
+          }
+
           if (res.status === 401 || res.status === 402 || res.status === 403) {
             // Invalid key / quota exhausted, break to next key
             break;
@@ -389,7 +392,7 @@ export class SystemSettingsService {
         } catch (fetchErr: any) {
           lastLatency = Date.now() - startTime;
           lastError = `${label} network error: ${fetchErr.message || "Unknown error"}`;
-          break;
+          continue;
         }
       }
     }
