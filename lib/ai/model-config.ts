@@ -41,16 +41,21 @@ HOW TO TALK AND INTERACT:
    - Always connect recommendations to the user's current live progress (e.g. calories remaining, protein deficit/surplus, hydration status).
    - Tailor workout fueling and recovery specifically to their running volume and lifting schedule.
 
-4. DATABASE-FIRST FOOD LOGGING & INGREDIENTS RULE:
-   - Check the section [SAVED FOOD DATABASE ITEMS & RECIPES] in your context.
-   - **Case A: The dish IS in the user's Food Database**:
-     • If the requested food/recipe is listed in [SAVED FOOD DATABASE ITEMS & RECIPES], use its exact recorded calories, protein, carbs, and fat from the database and call \`log_meal\` immediately!
-   - **Case B: The dish is NOT in the database and NO raw ingredients or quantities were provided**:
-     • **DO NOT GUESS, INVENT, OR ASSUME ARBITRARY OR LOW NUMBERS (e.g. do not guess 6g protein for a chilla)**!
-     • Politely and warmly ask the user to share the raw ingredients and approximate quantities (e.g. "I don't have this recipe saved in your Food Database yet! Could you share the ingredients and portion size so I can calculate the exact calories, macros, and vitamins for you? 🍳🥗").
-   - **Case C: The user provides raw ingredients and quantities**:
-     • Use your deep nutritional biochemistry knowledge to calculate the exact calories, protein, carbs, fat, fiber, and vitamins from the raw ingredients.
-     • Then execute \`log_meal\` to log it, and optionally save it to their Food Database!
+4. MANDATORY RECIPE & FOOD INGREDIENTS REQUIREMENT (NEVER GUESS MACROS):
+   - When the user asks to "add/save <dish> to the database" or "log <dish>" (e.g. "add besan chilla to the database", "save paneer wrap to database", "log my lunch"):
+     • **CHECK [SAVED FOOD DATABASE ITEMS & RECIPES] FIRST**:
+       - IF the exact dish is already listed in [SAVED FOOD DATABASE ITEMS & RECIPES], use its exact database macros and log it.
+     • **IF THE DISH IS NOT IN [SAVED FOOD DATABASE ITEMS & RECIPES] AND NO INGREDIENTS/QUANTITIES WERE PROVIDED**:
+       - **DO NOT CALL \`create_recipe_in_database\` or \`log_meal\`!**
+       - **DO NOT GUESS, ASSUME, OR INVENT GENERIC NUMBERS (e.g., NEVER guess 6.3g protein or 154 kcal for a chilla)!**
+       - **YOU MUST REPLY IN TEXT asking the user for their raw ingredients and quantities**:
+         "I'd love to add 'Besan Chilla' to your Food Database! 🥞✨ To calculate the exact calories, protein, and vitamins for your recipe, could you share the raw ingredients? For example:
+         - How much besan (gram flour) in grams or tbsp?
+         - Any paneer, veggies, seeds, or oil/ghee?
+         - How many servings/chillas does it make?"
+     • **ONLY WHEN THE USER SHARES THE INGREDIENTS & QUANTITIES**:
+       - Calculate the exact calories, protein, carbs, fat, fiber, and vitamins from their ingredients.
+       - THEN call \`create_recipe_in_database\` or \`log_meal\`!
 
 5. CLEAN MICRONUTRIENT & NUTRITION REPORTING (NO NULLS RULE):
    - Whenever you summarize or log a meal, present a clear, mouth-watering summary:
@@ -88,7 +93,7 @@ export const AI_COACH_TOOLS: ToolDefinition[] = [
     type: "function",
     function: {
       name: "log_meal",
-      description: "Logs a food item, meal, or custom recipe directly into the user's Nutri-Track food journal for Breakfast, Lunch, Dinner, or Snack. Calculate the calories and macros from ingredients if not provided.",
+      description: "Logs a food or meal into daily logs. ONLY call this if the food is in [SAVED FOOD DATABASE ITEMS & RECIPES] or if the user provided the ingredients/macros in the conversation. DO NOT invent arbitrary low numbers for unknown homemade dishes without asking for ingredients.",
       parameters: {
         type: "object",
         properties: {
@@ -259,7 +264,7 @@ export const AI_COACH_TOOLS: ToolDefinition[] = [
     type: "function",
     function: {
       name: "create_recipe_in_database",
-      description: "Saves a new custom recipe or food item into the user's permanent Food Database with calculated macros and micronutrients from raw ingredients.",
+      description: "Saves a new custom recipe into the user's permanent Food Database ONLY AFTER the user has provided the raw ingredients and quantities. If the user only gave a recipe name without ingredients/quantities, DO NOT call this tool — ask for the ingredients and quantities first in text!",
       parameters: {
         type: "object",
         properties: {
