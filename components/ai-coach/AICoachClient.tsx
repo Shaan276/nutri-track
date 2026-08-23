@@ -18,6 +18,10 @@ import {
   Brain,
   Calendar,
   Shuffle,
+  Mic,
+  MicOff,
+  Camera,
+  ImagePlus,
 } from "lucide-react";
 import { GoalConfirmationCard } from "./GoalConfirmationCard";
 import { LiveHealthSnapshotDrawer } from "./LiveHealthSnapshotDrawer";
@@ -107,8 +111,105 @@ export function AICoachClient() {
   const [isSnapshotLoading, setIsSnapshotLoading] = useState(false);
   const [isSnapshotOpenMobile, setIsSnapshotOpenMobile] = useState(false);
 
+  // Voice & Image Input States
+  const [isListening, setIsListening] = useState(false);
+  const [selectedImageBase64, setSelectedImageBase64] = useState<string | null>(null);
+  const [selectedImageName, setSelectedImageName] = useState<string | null>(null);
+
+  const recognitionRef = useRef<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const toggleListening = () => {
+    if (isListening) {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {}
+      }
+      setIsListening(false);
+      return;
+    }
+
+    if (typeof window === "undefined") return;
+
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      alert("Speech recognition is not supported in this browser. Please type your message.");
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = "en-US";
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event: any) => {
+        let transcript = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+        }
+        if (transcript) {
+          setInputText((prev) => (prev ? `${prev.trim()} ${transcript}` : transcript));
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.warn("Speech recognition notice:", event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (err) {
+      console.error("Speech recognition init error:", err);
+      setIsListening(false);
+    }
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("Please upload a valid image file (PNG, JPG, WEBP).");
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert("Image size should be under 10MB.");
+      return;
+    }
+
+    setSelectedImageName(file.name);
+
+    const reader = new FileReader();
+    reader.onload = (uploadEvent) => {
+      const result = uploadEvent.target?.result as string;
+      setSelectedImageBase64(result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleClearImage = () => {
+    setSelectedImageBase64(null);
+    setSelectedImageName(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
 
   const loadHealthSnapshot = async () => {
     try {
@@ -308,10 +409,22 @@ export function AICoachClient() {
 
   // 6. Send User Message
   const handleSendMessage = async (textToSend?: string) => {
+    const imageToSend = selectedImageBase64;
     const text = (textToSend || inputText).trim();
-    if (!text || isLoading) return;
+    if ((!text && !imageToSend) || isLoading) return;
 
     setInputText("");
+    setSelectedImageBase64(null);
+    setSelectedImageName(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+    if (isListening && recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {}
+      setIsListening(false);
+    }
     setErrorMessage(null);
 
     // Auto-resolve or create active conversation if not ready yet
@@ -334,7 +447,8 @@ export function AICoachClient() {
     const tempUserMsg: MessageItem = {
       id: `temp_${Date.now()}`,
       role: "user",
-      content: text,
+      content: text || "📸 [Attached Food Image for Nutrition Analysis]",
+      metadata: imageToSend ? { hasImage: true, imagePreview: imageToSend } : undefined,
       createdAt: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, tempUserMsg]);
@@ -344,7 +458,7 @@ export function AICoachClient() {
       try {
         localStorage.setItem(
           "nutritrack_pending_ai",
-          JSON.stringify({ convId: convIdToUse, text, sentAt: Date.now() })
+          JSON.stringify({ convId: convIdToUse, text: text || "Food photo", sentAt: Date.now() })
         );
       } catch {}
     }
@@ -356,6 +470,7 @@ export function AICoachClient() {
         body: JSON.stringify({
           conversationId: convIdToUse,
           message: text,
+          imageBase64: imageToSend,
         }),
       });
 
@@ -624,6 +739,12 @@ export function AICoachClient() {
                   )}
 
                   <div className={`space-y-2 max-w-[88%] sm:max-w-2xl ${isUser ? "items-end" : "items-start"}`}>
+                    {isUser && metadata?.imagePreview && (
+                      <div className="mb-2 max-w-xs overflow-hidden rounded-xl border border-emerald-500/40 shadow-sm ml-auto">
+                        <img src={metadata.imagePreview} alt="Logged meal photo" className="w-full h-auto object-cover max-h-48" />
+                      </div>
+                    )}
+
                     <div
                       className={`p-3.5 rounded-2xl text-xs sm:text-sm leading-relaxed shadow-sm ${
                         isUser
@@ -712,26 +833,94 @@ export function AICoachClient() {
 
         {/* Input Bar */}
         <div className="p-3 sm:p-4 bg-neutral-950 border-t border-neutral-800 shrink-0">
-          <div className="max-w-4xl mx-auto flex items-center gap-2 bg-neutral-900 border border-neutral-800 rounded-2xl p-1.5 focus-within:border-emerald-500/50 focus-within:ring-1 focus-within:ring-emerald-500/30 transition-all">
+          <div className="max-w-4xl mx-auto">
+            {/* Selected Image Preview Pill */}
+            {selectedImageBase64 && (
+              <div className="mb-2 flex items-center gap-2.5 p-2 bg-neutral-900 border border-emerald-500/40 rounded-xl max-w-sm shadow-md animate-fadeIn">
+                <img
+                  src={selectedImageBase64}
+                  alt="Meal preview"
+                  className="w-12 h-12 object-cover rounded-lg border border-neutral-700 shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-white truncate">{selectedImageName || "Meal Photo"}</p>
+                  <p className="text-[10px] text-emerald-400 flex items-center gap-1 font-medium">
+                    <Sparkles className="w-2.5 h-2.5" /> Food image attached for AI recognition
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleClearImage}
+                  className="p-1 rounded-md text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer"
+                  title="Remove image"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {/* Hidden File Input for Camera/Gallery */}
             <input
-              ref={inputRef}
-              type="text"
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask about your nutrition, workouts, running, or goals..."
-              disabled={isLoading}
-              className="flex-1 bg-transparent px-3 py-2 text-xs sm:text-sm text-white placeholder-neutral-500 focus:outline-none disabled:opacity-50"
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleImageSelect}
             />
 
-            <button
-              onClick={() => handleSendMessage()}
-              disabled={!inputText.trim() || isLoading}
-              className="p-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-semibold disabled:opacity-30 disabled:hover:bg-emerald-500 transition-colors"
-              title="Send message"
-            >
-              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            </button>
+            <div className="flex items-center gap-1.5 sm:gap-2 bg-neutral-900 border border-neutral-800 rounded-2xl p-1.5 focus-within:border-emerald-500/50 focus-within:ring-1 focus-within:ring-emerald-500/30 transition-all">
+              {/* Photo Scan Button */}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading}
+                className="p-2 text-neutral-400 hover:text-emerald-400 hover:bg-neutral-800 rounded-xl transition-colors disabled:opacity-40 cursor-pointer"
+                title="Upload or capture meal photo for nutrition recognition 📸"
+              >
+                <Camera className="w-4 h-4" />
+              </button>
+
+              {/* Speech-to-Text Mic Button */}
+              <button
+                type="button"
+                onClick={toggleListening}
+                disabled={isLoading}
+                className={`p-2 rounded-xl transition-all cursor-pointer ${
+                  isListening
+                    ? "bg-rose-500 text-white animate-pulse shadow-lg shadow-rose-500/40 ring-2 ring-rose-400"
+                    : "text-neutral-400 hover:text-emerald-400 hover:bg-neutral-800"
+                }`}
+                title={isListening ? "Listening to your voice... (Click to stop)" : "Voice speech-to-text input 🎙️"}
+              >
+                {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              </button>
+
+              <input
+                ref={inputRef}
+                type="text"
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={
+                  isListening
+                    ? "Listening... Speak your meal or question now"
+                    : selectedImageBase64
+                    ? "Add a note (e.g. 'Lunch at cafe') or hit send to scan photo..."
+                    : "Ask coach, log meal, or upload food photo..."
+                }
+                disabled={isLoading}
+                className="flex-1 bg-transparent px-2 sm:px-3 py-2 text-xs sm:text-sm text-white placeholder-neutral-500 focus:outline-none disabled:opacity-50 min-w-0"
+              />
+
+              <button
+                onClick={() => handleSendMessage()}
+                disabled={(!inputText.trim() && !selectedImageBase64) || isLoading}
+                className="p-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-semibold disabled:opacity-30 disabled:hover:bg-emerald-500 transition-colors cursor-pointer shrink-0"
+                title="Send message"
+              >
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
         </div>
       </div>

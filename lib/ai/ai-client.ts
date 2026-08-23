@@ -5,7 +5,7 @@ import { SystemSettingsService } from "@/lib/services/admin/system-settings.serv
 
 export interface ChatCompletionMessage {
   role: "system" | "user" | "assistant" | "tool";
-  content?: string | null;
+  content?: string | Array<{ type: string; text?: string; image_url?: { url: string } }> | null;
   name?: string;
   tool_calls?: Array<{
     id: string;
@@ -28,20 +28,39 @@ export interface AICoachResponse {
 
 export class AIClient {
   /**
-   * Executes a resilient chat completion with automatic 3-key fallback and tool loop
+   * Executes a resilient chat completion with automatic 3-key fallback, multimodal vision support, and tool loop
    */
   public static async generateCoachResponse(
     userContextPrompt: string,
     historyMessages: Array<{ role: string; content: string }>,
     latestUserMessage: string,
     context: ToolExecutionContext,
-    options: { modelOverride?: string; allowTools?: boolean } = {}
+    options: { modelOverride?: string; allowTools?: boolean; imageBase64?: string } = {}
   ): Promise<AICoachResponse> {
     const dbModel = await SystemSettingsService.getSetting("AI_MODEL", AI_MODEL_CONFIG.defaultModel);
     const selectedModel = options.modelOverride || dbModel;
     const allowTools = options.allowTools !== false;
     const toolsExecuted: Array<{ toolName: string; args: any; result: any }> = [];
     let proposedGoal: GoalProposalPayload | null = null;
+
+    const userMessageContent = options.imageBase64
+      ? [
+          {
+            type: "text",
+            text:
+              latestUserMessage ||
+              "Please analyze this meal photo! Identify all food items, calculate the exact total calories, protein, carbs, fat, fiber, and key micronutrients (Iron, Calcium, Potassium, Magnesium, Zinc, Vitamins), explain its Ayurvedic properties (Agni, Dosha balance), and log it to my daily nutrition tracker! 🥗✨",
+          },
+          {
+            type: "image_url",
+            image_url: {
+              url: options.imageBase64.startsWith("data:")
+                ? options.imageBase64
+                : `data:image/jpeg;base64,${options.imageBase64}`,
+            },
+          },
+        ]
+      : latestUserMessage;
 
     // Assemble messages payload
     const messages: ChatCompletionMessage[] = [
@@ -50,7 +69,7 @@ export class AIClient {
         role: m.role as any,
         content: m.content,
       })),
-      { role: "user", content: latestUserMessage },
+      { role: "user", content: userMessageContent as any },
     ];
 
     // Tool loop (up to 3 iterations for multi-step tool calls)
@@ -190,9 +209,18 @@ export class AIClient {
 
         for (let attempt = 0; attempt < maxRetries; attempt++) {
           try {
+            const payloadMessages = provider.providerName === "Groq"
+              ? messages.map((m) => ({
+                  ...m,
+                  content: Array.isArray(m.content)
+                    ? m.content.map((c) => c.text || "").filter(Boolean).join(" ") || "User shared a photo of their meal."
+                    : m.content,
+                }))
+              : messages;
+
             const bodyPayload: any = {
               model: currentModel,
-              messages,
+              messages: payloadMessages,
               temperature: AI_MODEL_CONFIG.temperature,
               max_tokens: AI_MODEL_CONFIG.maxOutputTokens,
             };
@@ -265,8 +293,8 @@ export class AIClient {
    * Deterministic local mock response generator for tests & offline environments
    */
   private static generateMockResponse(messages: ChatCompletionMessage[]): { content: string; tool_calls?: any[] } {
-    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user")?.content || "";
-    const systemPrompt = messages.find((m) => m.role === "system")?.content || "";
+    const rawUserMsg = [...messages].reverse().find((m) => m.role === "user")?.content;
+    const lastUserMsg = typeof rawUserMsg === "string" ? rawUserMsg : Array.isArray(rawUserMsg) ? (rawUserMsg.find((p) => p.type === "text")?.text || "") : "";
     const lower = lastUserMsg.toLowerCase();
 
     // Check if answering after tool response
@@ -274,7 +302,8 @@ export class AIClient {
     if (lastToolMsg?.role === "tool") {
       let parsedTool: any = {};
       try {
-        parsedTool = JSON.parse(lastToolMsg.content || "{}");
+        const toolContentStr = typeof lastToolMsg.content === "string" ? lastToolMsg.content : "{}";
+        parsedTool = JSON.parse(toolContentStr || "{}");
       } catch {}
 
       if (lastToolMsg.name === "propose_goal_update") {

@@ -13,10 +13,10 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { conversationId, message } = body;
+    const { conversationId, message, imageBase64 } = body;
 
-    if (!message || typeof message !== "string" || !message.trim()) {
-      return NextResponse.json({ error: "Message content is required" }, { status: 400 });
+    if ((!message || typeof message !== "string" || !message.trim()) && !imageBase64) {
+      return NextResponse.json({ error: "Message content or meal image is required" }, { status: 400 });
     }
 
     let targetConvId = conversationId;
@@ -27,7 +27,8 @@ export async function POST(req: NextRequest) {
     const result = await AICoachService.processMessage(
       session.user.id,
       targetConvId,
-      message.trim()
+      (message || "").trim(),
+      imageBase64
     );
 
     return NextResponse.json({

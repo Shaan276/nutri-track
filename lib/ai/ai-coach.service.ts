@@ -162,15 +162,17 @@ export class AICoachService {
   static async processMessage(
     userId: string,
     conversationId: string,
-    messageText: string
+    messageText: string,
+    imageBase64?: string
   ): Promise<{
     userMessage: any;
     assistantMessage: any;
     proposedGoal?: any;
     conversationTitle?: string;
   }> {
-    const cleanText = messageText.trim();
-    if (!cleanText) throw new Error("Message cannot be empty");
+    const cleanText = (messageText || "").trim();
+    const promptText = cleanText || (imageBase64 ? "📸 [Attached Food Image for Nutrition Analysis]" : "");
+    if (!promptText) throw new Error("Message or food image cannot be empty");
 
     // 1. Verify conversation ownership
     const conv = await (prisma as any).aiConversation.findUnique({
@@ -191,22 +193,26 @@ export class AICoachService {
       data: {
         conversationId,
         role: "user",
-        content: cleanText,
+        content: promptText,
+        metadata: imageBase64 ? JSON.stringify({ hasImage: true }) : null,
       },
     });
 
     // 3. Auto-detect user preferences and save to memory in background
-    AIMemoryService.autoCapturePreferences(userId, cleanText).catch(() => {});
+    if (cleanText) {
+      AIMemoryService.autoCapturePreferences(userId, cleanText).catch(() => {});
+    }
 
     // 4. Build 4-layer personalized context grounded in PostgreSQL
-    const assembled = await AIContextBuilder.buildContext(userId, conversationId, cleanText);
+    const assembled = await AIContextBuilder.buildContext(userId, conversationId, promptText);
 
-    // 5. Generate AI Coach Response with key rotation & tool calling
+    // 5. Generate AI Coach Response with key rotation, multimodal vision, & tool calling
     const aiResult: AICoachResponse = await AIClient.generateCoachResponse(
       assembled.systemPrompt,
       assembled.recentMessages,
-      cleanText,
-      { userId }
+      promptText,
+      { userId },
+      { imageBase64 }
     );
 
     // 6. Save assistant message with metadata

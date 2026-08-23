@@ -121,6 +121,42 @@ export const AI_COACH_TOOLS: ToolDefinition[] = [
             type: "number",
             description: "Dietary fiber in grams (optional, default: 0).",
           },
+          iron: {
+            type: "number",
+            description: "Iron in mg (e.g. 3.5).",
+          },
+          calcium: {
+            type: "number",
+            description: "Calcium in mg (e.g. 180).",
+          },
+          potassium: {
+            type: "number",
+            description: "Potassium in mg (e.g. 450).",
+          },
+          magnesium: {
+            type: "number",
+            description: "Magnesium in mg (e.g. 75).",
+          },
+          zinc: {
+            type: "number",
+            description: "Zinc in mg (e.g. 2.0).",
+          },
+          vitaminC: {
+            type: "number",
+            description: "Vitamin C in mg (e.g. 15).",
+          },
+          vitaminA: {
+            type: "number",
+            description: "Vitamin A in mcg (e.g. 120).",
+          },
+          vitaminB12: {
+            type: "number",
+            description: "Vitamin B12 in mcg (e.g. 1.2).",
+          },
+          vitaminD: {
+            type: "number",
+            description: "Vitamin D in IU/mcg (e.g. 5).",
+          },
           quantity: {
             type: "number",
             description: "Serving quantity (default: 1).",

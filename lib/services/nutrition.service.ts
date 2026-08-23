@@ -296,17 +296,36 @@ export class NutritionService {
         const rawCat = String((customFood as any)?.category || "").toUpperCase();
         const safeCategory = validCategories.includes(rawCat) ? (rawCat as any) : "OTHER";
 
+        const effectiveServingSize = Number(customFood.servingSize) || Number(quantity) || 1;
+        const effectiveServingUnit = customFood.servingUnit || quantityUnit || "serving";
+
         targetFood = await prisma.food.create({
           data: {
             userId,
             name: customFood.name.trim(),
             category: safeCategory,
-            servingSize: 100,
-            servingUnit: "g",
+            servingSize: effectiveServingSize,
+            servingUnit: effectiveServingUnit,
             calories: Math.round(calcCal * 10) / 10,
             protein: Math.round(calcProt * 10) / 10,
             carbohydrates: Math.round(calcCarb * 10) / 10,
             fat: Math.round(calcFat * 10) / 10,
+            fiber: Number((customFood as any).fiber || 0),
+            sugar: Number((customFood as any).sugar || 0),
+            // Micronutrients & Minerals
+            iron: (customFood as any).iron !== undefined ? Number((customFood as any).iron) : null,
+            calcium: (customFood as any).calcium !== undefined ? Number((customFood as any).calcium) : null,
+            potassium: (customFood as any).potassium !== undefined ? Number((customFood as any).potassium) : null,
+            magnesium: (customFood as any).magnesium !== undefined ? Number((customFood as any).magnesium) : null,
+            zinc: (customFood as any).zinc !== undefined ? Number((customFood as any).zinc) : null,
+            sodium: (customFood as any).sodium !== undefined ? Number((customFood as any).sodium) : null,
+            // Vitamins
+            vitaminA: (customFood as any).vitaminA !== undefined ? Number((customFood as any).vitaminA) : null,
+            vitaminC: (customFood as any).vitaminC !== undefined ? Number((customFood as any).vitaminC) : null,
+            vitaminD: (customFood as any).vitaminD !== undefined ? Number((customFood as any).vitaminD) : null,
+            vitaminE: (customFood as any).vitaminE !== undefined ? Number((customFood as any).vitaminE) : null,
+            vitaminB12: (customFood as any).vitaminB12 !== undefined ? Number((customFood as any).vitaminB12) : null,
+            vitaminB6: (customFood as any).vitaminB6 !== undefined ? Number((customFood as any).vitaminB6) : null,
             isSystemFood: false,
           },
         });
@@ -318,10 +337,23 @@ export class NutritionService {
     }
 
     // 2. Compute nutrition snapshot
+    const allIngredients = customFood?.ingredients || ingredients || [];
     let snapshot = this.calculateNutritionSnapshot(targetFood, quantity);
 
+    // If explicit custom food values were passed and matched the portion, preserve exact calculated numbers
+    if (customFood && !allIngredients.length && customFood.calories !== undefined) {
+      const mult = quantity && Number(targetFood.servingSize) > 0 ? quantity / Number(targetFood.servingSize) : 1;
+      snapshot = {
+        calculatedCalories: Math.round(Number(customFood.calories) * mult * 10) / 10,
+        calculatedProtein: Math.round(Number(customFood.protein || 0) * mult * 10) / 10,
+        calculatedCarbs: Math.round(Number(customFood.carbs || 0) * mult * 10) / 10,
+        calculatedFat: Math.round(Number(customFood.fat || 0) * mult * 10) / 10,
+        calculatedFiber: Math.round(Number((customFood as any).fiber || 0) * mult * 10) / 10,
+        calculatedSugar: Math.round(Number((customFood as any).sugar || 0) * mult * 10) / 10,
+      };
+    }
+
     // If explicit macro breakdown with ingredients was submitted, use exact calculation
-    const allIngredients = customFood?.ingredients || ingredients || [];
     if (allIngredients.length > 0) {
       let totCal = 0;
       let totProt = 0;
