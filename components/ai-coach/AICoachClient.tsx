@@ -132,7 +132,7 @@ export function AICoachClient() {
   const baseTextRef = useRef("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const isSendingRef = useRef(false);
 
@@ -480,6 +480,9 @@ export function AICoachClient() {
 
     isSendingRef.current = true;
     setInputText("");
+    if (inputRef.current) {
+      inputRef.current.style.height = "auto";
+    }
     setSelectedImageBase64(null);
     setSelectedImageName(null);
     if (fileInputRef.current) {
@@ -601,10 +604,18 @@ export function AICoachClient() {
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInputText(e.target.value);
+    if (inputRef.current) {
+      inputRef.current.style.height = "auto";
+      inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 160)}px`;
     }
   };
 
@@ -987,21 +998,21 @@ export function AICoachClient() {
                 {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
               </button>
 
-              <input
+              <textarea
                 ref={inputRef}
-                type="text"
+                rows={1}
                 value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
+                onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 placeholder={
                   isListening
                     ? "Listening... Speak your meal or question now"
                     : selectedImageBase64
                     ? "Add a note (e.g. 'Lunch at cafe') or hit send to scan photo..."
-                    : "Ask coach, log meal, or upload food photo..."
+                    : "Ask coach, log meal, or upload food photo... (Shift+Enter for new line)"
                 }
                 disabled={isLoading}
-                className="flex-1 bg-transparent px-2 sm:px-3 py-2 text-xs sm:text-sm text-white placeholder-neutral-500 focus:outline-none disabled:opacity-50 min-w-0"
+                className="flex-1 bg-transparent px-2 sm:px-3 py-2 text-xs sm:text-sm text-white placeholder-neutral-500 focus:outline-none disabled:opacity-50 min-w-0 resize-none max-h-36 overflow-y-auto leading-relaxed"
               />
 
               {isLoading ? (

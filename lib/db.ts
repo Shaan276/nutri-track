@@ -2170,7 +2170,7 @@ const postgresDbClient = {
     },
   },
   food: {
-    findMany: async ({ where }: { where?: any; orderBy?: any }) => {
+    findMany: async ({ where, orderBy }: { where?: any; orderBy?: any } = {}) => {
       const pool = await getPool();
       let query = "SELECT * FROM foods WHERE 1=1";
       const params: any[] = [];
@@ -2901,7 +2901,7 @@ const postgresDbClient = {
     },
   },
   mealEntry: {
-    findMany: async ({ where, include }: { where?: any; include?: any }) => {
+    findMany: async ({ where, include }: { where?: any; include?: any } = {}) => {
       const pool = await getPool();
       let query = "SELECT * FROM meal_entries WHERE 1=1";
       const params: any[] = [];
@@ -3053,6 +3053,22 @@ const postgresDbClient = {
       await pool.query("DELETE FROM meal_entries WHERE id = $1", [where.id]);
       await syncToDisk();
       return existing;
+    },
+    deleteMany: async ({ where }: { where?: any } = {}) => {
+      const pool = await getPool();
+      let query = "DELETE FROM meal_entries WHERE 1=1";
+      const params: any[] = [];
+      if (where?.mealLogId) {
+        params.push(where.mealLogId);
+        query += ` AND meal_log_id = $${params.length}`;
+      }
+      if (where?.foodId) {
+        params.push(where.foodId);
+        query += ` AND food_id = $${params.length}`;
+      }
+      const res = await pool.query(query, params);
+      await syncToDisk();
+      return { count: res.rowCount || 0 };
     },
   },
   hydrationLog: {

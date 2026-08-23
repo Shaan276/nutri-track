@@ -108,6 +108,26 @@ export class AIContextBuilder {
 • Hydration Target: ${snapshot.hydration.targetMl} ml/day | Step Target: ${snapshot.movement.dailyStepTarget.toLocaleString()} steps/day | Running: ${snapshot.movement.weeklyRunningTargetKm} km/week | Workouts: ${snapshot.workouts.weeklyWorkoutTarget} sessions/week
 `;
 
+    // --- Layer 3.5: User's Food Database Items & Custom Recipes ---
+    const userFoods = await prisma.food.findMany({
+      where: {
+        OR: [{ userId }, { isSystemFood: true }],
+        isArchived: false,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    let foodDbContext = "";
+    if (userFoods.length > 0) {
+      foodDbContext = `\n[SAVED FOOD DATABASE ITEMS & RECIPES (Use these exact macros when logging)]:\n${userFoods
+        .slice(0, 40)
+        .map(
+          (f: any) =>
+            `• "${f.name}" (${f.servingSize} ${f.servingUnit}): ${f.calories} kcal, ${f.protein}g protein, ${f.carbohydrates}g carbs, ${f.fat}g fat`
+        )
+        .join("\n")}\n`;
+    }
+
     // --- Layer 4: Live Dynamic Health Snapshot (Relevance-Driven) ---
     let liveDataContext = "\n[LIVE HEALTH DATA SNAPSHOT]:";
 
@@ -174,7 +194,7 @@ ${activePlan.items.map((i) => `  - [${i.date}] (${i.category}) ${i.title}: ${i.i
       } catch {}
     }
 
-    const systemPrompt = `${rulesPrompt}\n${profileContext}${memoryContext}${liveDataContext}`;
+    const systemPrompt = `${rulesPrompt}\n${profileContext}${memoryContext}${foodDbContext}${liveDataContext}`;
 
     return {
       systemPrompt,
