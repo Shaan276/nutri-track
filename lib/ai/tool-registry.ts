@@ -538,9 +538,13 @@ export class AIToolRegistry {
         if (activityLevel) changes.push(`Activity: ${updated.profile.activityLevel}`);
         if (primaryGoal) changes.push(`Goal: ${updated.profile.primaryGoal}`);
 
+        const metabolicSuffix = updated.metabolic
+          ? ` (New BMR: ${updated.metabolic.bmr} kcal, TDEE: ${updated.metabolic.tdee} kcal/day).`
+          : ".";
+
         return {
           success: true,
-          message: `Done — I've updated your profile! ⚖️✨ ${changes.join(" | ")} (New BMR: ${updated.metabolic.bmr} kcal, TDEE: ${updated.metabolic.tdee} kcal/day).`,
+          message: `Done — I've updated your profile! ⚖️✨ ${changes.join(" | ")}${metabolicSuffix}`,
           updatedProfile: updated.profile,
           metabolic: updated.metabolic,
         };
@@ -554,9 +558,10 @@ export class AIToolRegistry {
         const updated = await UserSettingsService.updateUserSettings(userId, {
           profile: { weightKg: Number(weightKg) },
         });
+        const tdeeSuffix = updated.metabolic ? ` (Updated TDEE: ${updated.metabolic.tdee} kcal/day).` : "!";
         return {
           success: true,
-          message: `Done — I've updated your weight to ${updated.profile.weightKg} kg! ⚖️✨ (Updated TDEE: ${updated.metabolic.tdee} kcal/day).`,
+          message: `Done — I've updated your weight to ${updated.profile.weightKg} kg! ⚖️✨${tdeeSuffix}`,
           weightKg: updated.profile.weightKg,
           metabolic: updated.metabolic,
         };
@@ -620,7 +625,7 @@ export class AIToolRegistry {
         if (effectiveCarbs !== undefined) targetBullets.push(`Carbs: ${updated.nutritionGoals.carbohydrates}g`);
         if (effectiveFat !== undefined) targetBullets.push(`Fats: ${updated.nutritionGoals.fat}g`);
         if (effectiveHydration !== undefined) targetBullets.push(`Water: ${updated.profile.dailyHydrationTargetMl}ml`);
-        if (effectiveSteps !== undefined) targetBullets.push(`Steps: ${updated.profile.dailyStepTarget.toLocaleString()}/day`);
+        if (effectiveSteps !== undefined) targetBullets.push(`Steps: ${updated.profile.dailyStepTarget?.toLocaleString() ?? effectiveSteps}/day`);
         if (primaryGoal) targetBullets.push(`Primary Goal: ${updated.profile.primaryGoal}`);
 
         return {
@@ -994,10 +999,12 @@ export class AIToolRegistry {
             activityLevel: settings.profile.activityLevel,
             primaryGoal: settings.profile.primaryGoal,
           },
-          metabolic: {
-            bmrKcal: settings.metabolic.bmr,
-            tdeeKcal: settings.metabolic.tdee,
-          },
+          metabolic: settings.metabolic
+            ? {
+                bmrKcal: settings.metabolic.bmr,
+                tdeeKcal: settings.metabolic.tdee,
+              }
+            : null,
           nutritionGoals: settings.nutritionGoals,
           fitnessGoals: {
             dailyHydrationMl: settings.profile.dailyHydrationTargetMl,
@@ -1013,16 +1020,16 @@ export class AIToolRegistry {
         const settings = await UserSettingsService.getUserSettings(userId);
 
         const targetLabels: Record<string, { label: string; unit: string; current: number }> = {
-          calories: { label: "Daily Calories", unit: "kcal", current: settings.nutritionGoals.calories },
-          protein: { label: "Protein Target", unit: "g", current: settings.nutritionGoals.protein },
-          carbohydrates: { label: "Carbohydrates Target", unit: "g", current: settings.nutritionGoals.carbohydrates },
-          fat: { label: "Fat Target", unit: "g", current: settings.nutritionGoals.fat },
-          fiber: { label: "Fiber Target", unit: "g", current: settings.nutritionGoals.fiber },
-          sugar: { label: "Sugar Max", unit: "g", current: settings.nutritionGoals.sugar },
-          dailyHydrationTargetMl: { label: "Daily Hydration", unit: "ml", current: settings.profile.dailyHydrationTargetMl },
-          dailyStepTarget: { label: "Daily Step Target", unit: "steps", current: settings.profile.dailyStepTarget },
-          weeklyRunningDistanceKm: { label: "Weekly Running Distance", unit: "km", current: settings.profile.weeklyRunningDistanceKm },
-          weeklyWorkoutSessions: { label: "Weekly Workout Sessions", unit: "sessions", current: settings.profile.weeklyWorkoutSessions },
+          calories: { label: "Daily Calories", unit: "kcal", current: settings.nutritionGoals.calories ?? 0 },
+          protein: { label: "Protein Target", unit: "g", current: settings.nutritionGoals.protein ?? 0 },
+          carbohydrates: { label: "Carbohydrates Target", unit: "g", current: settings.nutritionGoals.carbohydrates ?? 0 },
+          fat: { label: "Fat Target", unit: "g", current: settings.nutritionGoals.fat ?? 0 },
+          fiber: { label: "Fiber Target", unit: "g", current: settings.nutritionGoals.fiber ?? 0 },
+          sugar: { label: "Sugar Max", unit: "g", current: settings.nutritionGoals.sugar ?? 0 },
+          dailyHydrationTargetMl: { label: "Daily Hydration", unit: "ml", current: settings.profile.dailyHydrationTargetMl ?? 0 },
+          dailyStepTarget: { label: "Daily Step Target", unit: "steps", current: settings.profile.dailyStepTarget ?? 0 },
+          weeklyRunningDistanceKm: { label: "Weekly Running Distance", unit: "km", current: settings.profile.weeklyRunningDistanceKm ?? 0 },
+          weeklyWorkoutSessions: { label: "Weekly Workout Sessions", unit: "sessions", current: settings.profile.weeklyWorkoutSessions ?? 0 },
         };
 
         const targetInfo = targetLabels[targetKey] || { label: targetKey, unit: "", current: 0 };
@@ -1089,10 +1096,22 @@ export class AIToolRegistry {
         const { exerciseType = "RUNNING", durationMinutes = 30, intensity = "MODERATE", distanceKm } = args;
 
         const profile = await prisma.userProfile.findUnique({ where: { userId } });
-        const weightKg = profile?.weightKg || 70; // fallback to standard 70kg if missing
+        const weightKg = Number(args.weightKg) || (profile?.weightKg ? Number(profile.weightKg) : null);
 
         const typeTable = MET_TABLE[exerciseType] || MET_TABLE.OTHER;
         const met = typeTable[intensity] || typeTable.MODERATE || 7.0;
+
+        if (!weightKg) {
+          return {
+            isEstimate: true,
+            message: "Body weight is required to calculate accurate exercise calorie expenditure using MET science. Please share your current weight (kg) or update your profile biometrics! ⚖️🏃‍♂️",
+            weightKgUsed: null,
+            estimatedCaloriesMin: 0,
+            estimatedCaloriesMax: 0,
+            formattedRange: "Weight needed for calculation",
+            disclaimer: "Caloric expenditure is directly proportional to body weight.",
+          };
+        }
 
         // Formula: Calories = MET * Weight(kg) * Duration(hours)
         const durationHours = durationMinutes / 60;

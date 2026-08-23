@@ -183,7 +183,7 @@ export function LiveHealthSnapshotDrawer({
             <div className="text-sm font-bold text-white">
               {nutrition.caloriesConsumed.toLocaleString()}{" "}
               <span className="text-neutral-400 font-normal text-xs">
-                / {nutrition.calorieTarget.toLocaleString()} kcal
+                / {nutrition.calorieTarget ? `${nutrition.calorieTarget.toLocaleString()} kcal` : "Pending Setup"}
               </span>
             </div>
 
@@ -192,7 +192,7 @@ export function LiveHealthSnapshotDrawer({
               <div className="flex justify-between text-[11px] text-neutral-400 mb-1">
                 <span>Protein</span>
                 <span className="text-neutral-200 font-medium">
-                  {nutrition.proteinConsumed} / {nutrition.proteinTarget}g
+                  {nutrition.proteinConsumed}g {nutrition.proteinTarget ? `/ ${nutrition.proteinTarget}g` : ""}
                 </span>
               </div>
               <div className="w-full h-1.5 bg-neutral-800 rounded-full overflow-hidden">
@@ -201,7 +201,7 @@ export function LiveHealthSnapshotDrawer({
                   style={{
                     width: `${Math.min(
                       100,
-                      Math.round((nutrition.proteinConsumed / (nutrition.proteinTarget || 1)) * 100)
+                      Math.round((nutrition.proteinConsumed / (nutrition.proteinTarget || 120)) * 100)
                     )}%`,
                   }}
                 />
@@ -359,19 +359,27 @@ export function LiveHealthSnapshotDrawer({
             <div className="grid grid-cols-2 gap-2 text-[11px]">
               <div className="p-2 rounded bg-neutral-950/70 border border-neutral-800/60">
                 <div className="text-[10px] text-neutral-500">BMR</div>
-                <div className="font-bold text-white">{profile.bmr} kcal</div>
+                <div className="font-bold text-white">{profile.bmr ? `${profile.bmr} kcal` : "Pending"}</div>
               </div>
               <div className="p-2 rounded bg-neutral-950/70 border border-neutral-800/60">
                 <div className="text-[10px] text-neutral-500">TDEE</div>
-                <div className="font-bold text-emerald-400">{profile.tdee} kcal</div>
+                <div className="font-bold text-emerald-400">{profile.tdee ? `${profile.tdee} kcal` : "Pending"}</div>
               </div>
             </div>
 
             <div className="text-[10px] text-neutral-400 space-y-1 pt-1 border-t border-neutral-800">
               <div>
+                • Profile:{" "}
+                <span className="text-neutral-200">
+                  {profile.heightCm && profile.weightKg
+                    ? `${profile.heightCm} cm / ${profile.weightKg} kg`
+                    : "Biometrics pending"}
+                </span>
+              </div>
+              <div>
                 • Goal:{" "}
                 <span className="text-neutral-200 capitalize">
-                  {profile.primaryGoal?.toLowerCase()?.replace("_", " ") || "Maintain"}
+                  {profile.primaryGoal?.toLowerCase()?.replace("_", " ") || "Pending Setup"}
                 </span>
               </div>
               <div>

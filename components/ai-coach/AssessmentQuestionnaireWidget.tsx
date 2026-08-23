@@ -22,6 +22,12 @@ interface AssessmentQuestionnaireWidgetProps {
 export function AssessmentQuestionnaireWidget({ onSubmitAnswers }: AssessmentQuestionnaireWidgetProps) {
   const [isOpen, setIsOpen] = useState(true);
 
+  // Biometrics (Optional for initial entry / update)
+  const [heightCm, setHeightCm] = useState<string>("");
+  const [weightKg, setWeightKg] = useState<string>("");
+  const [age, setAge] = useState<string>("");
+  const [biologicalSex, setBiologicalSex] = useState<string>("MALE");
+
   const [primaryGoal, setPrimaryGoal] = useState<string>("FAT_LOSS");
   const [specificTarget, setSpecificTarget] = useState<string>("");
   const [livingSituation, setLivingSituation] = useState<string>("WITH_FAMILY");
@@ -56,18 +62,19 @@ export function AssessmentQuestionnaireWidget({ onSubmitAnswers }: AssessmentQue
       STRENGTH: "Strength & Powerlifting",
     };
 
-    const textPayload = `Here are my comprehensive health assessment answers: 📋✨
-
-1. 🎯 **Primary Goal**: ${goalFormatted[primaryGoal] || primaryGoal}
-${specificTarget ? `2. 📏 **Specific Target & Timeline**: ${specificTarget}` : ""}
-3. 🏠 **Living Situation**: ${livingFormatted[livingSituation] || livingSituation}
-4. 🕒 **Daily Routine**: ${dailyRoutine}
-5. 🥗 **Dietary Style & Cooking**: ${dietaryStyle}, prepared by ${whoCooks}
-6. 💤 **Sleep & Recovery**: ${sleepHours}
-7. 🏃‍♂️ **Training Priorities**: ${trainingTypes.join(", ") || "General Fitness"}
-${constraints ? `8. ⚠️ **Important Constraints**: ${constraints}` : ""}
-
-Please analyze these answers alongside my biometric profile, calculate my optimal daily calories, protein, carbs, fats, fiber, and water targets, and propose my personalized blueprint! 🎯🚀`;
+    let textPayload = `Here are my comprehensive health assessment answers: 📋✨\n\n`;
+    if (heightCm || weightKg) {
+      textPayload += `0. 📏 **Biometrics**: ${heightCm ? `${heightCm} cm` : "Height not specified"}${weightKg ? ` | ${weightKg} kg` : ""}${age ? ` | ${age} yrs` : ""}${biologicalSex ? ` | ${biologicalSex}` : ""}\n`;
+    }
+    textPayload += `1. 🎯 **Primary Goal**: ${goalFormatted[primaryGoal] || primaryGoal}\n`;
+    if (specificTarget) textPayload += `2. 📏 **Specific Target & Timeline**: ${specificTarget}\n`;
+    textPayload += `3. 🏠 **Living Situation**: ${livingFormatted[livingSituation] || livingSituation}\n`;
+    textPayload += `4. 🕒 **Daily Routine**: ${dailyRoutine}\n`;
+    textPayload += `5. 🥗 **Dietary Style & Cooking**: ${dietaryStyle}, prepared by ${whoCooks}\n`;
+    textPayload += `6. 💤 **Sleep & Recovery**: ${sleepHours}\n`;
+    textPayload += `7. 🏃‍♂️ **Training Priorities**: ${trainingTypes.join(", ") || "General Fitness"}\n`;
+    if (constraints) textPayload += `8. ⚠️ **Important Constraints**: ${constraints}\n`;
+    textPayload += `\nPlease analyze these answers alongside my biometric profile, calculate my optimal daily calories, protein, carbs, fats, fiber, and water targets, and propose my personalized blueprint! 🎯🚀`;
 
     onSubmitAnswers(textPayload);
   };
@@ -100,6 +107,56 @@ Please analyze these answers alongside my biometric profile, calculate my optima
 
       {isOpen && (
         <form onSubmit={handleSubmit} className="space-y-4 pt-2 border-t border-neutral-800 text-xs">
+          {/* Optional Biometrics Entry Section */}
+          <div className="bg-neutral-950/60 border border-neutral-800/80 rounded-2xl p-3 space-y-2">
+            <label className="font-bold text-neutral-300 flex items-center gap-1.5">
+              <span>📏 Physical Biometrics (Enter or Update)</span>
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div>
+                <span className="text-[10px] text-neutral-400 block mb-1">Height (cm)</span>
+                <input
+                  type="number"
+                  placeholder="e.g. 175"
+                  value={heightCm}
+                  onChange={(e) => setHeightCm(e.target.value)}
+                  className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5 text-white placeholder:text-neutral-600 outline-none focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <span className="text-[10px] text-neutral-400 block mb-1">Weight (kg)</span>
+                <input
+                  type="number"
+                  placeholder="e.g. 70"
+                  value={weightKg}
+                  onChange={(e) => setWeightKg(e.target.value)}
+                  className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5 text-white placeholder:text-neutral-600 outline-none focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <span className="text-[10px] text-neutral-400 block mb-1">Age</span>
+                <input
+                  type="number"
+                  placeholder="e.g. 26"
+                  value={age}
+                  onChange={(e) => setAge(e.target.value)}
+                  className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5 text-white placeholder:text-neutral-600 outline-none focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <span className="text-[10px] text-neutral-400 block mb-1">Biological Sex</span>
+                <select
+                  value={biologicalSex}
+                  onChange={(e) => setBiologicalSex(e.target.value)}
+                  className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-2 py-1.5 text-white outline-none focus:border-emerald-500"
+                >
+                  <option value="MALE">Male</option>
+                  <option value="FEMALE">Female</option>
+                  <option value="OTHER">Other</option>
+                </select>
+              </div>
+            </div>
+          </div>
           {/* 1. Primary Goal */}
           <div className="space-y-1.5">
             <label className="font-bold text-neutral-300 flex items-center gap-1.5">

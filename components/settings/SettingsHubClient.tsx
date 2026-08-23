@@ -39,6 +39,7 @@ import {
   PrimaryGoal,
   primaryGoalDisplayNames,
   calculateMetabolicTargets,
+  calculateAge,
 } from "@/lib/validations/settings";
 import {
   UserGranularPrivacyDto,
@@ -62,32 +63,45 @@ const activityDescriptions: Record<ActivityLevel, string> = {
   EXTREMELY_ACTIVE: "Very hard training, physical job or 2x/day (1.9x)",
 };
 
+interface ProfileFormData {
+  dateOfBirth: string;
+  biologicalSex: BiologicalSex;
+  heightCm: number | string;
+  weightKg: number | string;
+  activityLevel: ActivityLevel;
+  primaryGoal: PrimaryGoal;
+  dailyHydrationTargetMl: number;
+  dailyStepTarget: number;
+  weeklyRunningDistanceKm: number;
+  weeklyWorkoutSessions: number;
+}
+
 export function SettingsHubClient({ initialSettings }: SettingsHubClientProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("PROFILE");
   const [isPending, startTransition] = useTransition();
 
   // Profile Form State
-  const [profileData, setProfileData] = useState({
-    dateOfBirth: initialSettings.profile.dateOfBirth,
-    biologicalSex: initialSettings.profile.biologicalSex as BiologicalSex,
-    heightCm: initialSettings.profile.heightCm,
-    weightKg: initialSettings.profile.weightKg,
-    activityLevel: initialSettings.profile.activityLevel as ActivityLevel,
-    primaryGoal: initialSettings.profile.primaryGoal as PrimaryGoal,
-    dailyHydrationTargetMl: initialSettings.profile.dailyHydrationTargetMl,
-    dailyStepTarget: initialSettings.profile.dailyStepTarget,
-    weeklyRunningDistanceKm: initialSettings.profile.weeklyRunningDistanceKm,
-    weeklyWorkoutSessions: initialSettings.profile.weeklyWorkoutSessions,
+  const [profileData, setProfileData] = useState<ProfileFormData>({
+    dateOfBirth: initialSettings.profile?.dateOfBirth || "",
+    biologicalSex: (initialSettings.profile?.biologicalSex as BiologicalSex) || "MALE",
+    heightCm: initialSettings.profile?.heightCm !== null && initialSettings.profile?.heightCm !== undefined ? initialSettings.profile.heightCm : "",
+    weightKg: initialSettings.profile?.weightKg !== null && initialSettings.profile?.weightKg !== undefined ? initialSettings.profile.weightKg : "",
+    activityLevel: (initialSettings.profile?.activityLevel as ActivityLevel) || "MODERATELY_ACTIVE",
+    primaryGoal: (initialSettings.profile?.primaryGoal as PrimaryGoal) || "MAINTAIN",
+    dailyHydrationTargetMl: initialSettings.profile?.dailyHydrationTargetMl || 2500,
+    dailyStepTarget: initialSettings.profile?.dailyStepTarget || 10000,
+    weeklyRunningDistanceKm: initialSettings.profile?.weeklyRunningDistanceKm || 15.0,
+    weeklyWorkoutSessions: initialSettings.profile?.weeklyWorkoutSessions || 3,
   });
 
   // Nutrition Goals Form State
   const [nutritionGoals, setNutritionGoals] = useState({
-    calories: initialSettings.nutritionGoals.calories,
-    protein: initialSettings.nutritionGoals.protein,
-    carbohydrates: initialSettings.nutritionGoals.carbohydrates,
-    fat: initialSettings.nutritionGoals.fat,
-    fiber: initialSettings.nutritionGoals.fiber,
-    sugar: initialSettings.nutritionGoals.sugar,
+    calories: initialSettings.nutritionGoals?.calories || 2000,
+    protein: initialSettings.nutritionGoals?.protein || 120,
+    carbohydrates: initialSettings.nutritionGoals?.carbohydrates || 250,
+    fat: initialSettings.nutritionGoals?.fat || 65,
+    fiber: initialSettings.nutritionGoals?.fiber || 30,
+    sugar: initialSettings.nutritionGoals?.sugar || 35,
   });
 
   // Notification Preferences State
@@ -159,14 +173,32 @@ export function SettingsHubClient({ initialSettings }: SettingsHubClientProps) {
   const [success, setSuccess] = useState<string | null>(null);
 
   // Real-time live metabolic calculation based on current form inputs
-  const liveMetabolic = calculateMetabolicTargets(
-    profileData.weightKg,
-    profileData.heightCm,
-    profileData.biologicalSex,
-    profileData.dateOfBirth,
-    profileData.activityLevel,
-    profileData.primaryGoal
-  );
+  const numWeight = Number(profileData.weightKg);
+  const numHeight = Number(profileData.heightCm);
+  const hasValidBiometrics = numWeight > 0 && numHeight > 0 && Boolean(profileData.dateOfBirth);
+
+  const liveMetabolic = hasValidBiometrics
+    ? calculateMetabolicTargets(
+        numWeight,
+        numHeight,
+        profileData.biologicalSex,
+        profileData.dateOfBirth,
+        profileData.activityLevel,
+        profileData.primaryGoal
+      )
+    : {
+        ageYears: profileData.dateOfBirth ? calculateAge(profileData.dateOfBirth) : 25,
+        bmr: 1650,
+        tdee: 2200,
+        recommendedCalories: 2000,
+        recommendedProteinG: 120,
+        recommendedCarbsG: 250,
+        recommendedFatG: 65,
+        recommendedFiberG: 30,
+        recommendedSugarG: 35,
+        recommendedHydrationMl: 2500,
+        recommendedDailySteps: 10000,
+      };
 
   // Apply auto-calculated targets to state
   const handleAutoCalculate = () => {
@@ -178,7 +210,7 @@ export function SettingsHubClient({ initialSettings }: SettingsHubClientProps) {
       fiber: liveMetabolic.recommendedFiberG,
       sugar: liveMetabolic.recommendedSugarG,
     });
-    setProfileData((prev) => ({
+    setProfileData((prev: any) => ({
       ...prev,
       dailyHydrationTargetMl: liveMetabolic.recommendedHydrationMl,
       dailyStepTarget: liveMetabolic.recommendedDailySteps,

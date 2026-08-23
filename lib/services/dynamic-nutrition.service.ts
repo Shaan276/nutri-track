@@ -509,16 +509,16 @@ export class DynamicNutritionService {
     dateStr?: string
   ): Promise<{
     date: string;
-    primaryGoal: string;
+    primaryGoal: string | null;
     nutrition: {
-      calories: { consumed: number; target: number; remaining: number; percentage: number };
-      protein: { consumed: number; target: number; remaining: number; percentage: number };
-      carbohydrates: { consumed: number; target: number; remaining: number; percentage: number };
-      fat: { consumed: number; target: number; remaining: number; percentage: number };
+      calories: { consumed: number; target: number | null; remaining: number | null; percentage: number };
+      protein: { consumed: number; target: number | null; remaining: number | null; percentage: number };
+      carbohydrates: { consumed: number; target: number | null; remaining: number | null; percentage: number };
+      fat: { consumed: number; target: number | null; remaining: number | null; percentage: number };
       fiber: { consumed: number; target: number; remaining: number; percentage: number };
     };
-    hydration: { consumedMl: number; targetMl: number; remainingMl: number; percentage: number; streakDays: number };
-    movement: { steps: number; targetSteps: number; distanceKm: number; totalBurnKcal: number };
+    hydration: { consumedMl: number; targetMl: number | null; remainingMl: number | null; percentage: number; streakDays: number };
+    movement: { steps: number; targetSteps: number | null; distanceKm: number; totalBurnKcal: number };
     workouts: { sessions: number; totalSets: number; volumeKg: number };
     whatWentWell: string[];
     whatNeedsFocus: string[];
@@ -539,11 +539,11 @@ export class DynamicNutritionService {
     const nextPriorities: string[] = [];
 
     // Evaluate successes
-    if (n.proteinConsumed >= (n.proteinTarget * 0.8)) {
-      whatWentWell.push(`Strong protein intake: ${n.proteinConsumed}g logged (${Math.round((n.proteinConsumed / (n.proteinTarget || 120)) * 100)}% of ${n.proteinTarget}g target) 💪`);
+    if (n.proteinTarget && n.proteinConsumed >= (n.proteinTarget * 0.8)) {
+      whatWentWell.push(`Strong protein intake: ${n.proteinConsumed}g logged (${Math.round((n.proteinConsumed / n.proteinTarget) * 100)}% of ${n.proteinTarget}g target) 💪`);
     }
-    if (h.consumedMl >= (h.targetMl * 0.75)) {
-      whatWentWell.push(`Great hydration consistency: ${h.consumedMl}ml logged (${Math.round((h.consumedMl / (h.targetMl || 2500)) * 100)}% achieved) 💧`);
+    if (h.targetMl && h.consumedMl >= (h.targetMl * 0.75)) {
+      whatWentWell.push(`Great hydration consistency: ${h.consumedMl}ml logged (${Math.round((h.consumedMl / h.targetMl) * 100)}% achieved) 💧`);
     }
     if (m.todayDistanceKm > 0 || m.todaySteps >= 6000) {
       whatWentWell.push(`Active movement: ${m.todaySteps.toLocaleString()} steps and ${m.todayDistanceKm} km covered (${m.totalActiveCalories} active kcal burned) 🏃‍♂️`);
@@ -557,15 +557,15 @@ export class DynamicNutritionService {
     }
 
     // Evaluate focus areas (gentle, in-progress aware)
-    if (n.proteinRemaining > 20) {
+    if (n.proteinTarget && n.proteinRemaining !== null && n.proteinRemaining > 20) {
       whatNeedsFocus.push(`${n.proteinRemaining}g protein remaining to hit your ${n.proteinTarget}g goal for today.`);
       nextPriorities.push(`Add a high-protein source (paneer, greek yogurt, tofu, lentils, eggs) to your next meal. 🥞🍗`);
     }
-    if (h.remainingMl > 500) {
+    if (h.targetMl && h.remainingMl !== null && h.remainingMl > 500) {
       whatNeedsFocus.push(`${h.remainingMl}ml water remaining to reach your ${h.targetMl}ml hydration goal.`);
       nextPriorities.push(`Drink 2-3 glasses of warm water or electrolyte infusion throughout the afternoon/evening. 💧`);
     }
-    if (n.caloriesRemaining > 400) {
+    if (n.calorieTarget && n.caloriesRemaining !== null && n.caloriesRemaining > 400) {
       whatNeedsFocus.push(`${n.caloriesRemaining} kcal energy budget remaining for the day.`);
       nextPriorities.push(`Fuel up with nutrient-dense complex carbs and healthy fats. 🥑🍚`);
     }
@@ -582,25 +582,25 @@ export class DynamicNutritionService {
           consumed: n.caloriesConsumed,
           target: n.calorieTarget,
           remaining: n.caloriesRemaining,
-          percentage: Math.round((n.caloriesConsumed / (n.calorieTarget || 2000)) * 100),
+          percentage: n.calorieTarget ? Math.round((n.caloriesConsumed / n.calorieTarget) * 100) : 0,
         },
         protein: {
           consumed: n.proteinConsumed,
           target: n.proteinTarget,
           remaining: n.proteinRemaining,
-          percentage: Math.round((n.proteinConsumed / (n.proteinTarget || 120)) * 100),
+          percentage: n.proteinTarget ? Math.round((n.proteinConsumed / n.proteinTarget) * 100) : 0,
         },
         carbohydrates: {
           consumed: n.carbsConsumed,
           target: n.carbsTarget,
-          remaining: Math.max(0, n.carbsTarget - n.carbsConsumed),
-          percentage: Math.round((n.carbsConsumed / (n.carbsTarget || 250)) * 100),
+          remaining: n.carbsTarget !== null ? Math.max(0, n.carbsTarget - n.carbsConsumed) : null,
+          percentage: n.carbsTarget ? Math.round((n.carbsConsumed / n.carbsTarget) * 100) : 0,
         },
         fat: {
           consumed: n.fatsConsumed,
           target: n.fatsTarget,
-          remaining: Math.max(0, n.fatsTarget - n.fatsConsumed),
-          percentage: Math.round((n.fatsConsumed / (n.fatsTarget || 65)) * 100),
+          remaining: n.fatsTarget !== null ? Math.max(0, n.fatsTarget - n.fatsConsumed) : null,
+          percentage: n.fatsTarget ? Math.round((n.fatsConsumed / n.fatsTarget) * 100) : 0,
         },
         fiber: {
           consumed: n.fiberConsumed,

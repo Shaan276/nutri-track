@@ -22,18 +22,10 @@ export class AIRulesEngine {
   static calculateDynamicAge(
     dobString?: string | Date | null,
     createdAt?: Date | null
-  ): DynamicAgeInfo {
-    const fallbackDate = createdAt || new Date(2000, 0, 1);
-    let birthDate: Date;
-
-    if (dobString) {
-      birthDate = new Date(dobString);
-      if (isNaN(birthDate.getTime())) {
-        birthDate = fallbackDate;
-      }
-    } else {
-      birthDate = fallbackDate;
-    }
+  ): DynamicAgeInfo | null {
+    if (!dobString) return null;
+    const birthDate = new Date(dobString);
+    if (isNaN(birthDate.getTime())) return null;
 
     const now = new Date();
 
@@ -128,7 +120,7 @@ export class AIRulesEngine {
   /**
    * Generates goal-specific personalized rules for Weight Loss, Muscle Gain, Balanced Weight, etc.
    */
-  static getPersonalizedGoalRules(goalType?: string): PersonalizedGoalRules {
+  static getPersonalizedGoalRules(goalType?: string | null): PersonalizedGoalRules {
     const normalized = (goalType || "GENERAL_HEALTH").toUpperCase();
 
     if (normalized.includes("LOSS") || normalized.includes("CUT") || normalized.includes("DEFICIT")) {
@@ -196,7 +188,7 @@ export class AIRulesEngine {
    */
   static async buildAIRulesPrompt(
     userId: string,
-    goalType?: string,
+    goalType?: string | null,
     dobString?: string | Date | null,
     userCreatedAt?: Date | null
   ): Promise<string> {
@@ -207,7 +199,7 @@ export class AIRulesEngine {
 
     let prompt = `
 [AI GOVERNANCE & COACHING RULES ENGINE]:
-• USER DYNAMIC AGE TODAY: ${dynamicAge.formatted} (Calculated live down to the exact day; naturally increments daily)
+• USER DYNAMIC AGE TODAY: ${dynamicAge ? `${dynamicAge.formatted} (Calculated live down to the exact day; naturally increments daily)` : "Not provided yet (Pending user entry)"}
 • PRIMARY TARGET FOCUS: ${goalRules.goalCategory}
 
 [GENERAL AI RULES (ADMIN CONFIGURED & SYSTEM-WIDE)]:

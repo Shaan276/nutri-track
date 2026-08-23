@@ -39,7 +39,9 @@ export default async function ProtectedAppPage() {
     where: { userId: session.user.id },
   }).catch(() => null);
 
-  if (!profile) {
+  const hasBiometrics = Boolean(profile && profile.heightCm && profile.weightKg);
+
+  if (!hasBiometrics) {
     redirect("/onboarding");
   }
 

@@ -93,19 +93,35 @@ export class AIContextBuilder {
       memoryContext = `\n[SAVED USER PREFERENCES & CONSTRAINTS]:\n${snapshot.memories
         .map((m: any) => `• [${m.category}] ${m.content}`)
         .join("\n")}`;
-    }
-
-    // --- Layer 3: User Profile & Goals ---
-    const profileContext = `
+    }    // --- Layer 3: User Profile & Goals ---
+    let profileContext = `
 [USER PROFILE & METABOLIC BASELINE]:
 • Name: ${snapshot.profile.name}
-• Biological Sex: ${snapshot.profile.biologicalSex}
+`;
+    if (snapshot.profile.heightCm && snapshot.profile.weightKg) {
+      profileContext += `• Biological Sex: ${snapshot.profile.biologicalSex || "Not specified"}
 • Height: ${snapshot.profile.heightCm} cm | Weight: ${snapshot.profile.weightKg} kg
-• Primary Goal: ${snapshot.profile.primaryGoal}
-• Basal Metabolic Rate (BMR): ${snapshot.profile.bmr} kcal/day
-• Maintenance Energy (TDEE): ${snapshot.profile.tdee} kcal/day
-• Nutrition Targets: Calories ${snapshot.nutrition.calorieTarget} kcal | Protein ${snapshot.nutrition.proteinTarget}g | Carbs ${snapshot.nutrition.carbsTarget}g | Fat ${snapshot.nutrition.fatsTarget}g
-• Hydration Target: ${snapshot.hydration.targetMl} ml/day | Step Target: ${snapshot.movement.dailyStepTarget.toLocaleString()} steps/day | Running: ${snapshot.movement.weeklyRunningTargetKm} km/week | Workouts: ${snapshot.workouts.weeklyWorkoutTarget} sessions/week
+• Basal Metabolic Rate (BMR): ${snapshot.profile.bmr ? `${snapshot.profile.bmr} kcal/day` : "Not calculated"}
+• Maintenance Energy (TDEE): ${snapshot.profile.tdee ? `${snapshot.profile.tdee} kcal/day` : "Not calculated"}
+`;
+    } else {
+      profileContext += `• Biometrics (Height, Weight, Age, Sex): Not provided yet (User has not entered profile biometrics)
+• Metabolic Baseline (BMR/TDEE): Not calculated (Requires user's genuine height and weight)
+`;
+    }
+
+    profileContext += `• Primary Goal: ${snapshot.profile.primaryGoal || "Pending Assessment"}
+`;
+
+    if (snapshot.nutrition.calorieTarget && snapshot.nutrition.proteinTarget) {
+      profileContext += `• Nutrition Targets: Calories ${snapshot.nutrition.calorieTarget} kcal | Protein ${snapshot.nutrition.proteinTarget}g | Carbs ${snapshot.nutrition.carbsTarget || "N/A"}g | Fat ${snapshot.nutrition.fatsTarget || "N/A"}g
+`;
+    } else {
+      profileContext += `• Nutrition Targets: Not configured yet (Pending health assessment & goal setup)
+`;
+    }
+
+    profileContext += `• Hydration Target: ${snapshot.hydration.targetMl ? `${snapshot.hydration.targetMl} ml/day` : "2,500 ml/day"} | Step Target: ${snapshot.movement.dailyStepTarget.toLocaleString()} steps/day | Running: ${snapshot.movement.weeklyRunningTargetKm} km/week | Workouts: ${snapshot.workouts.weeklyWorkoutTarget} sessions/week
 `;
 
     // --- Layer 3.5: User's Food Database Items & Custom Recipes ---
@@ -149,19 +165,21 @@ export class AIContextBuilder {
     const fiberRemaining = Math.max(0, fiberTarget - fiberConsumed);
     const fiberPct = Math.round((fiberConsumed / fiberTarget) * 100);
 
-    const calPct = Math.round((n.caloriesConsumed / (n.calorieTarget || 2000)) * 100);
-    const protPct = Math.round((n.proteinConsumed / (n.proteinTarget || 120)) * 100);
+    const hasCalTarget = Boolean(n.calorieTarget);
+    const hasProtTarget = Boolean(n.proteinTarget);
+    const calPct = hasCalTarget && n.calorieTarget! > 0 ? Math.round((n.caloriesConsumed / n.calorieTarget!) * 100) : 0;
+    const protPct = hasProtTarget && n.proteinTarget! > 0 ? Math.round((n.proteinConsumed / n.proteinTarget!) * 100) : 0;
 
     let liveDataContext = "\n[LIVE HEALTH DATA & COMPLETE MACRONUTRIENT QUANTITIES]:";
 
     liveDataContext += `
 • Date: ${todayStr} (Current day in progress — incomplete logging during the day is normal, not a failure)
 • Nutrition State: ${n.dataState === "LOGGED" ? "DATA_LOGGED" : "NOT_LOGGED_YET (No meals recorded yet today)"}
-• Calories: ${n.caloriesConsumed.toLocaleString()} / ${(n.calorieTarget || 2000).toLocaleString()} kcal (${calPct}% achieved | ${n.caloriesRemaining} kcal remaining)
-• Protein: ${n.proteinConsumed}g / ${n.proteinTarget || 120}g (${protPct}% achieved | ${n.proteinRemaining}g remaining)
-• Carbohydrates: ${carbsConsumed}g / ${carbsTarget}g (${carbsPct}% achieved | ${carbsRemaining}g remaining)
-• Healthy Fats: ${fatsConsumed}g / ${fatsTarget}g (${fatsPct}% achieved | ${fatsRemaining}g remaining)
-• Dietary Fiber: ${fiberConsumed}g / ${fiberTarget}g (${fiberPct}% achieved | ${fiberRemaining}g remaining)
+• Calories: ${n.caloriesConsumed.toLocaleString()}${hasCalTarget ? ` / ${n.calorieTarget!.toLocaleString()} kcal (${calPct}% achieved | ${n.caloriesRemaining ?? 0} kcal remaining)` : " kcal (Target pending assessment)"}
+• Protein: ${n.proteinConsumed}g${hasProtTarget ? ` / ${n.proteinTarget!}g (${protPct}% achieved | ${n.proteinRemaining ?? 0}g remaining)` : " (Target pending assessment)"}
+• Carbohydrates: ${carbsConsumed}g${n.carbsTarget ? ` / ${n.carbsTarget}g (${carbsPct}% achieved | ${carbsRemaining}g remaining)` : ""}
+• Healthy Fats: ${fatsConsumed}g${n.fatsTarget ? ` / ${n.fatsTarget}g (${fatsPct}% achieved | ${fatsRemaining}g remaining)` : ""}
+• Dietary Fiber: ${fiberConsumed}g${n.fiberConsumed ? ` / ${fiberTarget}g (${fiberPct}% achieved | ${fiberRemaining}g remaining)` : ""}
 • Sugar Intake: ${n.sugarConsumed}g
 • Hydration Logged Today: ${h.consumedMl.toLocaleString()} / ${(h.targetMl || 2500).toLocaleString()} ml (${h.percentage}% achieved | ${h.remainingMl} ml remaining, Streak: ${h.streakDays} days)
 • Movement & Steps: ${m.todaySteps.toLocaleString()} / ${m.dailyStepTarget.toLocaleString()} steps (${m.stepPercentage}% of target | ${m.todayDistanceKm} km covered)

@@ -196,16 +196,16 @@ async function getPool(): Promise<any> {
       CREATE TABLE IF NOT EXISTS user_profiles (
         id TEXT PRIMARY KEY,
         user_id TEXT UNIQUE NOT NULL,
-        date_of_birth TIMESTAMP WITH TIME ZONE NOT NULL,
-        biological_sex TEXT NOT NULL,
-        height_cm DOUBLE PRECISION NOT NULL,
-        weight_kg DOUBLE PRECISION NOT NULL,
-        activity_level TEXT NOT NULL,
-        daily_hydration_target_ml INTEGER DEFAULT 2500,
-        daily_step_target INTEGER DEFAULT 10000,
-        weekly_running_distance_km DOUBLE PRECISION DEFAULT 15.0,
-        weekly_workout_sessions INTEGER DEFAULT 3,
-        primary_goal TEXT DEFAULT 'MAINTAIN',
+        date_of_birth TIMESTAMP WITH TIME ZONE,
+        biological_sex TEXT,
+        height_cm DOUBLE PRECISION,
+        weight_kg DOUBLE PRECISION,
+        activity_level TEXT,
+        daily_hydration_target_ml INTEGER,
+        daily_step_target INTEGER,
+        weekly_running_distance_km DOUBLE PRECISION,
+        weekly_workout_sessions INTEGER,
+        primary_goal TEXT,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
@@ -1991,16 +1991,16 @@ const postgresDbClient = {
       return {
         id: row.id,
         userId: row.user_id,
-        dateOfBirth: new Date(row.date_of_birth),
-        biologicalSex: row.biological_sex,
-        heightCm: Number(row.height_cm),
-        weightKg: Number(row.weight_kg),
-        activityLevel: row.activity_level,
-        dailyHydrationTargetMl: Number(row.daily_hydration_target_ml || 2500),
-        dailyStepTarget: Number(row.daily_step_target || 10000),
-        weeklyRunningDistanceKm: Number(row.weekly_running_distance_km || 15.0),
-        weeklyWorkoutSessions: Number(row.weekly_workout_sessions || 3),
-        primaryGoal: row.primary_goal || "MAINTAIN",
+        dateOfBirth: row.date_of_birth ? new Date(row.date_of_birth) : null,
+        biologicalSex: row.biological_sex || null,
+        heightCm: row.height_cm !== null && row.height_cm !== undefined ? Number(row.height_cm) : null,
+        weightKg: row.weight_kg !== null && row.weight_kg !== undefined ? Number(row.weight_kg) : null,
+        activityLevel: row.activity_level || null,
+        dailyHydrationTargetMl: row.daily_hydration_target_ml !== null && row.daily_hydration_target_ml !== undefined ? Number(row.daily_hydration_target_ml) : null,
+        dailyStepTarget: row.daily_step_target !== null && row.daily_step_target !== undefined ? Number(row.daily_step_target) : null,
+        weeklyRunningDistanceKm: row.weekly_running_distance_km !== null && row.weekly_running_distance_km !== undefined ? Number(row.weekly_running_distance_km) : null,
+        weeklyWorkoutSessions: row.weekly_workout_sessions !== null && row.weekly_workout_sessions !== undefined ? Number(row.weekly_workout_sessions) : null,
+        primaryGoal: row.primary_goal || null,
         createdAt: new Date(row.created_at),
         updatedAt: new Date(row.updated_at),
       };
@@ -2011,48 +2011,25 @@ const postgresDbClient = {
       update,
     }: {
       where: { userId: string };
-      create: {
-        userId: string;
-        dateOfBirth: Date;
-        biologicalSex: string;
-        heightCm: number;
-        weightKg: number;
-        activityLevel: string;
-        dailyHydrationTargetMl?: number;
-        dailyStepTarget?: number;
-        weeklyRunningDistanceKm?: number;
-        weeklyWorkoutSessions?: number;
-        primaryGoal?: string;
-      };
-      update: {
-        dateOfBirth?: Date;
-        biologicalSex?: string;
-        heightCm?: number;
-        weightKg?: number;
-        activityLevel?: string;
-        dailyHydrationTargetMl?: number;
-        dailyStepTarget?: number;
-        weeklyRunningDistanceKm?: number;
-        weeklyWorkoutSessions?: number;
-        primaryGoal?: string;
-      };
+      create: any;
+      update: any;
     }) => {
       const pool = await getPool();
       const existing = await postgresDbClient.userProfile.findUnique({ where });
       const now = new Date().toISOString();
 
       if (existing) {
-        const rawDob = update.dateOfBirth ?? existing.dateOfBirth;
-        const dob = rawDob instanceof Date ? rawDob.toISOString() : new Date(rawDob || "2000-01-01").toISOString();
-        const sex = update.biologicalSex ?? existing.biologicalSex;
-        const height = update.heightCm ?? existing.heightCm;
-        const weight = update.weightKg ?? existing.weightKg;
-        const activity = update.activityLevel ?? existing.activityLevel;
-        const targetMl = update.dailyHydrationTargetMl ?? existing.dailyHydrationTargetMl ?? 2500;
-        const stepTarget = update.dailyStepTarget ?? existing.dailyStepTarget ?? 10000;
-        const runningDist = update.weeklyRunningDistanceKm ?? existing.weeklyRunningDistanceKm ?? 15.0;
-        const workoutSess = update.weeklyWorkoutSessions ?? existing.weeklyWorkoutSessions ?? 3;
-        const goal = update.primaryGoal ?? existing.primaryGoal ?? "MAINTAIN";
+        const rawDob = update.dateOfBirth !== undefined ? update.dateOfBirth : existing.dateOfBirth;
+        const dob = rawDob instanceof Date ? rawDob.toISOString() : (rawDob ? new Date(rawDob).toISOString() : null);
+        const sex = update.biologicalSex !== undefined ? update.biologicalSex : existing.biologicalSex;
+        const height = update.heightCm !== undefined ? (update.heightCm !== null ? Number(update.heightCm) : null) : existing.heightCm;
+        const weight = update.weightKg !== undefined ? (update.weightKg !== null ? Number(update.weightKg) : null) : existing.weightKg;
+        const activity = update.activityLevel !== undefined ? update.activityLevel : existing.activityLevel;
+        const targetMl = update.dailyHydrationTargetMl !== undefined ? update.dailyHydrationTargetMl : existing.dailyHydrationTargetMl;
+        const stepTarget = update.dailyStepTarget !== undefined ? update.dailyStepTarget : existing.dailyStepTarget;
+        const runningDist = update.weeklyRunningDistanceKm !== undefined ? update.weeklyRunningDistanceKm : existing.weeklyRunningDistanceKm;
+        const workoutSess = update.weeklyWorkoutSessions !== undefined ? update.weeklyWorkoutSessions : existing.weeklyWorkoutSessions;
+        const goal = update.primaryGoal !== undefined ? update.primaryGoal : existing.primaryGoal;
 
         await pool.query(
           `UPDATE user_profiles
@@ -2068,11 +2045,11 @@ const postgresDbClient = {
         return {
           id: existing.id,
           userId: where.userId,
-          dateOfBirth: new Date(dob),
-          biologicalSex: sex as any,
+          dateOfBirth: dob ? new Date(dob) : null,
+          biologicalSex: sex,
           heightCm: height,
           weightKg: weight,
-          activityLevel: activity as any,
+          activityLevel: activity,
           dailyHydrationTargetMl: targetMl,
           dailyStepTarget: stepTarget,
           weeklyRunningDistanceKm: runningDist,
@@ -2083,12 +2060,17 @@ const postgresDbClient = {
         };
       } else {
         const id = `cuid_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-        const dob = create.dateOfBirth instanceof Date ? create.dateOfBirth.toISOString() : new Date(create.dateOfBirth || "2000-01-01").toISOString();
-        const targetMl = create.dailyHydrationTargetMl || 2500;
-        const stepTarget = create.dailyStepTarget || 10000;
-        const runningDist = create.weeklyRunningDistanceKm || 15.0;
-        const workoutSess = create.weeklyWorkoutSessions || 3;
-        const goal = create.primaryGoal || "MAINTAIN";
+        const rawDob = create.dateOfBirth;
+        const dob = rawDob instanceof Date ? rawDob.toISOString() : (rawDob ? new Date(rawDob).toISOString() : null);
+        const sex = create.biologicalSex || null;
+        const height = create.heightCm !== undefined && create.heightCm !== null ? Number(create.heightCm) : null;
+        const weight = create.weightKg !== undefined && create.weightKg !== null ? Number(create.weightKg) : null;
+        const activity = create.activityLevel || null;
+        const targetMl = create.dailyHydrationTargetMl !== undefined ? create.dailyHydrationTargetMl : null;
+        const stepTarget = create.dailyStepTarget !== undefined ? create.dailyStepTarget : null;
+        const runningDist = create.weeklyRunningDistanceKm !== undefined ? create.weeklyRunningDistanceKm : null;
+        const workoutSess = create.weeklyWorkoutSessions !== undefined ? create.weeklyWorkoutSessions : null;
+        const goal = create.primaryGoal || null;
 
         await pool.query(
           `INSERT INTO user_profiles (
@@ -2100,10 +2082,10 @@ const postgresDbClient = {
             id,
             create.userId,
             dob,
-            create.biologicalSex,
-            create.heightCm,
-            create.weightKg,
-            create.activityLevel,
+            sex,
+            height,
+            weight,
+            activity,
             targetMl,
             stepTarget,
             runningDist,
@@ -2119,11 +2101,11 @@ const postgresDbClient = {
         return {
           id,
           userId: create.userId,
-          dateOfBirth: new Date(dob),
-          biologicalSex: create.biologicalSex as any,
-          heightCm: create.heightCm,
-          weightKg: create.weightKg,
-          activityLevel: create.activityLevel as any,
+          dateOfBirth: dob ? new Date(dob) : null,
+          biologicalSex: sex,
+          heightCm: height,
+          weightKg: weight,
+          activityLevel: activity,
           dailyHydrationTargetMl: targetMl,
           dailyStepTarget: stepTarget,
           weeklyRunningDistanceKm: runningDist,

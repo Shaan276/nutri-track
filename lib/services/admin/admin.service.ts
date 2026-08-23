@@ -395,35 +395,6 @@ export class AdminService {
             approvedByAdminId: adminId,
           },
         });
-
-        // Initialize user profile & nutrient targets
-        await (prisma as any).userProfile.create({
-          data: {
-            userId: newUser.id,
-            dateOfBirth: new Date("1995-01-01"),
-            biologicalSex: "MALE",
-            heightCm: 175,
-            weightKg: 70,
-            activityLevel: "MODERATELY_ACTIVE",
-            dailyHydrationTargetMl: 2500,
-            dailyStepTarget: 10000,
-            weeklyRunningDistanceKm: 15.0,
-            weeklyWorkoutSessions: 3,
-            primaryGoal: "MAINTAIN",
-          },
-        }).catch(() => null);
-
-        await (prisma as any).userNutrientTarget.create({
-          data: {
-            userId: newUser.id,
-            calories: 2000,
-            protein: 120,
-            carbohydrates: 250,
-            fat: 65,
-            fiber: 30,
-            sugar: 35,
-          },
-        }).catch(() => null);
       }
     }
 

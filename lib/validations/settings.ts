@@ -46,8 +46,8 @@ export const UserSettingsPayloadSchema = z.object({
 export type UserProfileSettings = z.infer<typeof UserProfileSettingsSchema>;
 export type UserNutritionGoals = z.infer<typeof UserNutritionGoalsSchema>;
 export type UserSettingsPayload = {
-  profile?: Partial<UserProfileSettings>;
-  nutritionGoals?: Partial<UserNutritionGoals>;
+  profile?: Partial<UserProfileSettings> | Record<string, any>;
+  nutritionGoals?: Partial<UserNutritionGoals> | Record<string, any>;
 };
 
 export interface CalculatedMetabolicMetrics {

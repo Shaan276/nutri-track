@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { BiologicalSex, ActivityLevel } from "@/lib/validations/profile";
 import {
   UserProfileSettings,
   UserNutritionGoals,
@@ -16,9 +17,31 @@ export interface UserSettingsResponse {
     email: string;
     username: string;
   };
-  profile: UserProfileSettings;
-  nutritionGoals: UserNutritionGoals;
-  metabolic: CalculatedMetabolicMetrics;
+  profile: Partial<UserProfileSettings> & {
+    id?: string;
+    userId?: string;
+    dateOfBirth?: string | null;
+    biologicalSex?: BiologicalSex | null;
+    heightCm?: number | null;
+    weightKg?: number | null;
+    activityLevel?: ActivityLevel | null;
+    primaryGoal?: PrimaryGoal | null;
+    dailyHydrationTargetMl?: number | null;
+    dailyStepTarget?: number | null;
+    weeklyRunningDistanceKm?: number | null;
+    weeklyWorkoutSessions?: number | null;
+    isComplete?: boolean;
+  };
+  nutritionGoals: {
+    calories?: number | null;
+    protein?: number | null;
+    carbohydrates?: number | null;
+    fat?: number | null;
+    fiber?: number | null;
+    sugar?: number | null;
+    isConfigured?: boolean;
+  };
+  metabolic: CalculatedMetabolicMetrics | null;
   googleSheets: {
     isConnected: boolean;
     spreadsheetId: string | null;
@@ -31,7 +54,7 @@ export interface UserSettingsResponse {
 
 export class UserSettingsService {
   /**
-   * Retrieves complete settings and personalized goals for a user.
+   * Retrieves complete settings and personalized goals for a user without inventing fake defaults.
    */
   static async getUserSettings(userId: string): Promise<UserSettingsResponse> {
     const user = await prisma.user.findUnique({
@@ -41,90 +64,66 @@ export class UserSettingsService {
       throw new Error("User not found");
     }
 
-    let profile = await prisma.userProfile.findUnique({
+    const profile = await prisma.userProfile.findUnique({
       where: { userId },
     });
 
-    // If profile doesn't exist yet, initialize safe defaults
-    if (!profile) {
-      profile = await (prisma.userProfile.create as any)({
-        data: {
-          userId,
-          dateOfBirth: new Date("1995-01-01"),
-          biologicalSex: "MALE",
-          heightCm: 175,
-          weightKg: 70,
-          activityLevel: "MODERATELY_ACTIVE",
-          dailyHydrationTargetMl: 2500,
-          dailyStepTarget: 10000,
-          weeklyRunningDistanceKm: 15.0,
-          weeklyWorkoutSessions: 3,
-          primaryGoal: "MAINTAIN",
-        },
-      });
-    }
-
-    if (!profile) {
-      throw new Error("Could not initialize user profile");
-    }
-
-    // Fetch or create default nutrient targets
-    let targets = await prisma.userNutrientTarget.findUnique({
+    const targets = await prisma.userNutrientTarget.findUnique({
       where: { userId },
     });
-
-    if (!targets) {
-      targets = await prisma.userNutrientTarget.create({
-        data: {
-          userId,
-          calories: 2000,
-          protein: 120,
-          carbohydrates: 250,
-          fat: 65,
-          fiber: 30,
-          sugar: 35,
-        },
-      });
-    }
-
-    if (!targets) {
-      throw new Error("Could not initialize nutrient targets");
-    }
 
     // Fetch Google Sheets connection status
     const sheetConn = await prisma.googleSheetConnection.findUnique({
       where: { userId },
     });
 
-    const metabolic = calculateMetabolicTargets(
-      profile.weightKg,
-      profile.heightCm,
-      profile.biologicalSex as any,
-      profile.dateOfBirth,
-      profile.activityLevel as any,
-      ((profile as any).primaryGoal as PrimaryGoal) || "MAINTAIN"
+    const isProfileComplete = Boolean(
+      profile &&
+      profile.weightKg &&
+      profile.heightCm &&
+      profile.dateOfBirth &&
+      profile.biologicalSex &&
+      profile.activityLevel
     );
 
-    const profileSettings: UserProfileSettings = {
-      dateOfBirth: profile.dateOfBirth.toISOString().split("T")[0],
-      biologicalSex: profile.biologicalSex as any,
-      heightCm: profile.heightCm,
-      weightKg: profile.weightKg,
-      activityLevel: profile.activityLevel as any,
-      primaryGoal: ((profile as any).primaryGoal as PrimaryGoal) || "MAINTAIN",
-      dailyHydrationTargetMl: profile.dailyHydrationTargetMl || 2500,
-      dailyStepTarget: (profile as any).dailyStepTarget || 10000,
-      weeklyRunningDistanceKm: Number((profile as any).weeklyRunningDistanceKm || 15.0),
-      weeklyWorkoutSessions: (profile as any).weeklyWorkoutSessions || 3,
+    let metabolic: CalculatedMetabolicMetrics | null = null;
+    if (isProfileComplete && profile) {
+      metabolic = calculateMetabolicTargets(
+        profile.weightKg!,
+        profile.heightCm!,
+        profile.biologicalSex as any,
+        profile.dateOfBirth!,
+        profile.activityLevel as any,
+        ((profile as any).primaryGoal as PrimaryGoal) || "MAINTAIN"
+      );
+    }
+
+    const profileSettings = {
+      id: profile?.id || undefined,
+      userId,
+      dateOfBirth: profile?.dateOfBirth ? (profile.dateOfBirth instanceof Date ? profile.dateOfBirth.toISOString().split("T")[0] : String(profile.dateOfBirth).split("T")[0]) : null,
+      biologicalSex: (profile?.biologicalSex as any) || null,
+      heightCm: profile?.heightCm !== null && profile?.heightCm !== undefined ? Number(profile.heightCm) : null,
+      weightKg: profile?.weightKg !== null && profile?.weightKg !== undefined ? Number(profile.weightKg) : null,
+      activityLevel: (profile?.activityLevel as any) || null,
+      primaryGoal: ((profile as any)?.primaryGoal as PrimaryGoal) || (isProfileComplete ? "MAINTAIN" : null),
+      dailyHydrationTargetMl: profile?.dailyHydrationTargetMl !== null && profile?.dailyHydrationTargetMl !== undefined ? Number(profile.dailyHydrationTargetMl) : (isProfileComplete ? 2500 : null),
+      dailyStepTarget: (profile as any)?.dailyStepTarget !== null && (profile as any)?.dailyStepTarget !== undefined ? Number((profile as any).dailyStepTarget) : (isProfileComplete ? 10000 : null),
+      weeklyRunningDistanceKm: (profile as any)?.weeklyRunningDistanceKm !== null && (profile as any)?.weeklyRunningDistanceKm !== undefined ? Number((profile as any).weeklyRunningDistanceKm) : (isProfileComplete ? 15.0 : null),
+      weeklyWorkoutSessions: (profile as any)?.weeklyWorkoutSessions !== null && (profile as any)?.weeklyWorkoutSessions !== undefined ? Number((profile as any).weeklyWorkoutSessions) : (isProfileComplete ? 3 : null),
+      isComplete: isProfileComplete,
     };
 
-    const nutritionGoals: UserNutritionGoals = {
-      calories: Number(targets.calories || 2000),
-      protein: Number(targets.protein || 120),
-      carbohydrates: Number(targets.carbohydrates || 250),
-      fat: Number(targets.fat || 65),
-      fiber: Number(targets.fiber || 30),
-      sugar: Number(targets.sugar || 35),
+    const isTargetsConfigured = Boolean(targets && targets.calories && targets.protein);
+
+    const nutritionGoals = {
+      calories: targets?.calories !== null && targets?.calories !== undefined ? Number(targets.calories) : null,
+      protein: targets?.protein !== null && targets?.protein !== undefined ? Number(targets.protein) : null,
+      carbohydrates: targets?.carbohydrates !== null && targets?.carbohydrates !== undefined ? Number(targets.carbohydrates) : null,
+      fat: targets?.fat !== null && targets?.fat !== undefined ? Number(targets.fat) : null,
+      fiber: targets?.fiber !== null && targets?.fiber !== undefined ? Number(targets.fiber) : null,
+      sugar: targets?.sugar !== null && targets?.sugar !== undefined ? Number(targets.sugar) : null,
+      isConfigured: isTargetsConfigured,
     };
 
     return {
@@ -134,16 +133,16 @@ export class UserSettingsService {
         email: user.email,
         username: user.username,
       },
-      profile: profileSettings,
-      nutritionGoals,
+      profile: profileSettings as any,
+      nutritionGoals: nutritionGoals as any,
       metabolic,
       googleSheets: {
-        isConnected: !!sheetConn && sheetConn.status === "CONNECTED",
+        isConnected: Boolean(sheetConn && sheetConn.status === "CONNECTED"),
         spreadsheetId: sheetConn?.spreadsheetId || null,
         spreadsheetUrl: sheetConn?.spreadsheetUrl || null,
         sheetTitle: sheetConn?.sheetTitle || null,
         lastSyncedAt: sheetConn?.lastSyncedAt?.toISOString() || null,
-        status: sheetConn?.status || "NOT_CONNECTED",
+        status: sheetConn?.status || "DISCONNECTED",
       },
     };
   }
@@ -164,16 +163,16 @@ export class UserSettingsService {
         where: { userId },
         create: {
           userId,
-          dateOfBirth: pData.dateOfBirth ? new Date(pData.dateOfBirth) : existingProfile?.dateOfBirth || new Date("1995-01-01"),
-          biologicalSex: pData.biologicalSex || existingProfile?.biologicalSex || "MALE",
-          heightCm: pData.heightCm || existingProfile?.heightCm || 175,
-          weightKg: pData.weightKg || existingProfile?.weightKg || 70,
-          activityLevel: pData.activityLevel || existingProfile?.activityLevel || "MODERATELY_ACTIVE",
-          dailyHydrationTargetMl: pData.dailyHydrationTargetMl || existingProfile?.dailyHydrationTargetMl || 2500,
-          dailyStepTarget: pData.dailyStepTarget || existingProfile?.dailyStepTarget || 10000,
-          weeklyRunningDistanceKm: pData.weeklyRunningDistanceKm || existingProfile?.weeklyRunningDistanceKm || 15.0,
-          weeklyWorkoutSessions: pData.weeklyWorkoutSessions || existingProfile?.weeklyWorkoutSessions || 3,
-          primaryGoal: pData.primaryGoal || existingProfile?.primaryGoal || "MAINTAIN",
+          dateOfBirth: pData.dateOfBirth ? new Date(pData.dateOfBirth) : existingProfile?.dateOfBirth || null,
+          biologicalSex: pData.biologicalSex || existingProfile?.biologicalSex || null,
+          heightCm: pData.heightCm !== undefined ? pData.heightCm : existingProfile?.heightCm || null,
+          weightKg: pData.weightKg !== undefined ? pData.weightKg : existingProfile?.weightKg || null,
+          activityLevel: pData.activityLevel || existingProfile?.activityLevel || null,
+          dailyHydrationTargetMl: pData.dailyHydrationTargetMl !== undefined ? pData.dailyHydrationTargetMl : existingProfile?.dailyHydrationTargetMl || null,
+          dailyStepTarget: pData.dailyStepTarget !== undefined ? pData.dailyStepTarget : (existingProfile as any)?.dailyStepTarget || null,
+          weeklyRunningDistanceKm: pData.weeklyRunningDistanceKm !== undefined ? pData.weeklyRunningDistanceKm : (existingProfile as any)?.weeklyRunningDistanceKm || null,
+          weeklyWorkoutSessions: pData.weeklyWorkoutSessions !== undefined ? pData.weeklyWorkoutSessions : (existingProfile as any)?.weeklyWorkoutSessions || null,
+          primaryGoal: pData.primaryGoal || (existingProfile as any)?.primaryGoal || null,
         },
         update: {
           ...(pData.dateOfBirth && { dateOfBirth: new Date(pData.dateOfBirth) }),
@@ -197,12 +196,12 @@ export class UserSettingsService {
         where: { userId },
         create: {
           userId,
-          calories: nData.calories || existingTargets?.calories || 2000,
-          protein: nData.protein || existingTargets?.protein || 120,
-          carbohydrates: nData.carbohydrates || existingTargets?.carbohydrates || 250,
-          fat: nData.fat || existingTargets?.fat || 65,
-          fiber: nData.fiber || existingTargets?.fiber || 30,
-          sugar: nData.sugar || existingTargets?.sugar || 35,
+          calories: nData.calories !== undefined ? nData.calories : existingTargets?.calories || 0,
+          protein: nData.protein !== undefined ? nData.protein : existingTargets?.protein || 0,
+          carbohydrates: nData.carbohydrates !== undefined ? nData.carbohydrates : existingTargets?.carbohydrates || 0,
+          fat: nData.fat !== undefined ? nData.fat : existingTargets?.fat || 0,
+          fiber: nData.fiber !== undefined ? nData.fiber : existingTargets?.fiber || 0,
+          sugar: nData.sugar !== undefined ? nData.sugar : existingTargets?.sugar || 0,
         },
         update: {
           ...(nData.calories !== undefined && { calories: nData.calories }),

@@ -158,7 +158,7 @@ async function runMasterProductionAudit() {
     });
 
     const settingsA = await UserSettingsService.getUserSettings(userA.id);
-    assert(settingsA.metabolic.bmr > 1200 && settingsA.metabolic.tdee > 1600, "Mifflin-St Jeor BMR & TDEE calculated accurately");
+    assert(Boolean(settingsA.metabolic && settingsA.metabolic.bmr > 1200 && settingsA.metabolic.tdee > 1600), "Mifflin-St Jeor BMR & TDEE calculated accurately");
     assert(settingsA.nutritionGoals.protein === 130, "Protein goal stored as 130g");
 
     // --------------------------------------------------------------------------

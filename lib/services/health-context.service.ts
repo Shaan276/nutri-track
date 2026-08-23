@@ -15,30 +15,32 @@ export interface HealthContextSnapshot {
 
   profile: {
     name: string;
-    biologicalSex: string;
-    heightCm: number;
-    weightKg: number;
-    primaryGoal: string;
-    bmr: number;
-    tdee: number;
+    biologicalSex: string | null;
+    heightCm: number | null;
+    weightKg: number | null;
+    primaryGoal: string | null;
+    bmr: number | null;
+    tdee: number | null;
+    isProfileComplete: boolean;
   };
 
   nutrition: {
     dataState: HealthDataState;
     hasLoggedMeals: boolean;
     caloriesConsumed: number;
-    calorieTarget: number;
-    caloriesRemaining: number;
+    calorieTarget: number | null;
+    caloriesRemaining: number | null;
     proteinConsumed: number;
-    proteinTarget: number;
-    proteinRemaining: number;
+    proteinTarget: number | null;
+    proteinRemaining: number | null;
     carbsConsumed: number;
-    carbsTarget: number;
+    carbsTarget: number | null;
     fatsConsumed: number;
-    fatsTarget: number;
+    fatsTarget: number | null;
     fiberConsumed: number;
     sugarConsumed: number;
     mealCount: number;
+    isTargetsConfigured: boolean;
   };
 
   hydration: {
@@ -151,32 +153,28 @@ export class HealthContextService {
         profile: {
           id: "",
           userId,
-          dateOfBirth: "1995-01-01",
-          biologicalSex: "MALE" as const,
-          heightCm: 175,
-          weightKg: 70,
-          activityLevel: "MODERATELY_ACTIVE" as const,
-          dailyHydrationTargetMl: 2500,
-          dailyStepTarget: 10000,
-          weeklyRunningDistanceKm: 15.0,
-          weeklyWorkoutSessions: 3,
-          primaryGoal: "MAINTAIN" as const,
+          dateOfBirth: null,
+          biologicalSex: null,
+          heightCm: null,
+          weightKg: null,
+          activityLevel: null,
+          dailyHydrationTargetMl: null,
+          dailyStepTarget: null,
+          weeklyRunningDistanceKm: null,
+          weeklyWorkoutSessions: null,
+          primaryGoal: null,
+          isComplete: false,
         },
         nutritionGoals: {
-          calories: 2000,
-          protein: 120,
-          carbohydrates: 250,
-          fat: 65,
-          fiber: 30,
-          sugar: 50,
+          calories: null,
+          protein: null,
+          carbohydrates: null,
+          fat: null,
+          fiber: null,
+          sugar: null,
+          isConfigured: false,
         },
-        metabolic: {
-          bmr: 1650,
-          tdee: 2200,
-          targetCalories: 2000,
-          bmi: 22.8,
-          bmiCategory: "NORMAL",
-        },
+        metabolic: null,
         googleSheets: {
           isConnected: false,
           spreadsheetId: null,
@@ -382,30 +380,36 @@ export class HealthContextService {
 
       profile: {
         name: safeSettings.user?.name || "Member",
-        biologicalSex: safeSettings.profile?.biologicalSex || "MALE",
-        heightCm: safeSettings.profile?.heightCm || 175,
-        weightKg: safeSettings.profile?.weightKg || 70,
-        primaryGoal: safeSettings.profile?.primaryGoal || "MAINTAIN",
-        bmr: safeSettings.metabolic?.bmr || 1650,
-        tdee: safeSettings.metabolic?.tdee || 2200,
+        biologicalSex: safeSettings.profile?.biologicalSex || null,
+        heightCm: safeSettings.profile?.heightCm !== null && safeSettings.profile?.heightCm !== undefined ? Number(safeSettings.profile.heightCm) : null,
+        weightKg: safeSettings.profile?.weightKg !== null && safeSettings.profile?.weightKg !== undefined ? Number(safeSettings.profile.weightKg) : null,
+        primaryGoal: safeSettings.profile?.primaryGoal || null,
+        bmr: safeSettings.metabolic?.bmr || null,
+        tdee: safeSettings.metabolic?.tdee || null,
+        isProfileComplete: Boolean(safeSettings.profile?.isComplete),
       },
 
       nutrition: {
         dataState: nutritionState,
         hasLoggedMeals,
         caloriesConsumed: safeDailyNut.totals?.calories || 0,
-        calorieTarget: safeDailyNut.targets?.calories || 2000,
-        caloriesRemaining,
+        calorieTarget: safeSettings.nutritionGoals?.calories || null,
+        caloriesRemaining: safeSettings.nutritionGoals?.calories
+          ? Math.max(0, safeSettings.nutritionGoals.calories - (safeDailyNut.totals?.calories || 0))
+          : null,
         proteinConsumed: safeDailyNut.totals?.protein || 0,
-        proteinTarget: safeDailyNut.targets?.protein || 120,
-        proteinRemaining,
+        proteinTarget: safeSettings.nutritionGoals?.protein || null,
+        proteinRemaining: safeSettings.nutritionGoals?.protein
+          ? Math.max(0, safeSettings.nutritionGoals.protein - (safeDailyNut.totals?.protein || 0))
+          : null,
         carbsConsumed: safeDailyNut.totals?.carbs || 0,
-        carbsTarget: safeDailyNut.targets?.carbs || 250,
+        carbsTarget: safeSettings.nutritionGoals?.carbohydrates || null,
         fatsConsumed: safeDailyNut.totals?.fat || 0,
-        fatsTarget: safeDailyNut.targets?.fat || 65,
+        fatsTarget: safeSettings.nutritionGoals?.fat || null,
         fiberConsumed: safeDailyNut.totals?.fiber || 0,
         sugarConsumed: safeDailyNut.totals?.sugar || 0,
         mealCount: (safeDailyNut.meals || []).reduce((sum: number, m: any) => sum + (m.entries?.length || 0), 0),
+        isTargetsConfigured: Boolean(safeSettings.nutritionGoals?.isConfigured),
       },
 
       hydration: {

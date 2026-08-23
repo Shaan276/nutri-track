@@ -22,12 +22,19 @@ export default async function OnboardingPage() {
     redirect("/login?callbackUrl=/onboarding");
   }
 
-  // Check if user already completed onboarding
+  // Check if user already completed onboarding with genuine biometrics
   const existingProfile = await prisma.userProfile.findUnique({
     where: { userId: session.user.id },
   });
 
-  if (existingProfile) {
+  const isProfileComplete = Boolean(
+    existingProfile &&
+    existingProfile.heightCm &&
+    existingProfile.weightKg &&
+    existingProfile.dateOfBirth
+  );
+
+  if (isProfileComplete) {
     redirect("/app");
   }
 
