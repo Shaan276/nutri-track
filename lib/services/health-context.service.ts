@@ -126,12 +126,52 @@ export class HealthContextService {
     const date = targetDate || new Date().toISOString().split("T")[0];
     const pool = (prisma as any);
 
-    // 1. Settings & Metabolic Baseline
-    const settings = await UserSettingsService.getUserSettings(userId);
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 6);
+    const weekAgoStr = weekAgo.toISOString().split("T")[0];
 
-    // 2. Today's Nutrition
-    const dailyNut = await NutritionService.getDailyNutrition(userId, date);
-    const hasLoggedMeals = dailyNut.meals.some((m) => m.entries && m.entries.length > 0);
+    // High-performance parallel database query resolution
+    const [
+      settings,
+      dailyNut,
+      dailyHyd,
+      todayActivities,
+      weeklyActivities,
+      todayWorkouts,
+      weeklyWorkouts,
+      insights,
+      rep,
+      rawMemories,
+      connections,
+      googleSheet,
+      userGoals,
+    ] = await Promise.all([
+      UserSettingsService.getUserSettings(userId),
+      NutritionService.getDailyNutrition(userId, date),
+      HydrationService.getDailyHydration(userId, date),
+      pool.activityLog.findMany({ where: { userId, date } }),
+      pool.activityLog.findMany({ where: { userId, date: { gte: weekAgoStr, lte: date } } }),
+      pool.workoutSession.findMany({ where: { userId, date } }),
+      pool.workoutSession.findMany({
+        where: { userId, date: { gte: weekAgoStr, lte: date } },
+        include: { exercises: { include: { sets: true } } },
+      }),
+      SmartInsightsService.getSmartInsights(userId, "last7days").catch(() => null),
+      ReportService.getFullReport(userId, "last7days").catch(() => null),
+      AIMemoryService.getUserMemories(userId).catch(() => []),
+      typeof pool.integrationConnection?.findMany === "function"
+        ? pool.integrationConnection.findMany({ where: { userId } }).catch(() => [])
+        : Promise.resolve([]),
+      typeof pool.googleSheetConnection?.findUnique === "function"
+        ? pool.googleSheetConnection.findUnique({ where: { userId } }).catch(() => null)
+        : Promise.resolve(null),
+      typeof pool.goal?.findMany === "function"
+        ? pool.goal.findMany({ where: { userId } }).catch(() => [])
+        : Promise.resolve([]),
+    ]);
+
+    // 2. Nutrition calculations
+    const hasLoggedMeals = (dailyNut.meals || []).some((m: any) => m.entries && m.entries.length > 0);
     const nutritionState: HealthDataState = hasLoggedMeals ? "LOGGED" : "NOT_LOGGED_YET";
     const caloriesRemaining = Math.max(0, dailyNut.targets.calories - dailyNut.totals.calories);
     const proteinRemaining = Math.max(
@@ -139,70 +179,37 @@ export class HealthContextService {
       Math.round((dailyNut.targets.protein - dailyNut.totals.protein) * 10) / 10
     );
 
-    // 3. Today's Hydration
-    const dailyHyd = await HydrationService.getDailyHydration(userId, date);
+    // 3. Hydration calculations
     const hasLoggedHydration = dailyHyd.totalMl > 0;
     const hydrationState: HealthDataState = hasLoggedHydration ? "LOGGED" : "NOT_LOGGED_YET";
 
-    // 4. Movement & Activity Logs (Today & Weekly)
-    const todayActivities = await pool.activityLog.findMany({
-      where: { userId, date },
-    });
-
+    // 4. Movement & Activity Logs
     let todaySteps = 0;
     let todayDistanceKm = 0;
     let activityCalories = 0;
 
-    for (const act of todayActivities) {
+    for (const act of (todayActivities || [])) {
       todaySteps += Number(act.steps) || 0;
       todayDistanceKm += Number(act.distanceKm) || 0;
       activityCalories += Number(act.caloriesBurned) || 0;
     }
 
-    // Weekly running calculation (last 7 days)
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 6);
-    const weekAgoStr = weekAgo.toISOString().split("T")[0];
-
-    const weeklyActivities = await pool.activityLog.findMany({
-      where: {
-        userId,
-        date: { gte: weekAgoStr, lte: date },
-      },
-    });
-
     let weeklyRunningDistanceKm = 0;
-    for (const act of weeklyActivities) {
+    for (const act of (weeklyActivities || [])) {
       if (act.activityType === "RUN" || act.activityType === "RUNNING") {
         weeklyRunningDistanceKm += Number(act.distanceKm) || 0;
       }
     }
 
-    // 5. Workouts (Today & Weekly)
-    const todayWorkouts = await pool.workoutSession.findMany({
-      where: { userId, date },
-    });
-
-    let todayWorkoutSessions = todayWorkouts.length;
+    // 5. Workouts
+    let todayWorkoutSessions = (todayWorkouts || []).length;
     let workoutCalories = 0;
-    for (const wk of todayWorkouts) {
+    for (const wk of (todayWorkouts || [])) {
       workoutCalories += Number(wk.caloriesBurned) || 0;
     }
 
-    const weeklyWorkouts = await pool.workoutSession.findMany({
-      where: {
-        userId,
-        date: { gte: weekAgoStr, lte: date },
-      },
-      include: {
-        exercises: {
-          include: { sets: true },
-        },
-      },
-    });
-
     let weeklyWorkoutVolumeKg = 0;
-    for (const wk of weeklyWorkouts) {
+    for (const wk of (weeklyWorkouts || [])) {
       if (wk.exercises) {
         for (const ex of wk.exercises) {
           if (ex.sets) {
@@ -216,7 +223,7 @@ export class HealthContextService {
       }
     }
 
-    // 6. Total Active Energy Expenditure (Strictly no double-counting)
+    // 6. Total Active Energy Expenditure
     const totalActiveCalories = activityCalories + workoutCalories;
 
     // 7. Health Score (100-point system)
@@ -226,18 +233,13 @@ export class HealthContextService {
       gradeLabel: "Getting Started",
       isPending: true,
     };
-    try {
-      const insights = await SmartInsightsService.getSmartInsights(userId, "last7days");
-      if (insights?.healthScore) {
-        healthScoreData = {
-          score: insights.healthScore.overallScore,
-          letterGrade: insights.healthScore.grade,
-          gradeLabel: insights.healthScore.gradeLabel || "Healthy",
-          isPending: Boolean(insights.healthScore.isPending),
-        };
-      }
-    } catch {
-      // Safe fallback
+    if (insights?.healthScore) {
+      healthScoreData = {
+        score: insights.healthScore.overallScore,
+        letterGrade: insights.healthScore.grade,
+        gradeLabel: insights.healthScore.gradeLabel || "Healthy",
+        isPending: Boolean(insights.healthScore.isPending),
+      };
     }
 
     // 8. Deep Nutrition Micronutrient Audit
@@ -247,61 +249,39 @@ export class HealthContextService {
       target: number;
       unit: string;
     }> = [];
-    try {
-      const rep = await ReportService.getFullReport(userId, "last7days");
-      if (rep?.micronutrients) {
-        lowMicronutrients = rep.micronutrients
-          .filter((m) => m.percentage !== null && m.percentage < 70)
-          .map((m) => ({
-            label: m.label,
-            percentage: m.percentage as number,
-            target: m.target as number,
-            unit: m.unit,
-          }));
-      }
-    } catch {
-      // Safe fallback
+    if (rep?.micronutrients) {
+      lowMicronutrients = rep.micronutrients
+        .filter((m: any) => m.percentage !== null && m.percentage < 70)
+        .map((m: any) => ({
+          label: m.label,
+          percentage: m.percentage as number,
+          target: m.target as number,
+          unit: m.unit,
+        }));
     }
 
     // 9. AI Memories
-    const rawMemories = await AIMemoryService.getUserMemories(userId);
-    const memories = rawMemories.map((m: any) => ({
+    const memories = (rawMemories || []).map((m: any) => ({
       id: m.id,
       category: m.category,
       content: m.content,
     }));
 
-    // 10. Connected Integrations (Tokens are never exposed)
+    // 10. Connected Integrations
     const integrations: any[] = [];
-    try {
-      if (typeof pool.integrationConnection?.findMany === "function") {
-        const connections = await pool.integrationConnection.findMany({
-          where: { userId },
-        });
-        for (const c of connections) {
-          integrations.push({
-            provider: c.provider,
-            status: c.status,
-            lastSyncAt: c.lastSyncAt ? new Date(c.lastSyncAt).toISOString() : null,
-          });
-        }
-      }
-
-      // Check Google Sheets legacy table if not in integration connections
-      if (typeof pool.googleSheetConnection?.findUnique === "function") {
-        const googleSheet = await pool.googleSheetConnection.findUnique({
-          where: { userId },
-        });
-        if (googleSheet && !integrations.some((i: any) => i.provider === "GOOGLE_SHEETS")) {
-          integrations.push({
-            provider: "GOOGLE_SHEETS",
-            status: googleSheet.status || "CONNECTED",
-            lastSyncAt: googleSheet.lastSyncAt ? new Date(googleSheet.lastSyncAt).toISOString() : null,
-          });
-        }
-      }
-    } catch (e) {
-      console.warn("Integrations context fallback:", e);
+    for (const c of (connections || [])) {
+      integrations.push({
+        provider: c.provider,
+        status: c.status,
+        lastSyncAt: c.lastSyncAt ? new Date(c.lastSyncAt).toISOString() : null,
+      });
+    }
+    if (googleSheet && !integrations.some((i: any) => i.provider === "GOOGLE_SHEETS")) {
+      integrations.push({
+        provider: "GOOGLE_SHEETS",
+        status: googleSheet.status || "CONNECTED",
+        lastSyncAt: googleSheet.lastSyncAt ? new Date(googleSheet.lastSyncAt).toISOString() : null,
+      });
     }
 
     const stepTarget = settings.profile?.dailyStepTarget || 10000;
@@ -309,31 +289,23 @@ export class HealthContextService {
 
     // 11. Goals & Active Target Snapshot
     let featuredGoal: any = null;
-    let activeGoalsCount = 0;
-    let completedGoalsCount = 0;
-    try {
-      if (typeof pool.goal?.findMany === "function") {
-        const userGoals = await pool.goal.findMany({ where: { userId } });
-        const activeGoals = userGoals.filter((g: any) => g.status === "ACTIVE");
-        const completedGoals = userGoals.filter((g: any) => g.status === "COMPLETED");
-        activeGoalsCount = activeGoals.length;
-        completedGoalsCount = completedGoals.length;
-        if (activeGoals.length > 0) {
-          const top = activeGoals[0];
-          const progressPercentage = Math.min(100, Math.round(((top.currentValue || 0) / (top.targetValue || 1)) * 100));
-          const remainingAmount = Math.max(0, Number(top.targetValue) - Number(top.currentValue || 0));
-          featuredGoal = {
-            name: top.name,
-            category: top.category,
-            progressPercentage,
-            remainingAmount,
-            unit: top.unit,
-            daysRemaining: 0,
-          };
-        }
-      }
-    } catch (e) {
-      console.warn("Goals context fallback:", e);
+    const activeGoals = (userGoals || []).filter((g: any) => g.status === "ACTIVE");
+    const completedGoals = (userGoals || []).filter((g: any) => g.status === "COMPLETED");
+    const activeGoalsCount = activeGoals.length;
+    const completedGoalsCount = completedGoals.length;
+
+    if (activeGoals.length > 0) {
+      const top = activeGoals[0];
+      const progressPercentage = Math.min(100, Math.round(((top.currentValue || 0) / (top.targetValue || 1)) * 100));
+      const remainingAmount = Math.max(0, Number(top.targetValue) - Number(top.currentValue || 0));
+      featuredGoal = {
+        name: top.name,
+        category: top.category,
+        progressPercentage,
+        remainingAmount,
+        unit: top.unit,
+        daysRemaining: 0,
+      };
     }
 
     return {

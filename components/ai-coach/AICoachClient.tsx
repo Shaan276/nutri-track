@@ -159,25 +159,81 @@ export function AICoachClient() {
     loadInitialData();
   }, []);
 
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+
   // Scroll to bottom whenever messages update
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
 
-  // 2. Load messages for selected conversation
-  const loadMessages = async (convId: string) => {
+  // Clean up polling timer on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) {
+        clearTimeout(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, []);
+
+  // 2. Resilient message loader with background auto-polling for uninterrupted responses across page navigation
+  const loadMessages = async (convId: string, isPoll = false) => {
     try {
       const res = await fetch(`/api/ai/conversations/${convId}`);
       if (res.ok) {
         const data = await res.json();
-        setMessages(data.messages || []);
+        const fetchedMsgs: MessageItem[] = data.messages || [];
+        setMessages(fetchedMsgs);
+
+        // Check if the latest message is a user prompt without an assistant reply yet (generating in background)
+        const lastMsg = fetchedMsgs[fetchedMsgs.length - 1];
+        if (lastMsg && lastMsg.role === "user") {
+          setIsLoading(true);
+          // Start / continue polling until assistant reply arrives
+          if (pollingRef.current) clearTimeout(pollingRef.current);
+          pollingRef.current = setTimeout(() => {
+            loadMessages(convId, true);
+          }, 1000);
+        } else {
+          // Assistant response arrived or thread is idle
+          if (pollingRef.current) {
+            clearTimeout(pollingRef.current);
+            pollingRef.current = null;
+          }
+          setIsLoading(false);
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("nutritrack_pending_ai");
+          }
+        }
       }
     } catch (err) {
       console.error("Load messages error:", err);
+      if (!isPoll) setIsLoading(false);
     }
   };
 
+  // Re-sync messages on window focus or tab visibility change
+  useEffect(() => {
+    const handleFocusSync = () => {
+      if (activeConvId) {
+        loadMessages(activeConvId);
+        loadHealthSnapshot();
+      }
+    };
+
+    window.addEventListener("focus", handleFocusSync);
+    document.addEventListener("visibilitychange", handleFocusSync);
+    return () => {
+      window.removeEventListener("focus", handleFocusSync);
+      document.removeEventListener("visibilitychange", handleFocusSync);
+    };
+  }, [activeConvId]);
+
   const handleSelectConversation = async (convId: string) => {
+    if (pollingRef.current) {
+      clearTimeout(pollingRef.current);
+      pollingRef.current = null;
+    }
     setActiveConvId(convId);
     setSidebarOpen(false);
     await loadMessages(convId);
@@ -284,6 +340,15 @@ export function AICoachClient() {
     setMessages((prev) => [...prev, tempUserMsg]);
     setIsLoading(true);
 
+    if (typeof window !== "undefined" && convIdToUse) {
+      try {
+        localStorage.setItem(
+          "nutritrack_pending_ai",
+          JSON.stringify({ convId: convIdToUse, text, sentAt: Date.now() })
+        );
+      } catch {}
+    }
+
     try {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
@@ -318,17 +383,17 @@ export function AICoachClient() {
       loadHealthSnapshot();
     } catch (err: any) {
       console.error("Send message error:", err);
-      // Append friendly assistant message so the user is never left hanging
-      const fallbackAssistantMsg: MessageItem = {
-        id: `err_${Date.now()}`,
-        role: "assistant",
-        content:
-          "🤖 **AI Coach is currently unavailable at the moment.**\n\nPlease configure an active OpenAI API key in the [Admin Settings](/admin/settings) or contact the administrator.\n\nIn the meantime, you can track your nutrition, hydration, workouts, and runs directly from your Dashboard!",
-        createdAt: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, fallbackAssistantMsg]);
+      // If user navigated away or aborted, let the background poller recover it
+      if (convIdToUse) {
+        loadMessages(convIdToUse, true);
+      }
     } finally {
       setIsLoading(false);
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.removeItem("nutritrack_pending_ai");
+        } catch {}
+      }
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   };

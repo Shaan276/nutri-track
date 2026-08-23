@@ -64,7 +64,7 @@ export class AIContextBuilder {
       where: { conversationId },
       orderBy: { createdAt: "asc" },
     });
-    const recentMessages = rawMessages.slice(-10).map((m: any) => ({
+    const recentMessages = rawMessages.slice(-6).map((m: any) => ({
       role: m.role,
       content: m.content,
     }));

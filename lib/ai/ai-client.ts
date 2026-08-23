@@ -114,25 +114,25 @@ export class AIClient {
     const trimmed = (key || "").trim();
     const customUrl = (configuredBaseUrl || "").trim().replace(/\/+$/, "");
 
-    // 1. Groq Cloud API (Free, ultra-fast Llama-3.3-70B & Llama-3.1-8B)
+    // 1. Groq Cloud API (Free, high-token capacity, ultra-fast endpoints)
     if (trimmed.startsWith("gsk_")) {
       return {
         baseUrl: "https://api.groq.com/openai/v1",
-        models: Array.from(new Set([defaultModel || "llama-3.3-70b-versatile", "llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"].filter(Boolean))),
+        models: Array.from(new Set(["openai/gpt-oss-120b", "openai/gpt-oss-20b", "groq/compound-mini", defaultModel].filter(Boolean))),
         providerName: "Groq",
       };
     }
 
-    // 2. Google Gemini API (Free 1,500 req/day Flash models)
+    // 2. Google Gemini API (Free Flash models)
     if (trimmed.startsWith("AIza") || trimmed.startsWith("AQ.") || customUrl.includes("googleapis.com")) {
       return {
         baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
         models: Array.from(new Set([
-          defaultModel || "gemini-flash-latest",
           "gemini-flash-latest",
           "gemini-3.1-flash-lite",
-          "gemini-3.5-flash-lite",
           "gemini-2.5-flash",
+          "gemini-3.5-flash-lite",
+          defaultModel,
         ].filter(Boolean))),
         providerName: "Google Gemini",
       };
@@ -163,7 +163,7 @@ export class AIClient {
     model: string,
     allowTools: boolean
   ): Promise<{ content: string; tool_calls?: any[]; tokensUsed?: number }> {
-    const maxRetries = 3;
+    const maxRetries = 2;
 
     // Sync custom keys from database system settings if present
     await keyManager.syncWithDatabase();
@@ -183,8 +183,11 @@ export class AIClient {
       }
 
       const provider = this.resolveProvider(safeKey, configuredBaseUrl, model);
+      let keyExhausted = false;
 
       for (const currentModel of provider.models) {
+        if (keyExhausted) break;
+
         for (let attempt = 0; attempt < maxRetries; attempt++) {
           try {
             const bodyPayload: any = {
@@ -209,19 +212,16 @@ export class AIClient {
             });
 
             if (res.status === 429) {
-              const waitMs = Math.min(3000, 1000 * (attempt + 1));
-              console.warn(`[AIClient] Rate limited on ${provider.providerName} (${currentModel}). Retrying after ${waitMs}ms (attempt ${attempt + 1}/${maxRetries})...`);
-              await new Promise((r) => setTimeout(r, waitMs));
-              if (attempt === maxRetries - 1) {
-                console.warn(`[AIClient] Retries exhausted for ${currentModel}. Failing over to next candidate model...`);
-                break;
-              }
-              continue;
+              console.warn(`[AIClient] Rate limited on ${provider.providerName}. Failing over immediately to next standby key...`);
+              keyManager.recordExhaustion(activeKeyInfo.index);
+              keyExhausted = true;
+              break;
             }
 
             if (res.status === 401 || res.status === 402 || res.status === 403) {
               console.warn(`[AIClient] Key ${activeKeyInfo.label} quota/auth error (${res.status}). Failing over to next key...`);
               keyManager.recordExhaustion(activeKeyInfo.index);
+              keyExhausted = true;
               break;
             }
 
