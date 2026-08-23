@@ -6,6 +6,7 @@ import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { BottomNavigation } from "./BottomNavigation";
 import { QuickLogModal } from "@/components/quick-log/QuickLogModal";
+import { NavigationProgressBar } from "./NavigationProgressBar";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -19,6 +20,9 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <div className="h-screen w-screen bg-background-midnight text-foreground-primary flex overflow-hidden">
+      {/* Top Navigation Progress Bar for Instant Click Feedback */}
+      <NavigationProgressBar />
+
       {/* Desktop Fixed Left Sidebar */}
       <div className="hidden lg:flex flex-col w-64 h-full shrink-0 z-20">
         <Sidebar onOpenQuickLog={() => setIsQuickLogOpen(true)} />

@@ -15,8 +15,12 @@ export function DailyNutritionSummary({
   targets,
   progress,
 }: DailyNutritionSummaryProps) {
-  const caloriesRemaining = Math.max(0, targets.calories - totals.calories);
-  const isCaloriesOver = totals.calories > targets.calories;
+  const safeTotals = totals || { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0 };
+  const safeTargets = targets || { calories: 2000, protein: 120, carbs: 250, fat: 65, fiber: 30, sugar: 50 };
+  const safeProgress = progress || { caloriesPercent: 0, proteinPercent: 0, carbsPercent: 0, fatPercent: 0 };
+
+  const caloriesRemaining = Math.max(0, safeTargets.calories - safeTotals.calories);
+  const isCaloriesOver = safeTotals.calories > safeTargets.calories;
 
   return (
     <div className="w-full bg-background-surface border border-border-default rounded-3xl p-5 sm:p-6 shadow-surface-card space-y-5 text-left">

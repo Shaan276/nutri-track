@@ -47,10 +47,35 @@ export default async function ProtectedAppPage() {
 
   // Fetch today's aggregated nutrition, hydration, unified activities, and smart insights in parallel
   const [dailyData, hydrationData, activitiesData, smartInsights, userFoodsCount, assessmentMem] = await Promise.all([
-    NutritionService.getDailyNutrition(session.user.id, todayStr),
-    HydrationService.getDailyHydration(session.user.id, todayStr),
-    UnifiedActivityService.getDailyActivities(session.user.id, todayStr),
-    SmartInsightsService.getSmartInsights(session.user.id, "last7days"),
+    NutritionService.getDailyNutrition(session.user.id, todayStr).catch(() => ({
+      date: todayStr,
+      meals: [],
+      totals: { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0 },
+      targets: { calories: 2000, protein: 120, carbs: 250, fat: 65, fiber: 30, sugar: 50 },
+      progress: { caloriesPercent: 0, proteinPercent: 0, carbsPercent: 0, fatPercent: 0, fiberPercent: 0, sugarPercent: 0 },
+    })),
+    HydrationService.getDailyHydration(session.user.id, todayStr).catch(() => ({
+      date: todayStr,
+      totalMl: 0,
+      targetMl: 2500,
+      remainingMl: 2500,
+      percentage: 0,
+      isGoalReached: false,
+      streakDays: 0,
+      entries: [],
+    })),
+    UnifiedActivityService.getDailyActivities(session.user.id, todayStr).catch(() => ({
+      date: todayStr,
+      totalActiveDurationSeconds: 0,
+      totalCaloriesBurned: 0,
+      totalDistanceKm: 0,
+      totalSteps: 0,
+      totalActivitiesCount: 0,
+      cardioCount: 0,
+      workoutCount: 0,
+      items: [],
+    })),
+    SmartInsightsService.getSmartInsights(session.user.id, "last7days").catch(() => null),
     prisma.food.count({
       where: {
         OR: [{ userId: session.user.id }, { isSystemFood: true }],

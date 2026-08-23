@@ -6,11 +6,15 @@ import { SmartInsightsResponse } from "@/lib/services/insights/insight-types";
 import { Sparkles, ArrowRight, AlertTriangle, CheckCircle2, Trophy, Lightbulb } from "lucide-react";
 
 interface SmartInsightsWidgetProps {
-  insights: SmartInsightsResponse;
+  insights?: SmartInsightsResponse | null;
 }
 
 export function SmartInsightsWidget({ insights }: SmartInsightsWidgetProps) {
-  const { healthScore, heroInsight, positiveInsights, attentionInsights, recommendations, achievements } =
+  if (!insights || !insights.healthScore) {
+    return null;
+  }
+
+  const { healthScore, heroInsight, positiveInsights = [], attentionInsights = [], recommendations = [], achievements = [] } =
     insights;
 
   const topAttention = attentionInsights[0];
