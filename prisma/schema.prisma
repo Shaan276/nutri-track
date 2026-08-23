@@ -95,8 +95,6 @@ model UserProfile {
   weeklyRunningDistanceKm Float?       @default(15.0) @map("weekly_running_distance_km")
   weeklyWorkoutSessions  Int?          @default(3) @map("weekly_workout_sessions")
   primaryGoal            String?       @default("MAINTAIN") @map("primary_goal")
-  aiAssessmentStatus      String?       @default("NOT_STARTED") @map("ai_assessment_status")
-  aiAssessmentCompletedAt DateTime?     @map("ai_assessment_completed_at")
   createdAt              DateTime      @default(now()) @map("created_at")
   updatedAt              DateTime      @updatedAt @map("updated_at")
 

@@ -37,7 +37,7 @@ export default async function ProtectedAppPage() {
 
   const profile = await prisma.userProfile.findUnique({
     where: { userId: session.user.id },
-  });
+  }).catch(() => null);
 
   if (!profile) {
     redirect("/onboarding");
@@ -46,27 +46,28 @@ export default async function ProtectedAppPage() {
   const todayStr = new Date().toISOString().split("T")[0];
 
   // Fetch today's aggregated nutrition, hydration, unified activities, and smart insights in parallel
-  const [dailyData, hydrationData, activitiesData, smartInsights] = await Promise.all([
+  const [dailyData, hydrationData, activitiesData, smartInsights, userFoodsCount, assessmentMem] = await Promise.all([
     NutritionService.getDailyNutrition(session.user.id, todayStr),
     HydrationService.getDailyHydration(session.user.id, todayStr),
     UnifiedActivityService.getDailyActivities(session.user.id, todayStr),
     SmartInsightsService.getSmartInsights(session.user.id, "last7days"),
+    prisma.food.count({
+      where: {
+        OR: [{ userId: session.user.id }, { isSystemFood: true }],
+        isArchived: false,
+      },
+    }).catch(() => 0),
+    prisma.aIMemory.findFirst({
+      where: { userId: session.user.id, category: "ASSESSMENT_STATUS" },
+    }).catch(() => null),
   ]);
 
-  // Count user's private and system foods
-  const userFoodsCount = await prisma.food.count({
-    where: {
-      OR: [{ userId: session.user.id }, { isSystemFood: true }],
-      isArchived: false,
-    },
-  });
-
-  const totalEntriesCount = dailyData.meals.reduce((acc, m) => acc + m.entries.length, 0);
+  const totalEntriesCount = (dailyData?.meals || []).reduce((acc, m) => acc + (m.entries?.length || 0), 0);
 
   return (
     <div className="w-full space-y-6 text-left animate-fade-in">
       {/* First-Login / Resumable AI Assessment Modal & Banner */}
-      <AIAssessmentWelcomeModal initialStatus={profile.aiAssessmentStatus} />
+      <AIAssessmentWelcomeModal initialStatus={assessmentMem?.content || "NOT_STARTED"} />
 
       {/* Top Greeting Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-background-surface border border-border-default rounded-3xl p-6 sm:p-7 shadow-surface-card">

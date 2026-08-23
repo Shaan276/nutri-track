@@ -12,23 +12,26 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const profile = await prisma.userProfile.findUnique({
-      where: { userId: session.user.id },
-      select: {
-        aiAssessmentStatus: true,
-        aiAssessmentCompletedAt: true,
-        primaryGoal: true,
+    const memory = await prisma.aIMemory.findFirst({
+      where: {
+        userId: session.user.id,
+        category: "ASSESSMENT_STATUS",
       },
     });
 
+    const profile = await prisma.userProfile.findUnique({
+      where: { userId: session.user.id },
+      select: { primaryGoal: true },
+    }).catch(() => null);
+
     return NextResponse.json({
-      status: profile?.aiAssessmentStatus || "NOT_STARTED",
-      completedAt: profile?.aiAssessmentCompletedAt || null,
+      status: memory?.content || "NOT_STARTED",
+      completedAt: memory?.content === "COMPLETED" ? memory.updatedAt : null,
       primaryGoal: profile?.primaryGoal || null,
     });
   } catch (error: any) {
     console.error("GET /api/ai/assessment/status error:", error);
-    return NextResponse.json({ error: error.message || "Failed to fetch assessment status" }, { status: 500 });
+    return NextResponse.json({ status: "NOT_STARTED", completedAt: null }, { status: 200 });
   }
 }
 
@@ -47,18 +50,38 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid status value" }, { status: 400 });
     }
 
-    const updated = await prisma.userProfile.update({
-      where: { userId: session.user.id },
-      data: {
-        aiAssessmentStatus: status,
-        ...(status === "COMPLETED" ? { aiAssessmentCompletedAt: new Date() } : {}),
+    const existing = await prisma.aIMemory.findFirst({
+      where: {
+        userId: session.user.id,
+        category: "ASSESSMENT_STATUS",
       },
     });
 
+    let record;
+    if (existing) {
+      record = await prisma.aIMemory.update({
+        where: { id: existing.id },
+        data: {
+          content: status,
+          updatedAt: new Date(),
+        },
+      });
+    } else {
+      record = await prisma.aIMemory.create({
+        data: {
+          userId: session.user.id,
+          category: "ASSESSMENT_STATUS",
+          content: status,
+          importance: 5,
+          source: "SYSTEM",
+        },
+      });
+    }
+
     return NextResponse.json({
       success: true,
-      status: updated.aiAssessmentStatus,
-      completedAt: updated.aiAssessmentCompletedAt,
+      status: record.content,
+      completedAt: record.content === "COMPLETED" ? record.updatedAt : null,
     });
   } catch (error: any) {
     console.error("POST /api/ai/assessment/status error:", error);

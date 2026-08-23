@@ -329,14 +329,27 @@ export class AICoachService {
         nutritionGoals,
       });
 
-      // Mark AI Assessment as COMPLETED
-      await prisma.userProfile.update({
-        where: { userId },
-        data: {
-          aiAssessmentStatus: "COMPLETED",
-          aiAssessmentCompletedAt: new Date(),
-        },
-      }).catch(() => {});
+      // Mark AI Assessment as COMPLETED via AIMemory
+      const existingMem = await prisma.aIMemory.findFirst({
+        where: { userId, category: "ASSESSMENT_STATUS" },
+      }).catch(() => null);
+
+      if (existingMem) {
+        await prisma.aIMemory.update({
+          where: { id: existingMem.id },
+          data: { content: "COMPLETED", updatedAt: new Date() },
+        }).catch(() => {});
+      } else {
+        await prisma.aIMemory.create({
+          data: {
+            userId,
+            category: "ASSESSMENT_STATUS",
+            content: "COMPLETED",
+            importance: 5,
+            source: "SYSTEM",
+          },
+        }).catch(() => {});
+      }
 
       return {
         success: true,
