@@ -10,6 +10,8 @@ const testAISchema = z.object({
   apiKey: z.string().optional(),
   model: z.string().optional(),
   baseUrl: z.string().optional(),
+  fallbackKey1: z.string().optional(),
+  fallbackKey2: z.string().optional(),
 });
 
 /**
@@ -30,7 +32,9 @@ export async function POST(req: Request) {
     const result = await SystemSettingsService.testAIConnection(
       data.apiKey,
       data.model,
-      data.baseUrl
+      data.baseUrl,
+      data.fallbackKey1,
+      data.fallbackKey2
     );
 
     return NextResponse.json(result, { status: 200 });

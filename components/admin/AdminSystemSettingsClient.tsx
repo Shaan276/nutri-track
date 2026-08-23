@@ -101,6 +101,8 @@ export function AdminSystemSettingsClient({ initialSettings }: AdminSystemSettin
           apiKey: settings.OPENAI_API_KEY,
           model: settings.AI_MODEL,
           baseUrl: settings.AI_BASE_URL,
+          fallbackKey1: settings.OPENAI_API_KEY_FALLBACK_1,
+          fallbackKey2: settings.OPENAI_API_KEY_FALLBACK_2,
         }),
       });
 

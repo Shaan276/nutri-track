@@ -254,24 +254,25 @@ export class SystemSettingsService {
   static async testAIConnection(
     apiKey?: string,
     model?: string,
-    baseUrl?: string
+    baseUrl?: string,
+    fallbackKey1?: string,
+    fallbackKey2?: string
   ): Promise<{ success: boolean; latencyMs?: number; message: string; model?: string; provider?: string }> {
-    const keysToTry: Array<{ key: string; label: string }> = [];
+    const keysToTry: Array<{ key: string; label: string; isPrimary: boolean }> = [];
 
-    if (apiKey && apiKey.trim() !== "") {
-      keysToTry.push({ key: apiKey.trim(), label: "Provided Key" });
-    } else {
-      const primaryKey = await this.getSetting("OPENAI_API_KEY");
-      const fallback1 = await this.getSetting("OPENAI_API_KEY_FALLBACK_1");
-      const fallback2 = await this.getSetting("OPENAI_API_KEY_FALLBACK_2");
-      const envKey = process.env.OPENAI_API_KEY;
+    const primaryKey = (apiKey && apiKey.trim()) || (await this.getSetting("OPENAI_API_KEY")) || process.env.OPENAI_API_KEY;
+    if (primaryKey && primaryKey.trim()) {
+      keysToTry.push({ key: primaryKey.trim(), label: "Primary Key", isPrimary: true });
+    }
 
-      if (primaryKey && primaryKey.trim()) keysToTry.push({ key: primaryKey.trim(), label: "Primary Key" });
-      if (fallback1 && fallback1.trim()) keysToTry.push({ key: fallback1.trim(), label: "Fallback #1 (Standby)" });
-      if (fallback2 && fallback2.trim()) keysToTry.push({ key: fallback2.trim(), label: "Fallback #2 (Standby)" });
-      if (envKey && envKey.trim() && !keysToTry.some(k => k.key === envKey.trim())) {
-        keysToTry.push({ key: envKey.trim(), label: "Environment Key" });
-      }
+    const fb1 = (fallbackKey1 && fallbackKey1.trim()) || (await this.getSetting("OPENAI_API_KEY_FALLBACK_1"));
+    if (fb1 && fb1.trim() && !keysToTry.some(k => k.key === fb1.trim())) {
+      keysToTry.push({ key: fb1.trim(), label: "Standby Fallback #1", isPrimary: false });
+    }
+
+    const fb2 = (fallbackKey2 && fallbackKey2.trim()) || (await this.getSetting("OPENAI_API_KEY_FALLBACK_2"));
+    if (fb2 && fb2.trim() && !keysToTry.some(k => k.key === fb2.trim())) {
+      keysToTry.push({ key: fb2.trim(), label: "Standby Fallback #2", isPrimary: false });
     }
 
     if (keysToTry.length === 0) {
@@ -294,7 +295,15 @@ export class SystemSettingsService {
         return {
           providerName: "Google Gemini",
           endpoint: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-          models: Array.from(new Set([customModel, "gemini-flash-latest", "gemini-2.5-flash", "gemini-1.5-flash"].filter(Boolean))) as string[],
+          models: Array.from(new Set([
+            customModel,
+            "gemini-flash-latest",
+            "gemini-2.5-flash",
+            "gemini-1.5-flash",
+            "gemini-2.0-flash",
+            "gemini-1.5-flash-8b",
+            "gemini-3.1-flash-lite",
+          ].filter(Boolean))) as string[],
         };
       }
       if (trimmed.startsWith("sk-or-") || (customBaseUrl && customBaseUrl.includes("openrouter.ai"))) {
@@ -313,9 +322,10 @@ export class SystemSettingsService {
 
     let lastError = "All AI API keys failed.";
     let lastLatency = 0;
+    let hadRateLimit = false;
 
     for (const keyItem of keysToTry) {
-      const { key, label } = keyItem;
+      const { key, label, isPrimary } = keyItem;
 
       if (key.startsWith("mock_") || key.startsWith("test_")) {
         return {
@@ -349,10 +359,14 @@ export class SystemSettingsService {
           lastLatency = Date.now() - startTime;
 
           if (res.ok) {
+            const prefix = hadRateLimit && !isPrimary
+              ? `Primary key hit rate limit (429), but ${label} (${provider.providerName} • ${targetModel}) is ACTIVE and responded in ${lastLatency}ms! 🛡️⚡`
+              : `${label} (${provider.providerName} • ${targetModel}) connected successfully in ${lastLatency}ms! ⚡`;
+
             return {
               success: true,
               latencyMs: lastLatency,
-              message: `${label} (${provider.providerName} • ${targetModel}) connected successfully in ${lastLatency}ms! ⚡`,
+              message: prefix,
               model: targetModel,
               provider: provider.providerName,
             };
@@ -362,8 +376,14 @@ export class SystemSettingsService {
           const errMsg = errorData.error?.message || `HTTP Error ${res.status}: ${res.statusText}`;
           lastError = `${label} (${provider.providerName}): ${errMsg}`;
 
-          // If rate limited (429) or quota exceeded, proceed to next key in pool
-          if (res.status === 429 || res.status === 401 || res.status === 402 || res.status === 403) {
+          if (res.status === 429) {
+            hadRateLimit = true;
+            // Try next model for this provider first before failing over to next key
+            continue;
+          }
+
+          if (res.status === 401 || res.status === 402 || res.status === 403) {
+            // Invalid key / quota exhausted, break to next key
             break;
           }
         } catch (fetchErr: any) {
