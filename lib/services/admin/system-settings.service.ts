@@ -132,9 +132,10 @@ export class SystemSettingsService {
     }
 
     const pool = prisma as any;
+    const delegate = pool.systemSettings || pool.systemSetting;
     try {
-      if (typeof pool.systemSetting?.findUnique === "function") {
-        const record = await pool.systemSetting.findUnique({ where: { key } });
+      if (delegate && typeof delegate.findUnique === "function") {
+        const record = await delegate.findUnique({ where: { key } });
         if (record && record.value !== undefined && record.value !== null && record.value !== "") {
           this.cache[key] = { value: record.value, timestamp: now };
           return record.value;
@@ -163,7 +164,8 @@ export class SystemSettingsService {
    */
   static async getAllSettingsForAdmin(): Promise<SystemSettingItem[]> {
     const pool = prisma as any;
-    const dbRecords = await pool.systemSetting.findMany();
+    const delegate = pool.systemSettings || pool.systemSetting;
+    const dbRecords = delegate && typeof delegate.findMany === "function" ? await delegate.findMany() : [];
     const dbMap = new Map<string, any>(dbRecords.map((r: any) => [r.key, r]));
 
     const results: SystemSettingItem[] = [];
@@ -205,12 +207,13 @@ export class SystemSettingsService {
    */
   static async updateSetting(key: string, value: string, adminUserId: string) {
     const pool = prisma as any;
+    const delegate = pool.systemSettings || pool.systemSetting;
     const def = SYSTEM_SETTING_DEFINITIONS[key];
     const category = def ? def.category : "GENERAL";
     const isSecret = def ? def.isSecret : false;
     const description = def ? def.description : null;
 
-    const updated = await pool.systemSetting.upsert({
+    const updated = await delegate.upsert({
       where: { key },
       create: {
         key,
@@ -294,7 +297,7 @@ export class SystemSettingsService {
     const resolveProvider = (rawKey: string, customBaseUrl?: string, customModel?: string) => {
       const trimmed = rawKey.trim();
       if (trimmed.startsWith("gsk_") || (customBaseUrl && customBaseUrl.includes("groq.com"))) {
-        const groqModels = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"];
+        const groqModels = ["openai/gpt-oss-120b", "groq/compound-mini", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"];
         const models = customModel && groqModels.includes(customModel)
           ? Array.from(new Set([customModel, ...groqModels]))
           : groqModels;

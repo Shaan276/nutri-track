@@ -151,7 +151,7 @@ export class AIClient {
 
     // 1. Groq Cloud API (Free, high-token capacity, ultra-fast endpoints)
     if (trimmed.startsWith("gsk_") || customUrl.includes("groq.com")) {
-      const groqModels = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"];
+      const groqModels = ["openai/gpt-oss-120b", "groq/compound-mini", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"];
       const models = defaultModel && groqModels.includes(defaultModel)
         ? Array.from(new Set([defaultModel, ...groqModels]))
         : groqModels;
