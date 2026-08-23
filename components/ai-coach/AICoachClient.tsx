@@ -17,6 +17,7 @@ import {
   X,
   Brain,
   Calendar,
+  Shuffle,
 } from "lucide-react";
 import { GoalConfirmationCard } from "./GoalConfirmationCard";
 import { LiveHealthSnapshotDrawer } from "./LiveHealthSnapshotDrawer";
@@ -38,15 +39,45 @@ interface ConversationItem {
   messageCount: number;
 }
 
-const QUICK_PROMPTS = [
+const ANCHOR_PROMPTS = [
   "Plan my week",
   "Review my week",
+];
+
+const DYNAMIC_PROMPT_POOL = [
   "How much protein do I have left today?",
-  "Estimate calories burned for a 45 min run",
   "Which micronutrients am I low in?",
   "Recommend a high-protein vegetarian meal",
+  "Estimate calories burned for a 45 min run",
+  "Best pre-run carbs for a morning 10k run",
+  "How can I boost my Vitamin D & B12 naturally?",
+  "Suggest a quick 500 kcal muscle recovery snack",
+  "Calculate nutrition for 2 paneer rotis and mixed daal",
+  "What should I eat to hit my carbs without spiking fat?",
+  "How does my running pace affect calorie burn?",
+  "Foods high in magnesium for better sleep & muscle relaxation",
+  "How to maximize plant-based iron absorption with Vitamin C?",
+  "Suggest a rest day nutrition plan",
+  "High-protein breakfast under 400 kcal",
+  "Hydration strategy for long distance running",
+  "How much iron and calcium have I had today?",
+  "Post-workout meal to stop muscle breakdown",
+  "Healthiest Indian dinner options for runners",
+  "Set my daily water goal to 3000ml",
   "Set my protein target to 150g",
+  "Give me 3 actionable tips for faster recovery",
+  "Analyze my hydration trend for this week",
+  "High-protein vegan meal with 30g protein",
+  "Quick 10-minute high-protein dinner recipe",
+  "Is my sodium-potassium electrolyte balance on track?",
 ];
+
+function getRandomPromptSuggestions(count: number = 7): string[] {
+  const shuffled = [...DYNAMIC_PROMPT_POOL].sort(() => 0.5 - Math.random());
+  const anchors = [...ANCHOR_PROMPTS].sort(() => 0.5 - Math.random()).slice(0, 1);
+  const combined = Array.from(new Set([...anchors, ...shuffled])).slice(0, count);
+  return combined;
+}
 
 export function AICoachClient() {
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
@@ -57,6 +88,15 @@ export function AICoachClient() {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [quickPrompts, setQuickPrompts] = useState<string[]>([]);
+
+  useEffect(() => {
+    setQuickPrompts(getRandomPromptSuggestions(7));
+  }, []);
+
+  const handleShufflePrompts = () => {
+    setQuickPrompts(getRandomPromptSuggestions(7));
+  };
 
   // Modals state
   const [isMemoryModalOpen, setIsMemoryModalOpen] = useState(false);
@@ -584,15 +624,20 @@ export function AICoachClient() {
         {/* Quick Prompts Carousel */}
         <div className="px-4 py-2 bg-neutral-950/60 border-t border-neutral-900/80 overflow-x-auto no-scrollbar">
           <div className="flex items-center gap-2 min-w-max">
-            <span className="text-[10px] uppercase font-semibold text-neutral-500 flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-emerald-400" /> Suggestions:
-            </span>
-            {QUICK_PROMPTS.map((prompt, idx) => (
+            <button
+              onClick={handleShufflePrompts}
+              title="Shuffle prompt suggestions"
+              className="text-[10px] uppercase font-semibold text-neutral-400 hover:text-emerald-400 flex items-center gap-1.5 py-1 px-2.5 rounded-full bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 transition-colors cursor-pointer"
+            >
+              <Shuffle className="w-3 h-3 text-emerald-400" />
+              <span>New Ideas</span>
+            </button>
+            {quickPrompts.map((prompt, idx) => (
               <button
                 key={idx}
                 onClick={() => handleSendMessage(prompt)}
                 disabled={isLoading}
-                className="py-1 px-2.5 rounded-full text-[11px] bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-neutral-800 hover:border-neutral-700 transition-colors disabled:opacity-50"
+                className="py-1 px-2.5 rounded-full text-[11px] bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-neutral-800 hover:border-neutral-700 transition-colors disabled:opacity-50 cursor-pointer"
               >
                 {prompt}
               </button>
