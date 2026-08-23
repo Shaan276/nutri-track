@@ -468,6 +468,33 @@ export class AdminService {
     if (typeof pool.food?.deleteMany === "function") await pool.food.deleteMany({ where: { userId: targetUserId } });
 
     await pool.user.delete({ where: { id: targetUserId } });
-    return { success: true, message: `User "${user.name}" (${user.email}) deleted successfully.` };
+    return { success: true, message: `Account for "${user.name}" permanently deleted.` };
+  }
+
+  /**
+   * Wipes all food database entries, meal entries, and meal logs across the entire system for all users and admin.
+   */
+  static async clearAllSystemFoodDatabase(adminUserId: string) {
+    const pool = prisma as any;
+    const admin = await pool.user.findUnique({ where: { id: adminUserId } });
+    if (!admin || admin.role !== "ADMIN") {
+      throw new Error("Unauthorized. Admin privileges required.");
+    }
+
+    const [entries, foods, logs] = await Promise.all([
+      typeof pool.mealEntry?.deleteMany === "function" ? pool.mealEntry.deleteMany() : { count: 0 },
+      typeof pool.food?.deleteMany === "function" ? pool.food.deleteMany() : { count: 0 },
+      typeof pool.mealLog?.deleteMany === "function" ? pool.mealLog.deleteMany() : { count: 0 },
+    ]);
+
+    return {
+      success: true,
+      message: `Completely wiped food database across all users and admin. Deleted: ${foods.count} foods, ${entries.count} meal entries, ${logs.count} meal logs.`,
+      deletedCounts: {
+        mealEntries: entries.count,
+        foods: foods.count,
+        mealLogs: logs.count,
+      },
+    };
   }
 }

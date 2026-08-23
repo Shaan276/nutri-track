@@ -18,6 +18,7 @@ import {
   Sliders,
   Database,
   Radio,
+  Trash2,
 } from "lucide-react";
 
 interface AdminSystemSettingsClientProps {
@@ -47,6 +48,28 @@ export function AdminSystemSettingsClient({ initialSettings }: AdminSystemSettin
     message: string;
     model?: string;
   } | null>(null);
+
+  // Food Database Wipe State
+  const [isWipingFoodDb, setIsWipingFoodDb] = useState(false);
+  const [wipeFoodSuccess, setWipeFoodSuccess] = useState<string | null>(null);
+
+  const handleWipeFoodDatabase = async () => {
+    if (!window.confirm("⚠️ ARE YOU SURE? This will permanently delete ALL food database items, custom recipes, meal entries, and meal logs across ALL users and admin accounts.")) {
+      return;
+    }
+    try {
+      setIsWipingFoodDb(true);
+      setWipeFoodSuccess(null);
+      const res = await fetch("/api/admin/clear-food-database", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to wipe food database");
+      setWipeFoodSuccess(data.message || "Food database wiped successfully!");
+    } catch (err: any) {
+      alert(err.message || "Failed to wipe database");
+    } finally {
+      setIsWipingFoodDb(false);
+    }
+  };
 
   const toggleSecretVisibility = (key: string) => {
     setVisibleSecrets((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -762,6 +785,34 @@ export function AdminSystemSettingsClient({ initialSettings }: AdminSystemSettin
                 </p>
               </div>
             </div>
+          </div>
+
+          {/* Danger Zone: Food Database & Meal Log Reset */}
+          <div className="p-6 rounded-2xl bg-rose-950/20 border border-rose-800/40 space-y-4">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-rose-400 flex items-center gap-2">
+              <Database className="w-4 h-4 text-rose-400" />
+              Food Database & Meal Log Reset (All IDs & Admin)
+            </h2>
+            <p className="text-xs text-rose-200/80 leading-relaxed">
+              Wipes all items from the Food Database, custom recipes, meal logs, and meal entries across all users and admin accounts to start with a 100% clean slate. User accounts and login credentials will remain intact.
+            </p>
+
+            {wipeFoodSuccess && (
+              <div className="p-3 rounded-xl bg-emerald-950/60 border border-emerald-800 text-xs text-emerald-300 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                {wipeFoodSuccess}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleWipeFoodDatabase}
+              disabled={isWipingFoodDb}
+              className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs transition-all shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              {isWipingFoodDb ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              {isWipingFoodDb ? "Wiping Database in Production..." : "Wipe Entire Food Database & Meals (All Users & Admin)"}
+            </button>
           </div>
         </div>
       )}

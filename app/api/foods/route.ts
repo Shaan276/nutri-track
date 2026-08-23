@@ -76,3 +76,34 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Failed to create food item" }, { status: 500 });
   }
 }
+
+/**
+ * DELETE /api/foods?clearAll=true
+ * Deletes all custom foods for the authenticated user (or all foods if admin).
+ */
+export async function DELETE(req: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const clearAll = searchParams.get("clearAll") === "true";
+
+    if (clearAll) {
+      const pool = (await import("@/lib/db")).prisma as any;
+      const isAdmin = (session.user as any).role === "ADMIN";
+      const res = await pool.food.deleteMany(isAdmin ? {} : { where: { userId: session.user.id } });
+      return NextResponse.json({
+        status: "success",
+        message: `Deleted ${res?.count || 0} food items.`,
+      });
+    }
+
+    return NextResponse.json({ error: "clearAll parameter required" }, { status: 400 });
+  } catch (error: any) {
+    console.error("DELETE /api/foods error:", error);
+    return NextResponse.json({ error: "Failed to delete foods" }, { status: 500 });
+  }
+}
