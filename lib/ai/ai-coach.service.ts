@@ -203,17 +203,27 @@ export class AICoachService {
       AIMemoryService.autoCapturePreferences(userId, cleanText).catch(() => {});
     }
 
-    // 4. Build 4-layer personalized context grounded in PostgreSQL
-    const assembled = await AIContextBuilder.buildContext(userId, conversationId, promptText);
+    let aiResult: AICoachResponse;
+    try {
+      // 4. Build 4-layer personalized context grounded in PostgreSQL
+      const assembled = await AIContextBuilder.buildContext(userId, conversationId, promptText);
 
-    // 5. Generate AI Coach Response with key rotation, multimodal vision, & tool calling
-    const aiResult: AICoachResponse = await AIClient.generateCoachResponse(
-      assembled.systemPrompt,
-      assembled.recentMessages,
-      promptText,
-      { userId },
-      { imageBase64 }
-    );
+      // 5. Generate AI Coach Response with key rotation, multimodal vision, & tool calling
+      aiResult = await AIClient.generateCoachResponse(
+        assembled.systemPrompt,
+        assembled.recentMessages,
+        promptText,
+        { userId },
+        { imageBase64 }
+      );
+    } catch (genErr: any) {
+      console.error("[AICoachService] Error generating response:", genErr);
+      aiResult = {
+        reply: "I ran into a temporary hiccup processing your request. Please try again! 🥗✨",
+        modelUsed: "fallback",
+        toolsExecuted: [],
+      };
+    }
 
     // 6. Save assistant message with metadata
     const metadataObj = {
@@ -225,10 +235,10 @@ export class AICoachService {
 
     let finalReply = aiResult.reply;
 
-    // If tools were executed successfully, but LLM response returned unavailable fallback, use the tool execution message directly!
+    // If tools were executed, but LLM response returned unavailable fallback, use the tool execution message directly!
     if (aiResult.toolsExecuted.length > 0 && finalReply.includes("AI Coach is currently unavailable")) {
       finalReply = aiResult.toolsExecuted
-        .map((t) => t.result?.message || `Successfully executed ${t.toolName}! ✨`)
+        .map((t) => t.result?.message || `Processed ${t.toolName}! ✨`)
         .filter(Boolean)
         .join("\n\n");
     }

@@ -5,6 +5,7 @@ import { ReportService } from "@/lib/services/report.service";
 import { UserSettingsService } from "@/lib/services/user-settings.service";
 import { FoodService } from "@/lib/services/food.service";
 import { ActivityService } from "@/lib/services/activity.service";
+import { FoodNLP, LoggedMealCandidate } from "@/lib/nlp/food-nlp";
 import { prisma } from "@/lib/db";
 
 export interface ToolExecutionContext {
@@ -177,50 +178,35 @@ export class AIToolRegistry {
         const { foodName, newQuantity, newQuantityUnit, mealType, date } = args;
         const dateStr = date || new Date().toISOString().split("T")[0];
 
-        // Find existing meal entry by matching food name on that date
+        // Find existing meal entry using FoodNLP
         const daily = await NutritionService.getDailyNutrition(userId, dateStr);
-        let foundEntry: any = null;
-        let foundMealType: any = null;
+        const allCandidates: LoggedMealCandidate[] = daily.meals.flatMap((m) =>
+          m.entries.map((e) => ({
+            id: e.id,
+            foodName: e.foodName,
+            mealType: m.mealType,
+            calories: e.calories,
+            protein: e.protein,
+            quantity: Number(e.quantity),
+            quantityUnit: e.quantityUnit,
+          }))
+        );
 
-        const matchesFoodName = (loggedName: string, searchName: string): boolean => {
-          if (!loggedName || !searchName) return false;
-          const l = loggedName.toLowerCase().trim();
-          const s = searchName.toLowerCase().trim();
-          if (l.includes(s) || s.includes(l)) return true;
-
-          const normL = l.replace(/(.)\1+/g, "$1");
-          const normS = s.replace(/(.)\1+/g, "$1");
-          if (normL.includes(normS) || normS.includes(normL)) return true;
-
-          const wordsL = l.split(/[\s,.-]+/).filter((w) => w.length > 2);
-          const wordsS = s.split(/[\s,.-]+/).filter((w) => w.length > 2);
-          return wordsS.some((ws) =>
-            wordsL.some(
-              (wl) =>
-                wl.includes(ws) ||
-                ws.includes(wl) ||
-                wl.replace(/(.)\1+/g, "$1") === ws.replace(/(.)\1+/g, "$1")
-            )
-          );
-        };
-
-        for (const meal of daily.meals) {
-          if (mealType && meal.mealType !== mealType) continue;
-          for (const ent of meal.entries) {
-            const entName = ent.foodName || "";
-            if (matchesFoodName(entName, String(foodName))) {
-              foundEntry = ent;
-              foundMealType = meal.mealType;
-              break;
-            }
-          }
-          if (foundEntry) break;
-        }
+        const matchResult = FoodNLP.findBestMatch(String(foodName), allCandidates, mealType);
+        const foundEntry = matchResult.bestMatch;
 
         if (!foundEntry) {
+          const suggestions = allCandidates.map((c) => `• ${c.foodName} (${c.quantity} ${c.quantityUnit}, ${c.mealType})`);
+          if (suggestions.length > 0) {
+            return {
+              success: false,
+              message: `Could not find an exact entry for "${foodName}" in your ${dateStr} logs to edit.\n\nHere are the meals currently logged:\n${suggestions.join("\n")}\n\nWhich one would you like to update? 📊✨`,
+              suggestions: allCandidates,
+            };
+          }
           return {
             success: false,
-            message: `Could not find an existing entry for "${foodName}" in your ${dateStr} logs to edit.`,
+            message: `You haven't logged any meals yet for ${dateStr} to edit.`,
           };
         }
 
@@ -233,7 +219,7 @@ export class AIToolRegistry {
 
         return {
           success: true,
-          message: `Successfully updated "${foundEntry.foodName}" in ${foundMealType} to ${newQuantity} ${newQuantityUnit || foundEntry.quantityUnit}! 📊 New calories: ${updated.calculatedCalories} kcal, protein: ${updated.calculatedProtein}g.`,
+          message: `Successfully updated "${foundEntry.foodName}" in ${foundEntry.mealType} to ${newQuantity} ${newQuantityUnit || foundEntry.quantityUnit}! 📊 New calories: ${updated.calculatedCalories} kcal, protein: ${updated.calculatedProtein}g.`,
           updatedEntry: updated,
           newDailyTotals: updatedDaily.totals,
         };
@@ -244,61 +230,34 @@ export class AIToolRegistry {
         const dateStr = date || new Date().toISOString().split("T")[0];
 
         const daily = await NutritionService.getDailyNutrition(userId, dateStr);
-        let foundEntry: any = null;
-        let foundMealType: any = null;
+        const allCandidates: LoggedMealCandidate[] = daily.meals.flatMap((m) =>
+          m.entries.map((e) => ({
+            id: e.id,
+            foodName: e.foodName,
+            mealType: m.mealType,
+            calories: e.calories,
+            protein: e.protein,
+            quantity: Number(e.quantity),
+            quantityUnit: e.quantityUnit,
+          }))
+        );
 
-        const matchesFoodName = (loggedName: string, searchName: string): boolean => {
-          if (!loggedName || !searchName) return false;
-          const l = loggedName.toLowerCase().trim();
-          const s = searchName.toLowerCase().trim();
-          if (l.includes(s) || s.includes(l)) return true;
-
-          // Normalized letter repetition (e.g. "chilla" vs "chila")
-          const normL = l.replace(/(.)\1+/g, "$1");
-          const normS = s.replace(/(.)\1+/g, "$1");
-          if (normL.includes(normS) || normS.includes(normL)) return true;
-
-          // Word token overlap
-          const wordsL = l.split(/[\s,.-]+/).filter((w) => w.length > 2);
-          const wordsS = s.split(/[\s,.-]+/).filter((w) => w.length > 2);
-          return wordsS.some((ws) =>
-            wordsL.some(
-              (wl) =>
-                wl.includes(ws) ||
-                ws.includes(wl) ||
-                wl.replace(/(.)\1+/g, "$1") === ws.replace(/(.)\1+/g, "$1")
-            )
-          );
-        };
-
-        for (const meal of daily.meals) {
-          if (mealType && meal.mealType !== mealType) continue;
-          for (const ent of meal.entries) {
-            const entName = ent.foodName || "";
-            if (matchesFoodName(entName, String(foodName))) {
-              foundEntry = ent;
-              foundMealType = meal.mealType;
-              break;
-            }
-          }
-          if (foundEntry) break;
-        }
-
-        // Fallback: If only 1 meal entry exists in total for today, delete it
-        if (!foundEntry) {
-          const allEntries = daily.meals.flatMap((m) =>
-            m.entries.map((e) => ({ ...e, mealType: m.mealType }))
-          );
-          if (allEntries.length === 1) {
-            foundEntry = allEntries[0];
-            foundMealType = allEntries[0].mealType;
-          }
-        }
+        const matchResult = FoodNLP.findBestMatch(String(foodName), allCandidates, mealType);
+        const foundEntry = matchResult.bestMatch;
 
         if (!foundEntry) {
+          const suggestions = allCandidates.map((c) => `• ${c.foodName} (${c.calories} kcal, ${c.mealType})`);
+          if (suggestions.length > 0) {
+            return {
+              success: false,
+              message: `Could not find an exact match for "${foodName}" in your ${dateStr} food journal.\n\nHere are the meals currently logged for today:\n${suggestions.join("\n")}\n\nDid you mean one of these? Reply with "remove <Dish Name>" to delete it! 💡🥗`,
+              suggestions: allCandidates,
+            };
+          }
+
           return {
             success: false,
-            message: `Could not find an entry for "${foodName}" in your ${dateStr} logs to delete.`,
+            message: `You haven't logged any meals yet for ${dateStr}, so there is nothing to delete! 🥗✨`,
           };
         }
 
@@ -307,7 +266,7 @@ export class AIToolRegistry {
 
         return {
           success: true,
-          message: `Deleted "${foundEntry.foodName}" from ${foundMealType} for ${dateStr}! 🗑️✨ Updated daily calories: ${updatedDaily.totals.calories} kcal.`,
+          message: `Deleted "${foundEntry.foodName}" from ${foundEntry.mealType} for ${dateStr}! 🗑️✨ Updated daily calories: ${updatedDaily.totals.calories} kcal.`,
           newDailyTotals: updatedDaily.totals,
         };
       }
