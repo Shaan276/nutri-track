@@ -243,8 +243,14 @@ export class AIToolRegistry {
           }))
         );
 
-        const matchResult = FoodNLP.findBestMatch(String(foodName), allCandidates, mealType);
-        const foundEntry = matchResult.bestMatch;
+        const genericWords = ["it", "this", "the meal", "the food", "that", "this meal", "today's meal", "todays meal"];
+        let foundEntry: LoggedMealCandidate | null = null;
+        if (genericWords.includes(String(foodName).toLowerCase()) && allCandidates.length > 0) {
+          foundEntry = allCandidates[allCandidates.length - 1];
+        } else {
+          const matchResult = FoodNLP.findBestMatch(String(foodName), allCandidates, mealType);
+          foundEntry = matchResult.bestMatch;
+        }
 
         if (!foundEntry) {
           const suggestions = allCandidates.map((c) => `• ${c.foodName} (${c.calories} kcal, ${c.mealType})`);
@@ -341,15 +347,9 @@ export class AIToolRegistry {
         const { recipeName, foodName, name } = args;
         const targetQuery = (recipeName || foodName || name || "").trim();
 
-        if (!targetQuery) {
-          return {
-            success: false,
-            message: "Please specify the recipe name you want to delete from your Food Database.",
-          };
-        }
-
         const userFoods = await prisma.food.findMany({
           where: { userId },
+          orderBy: { createdAt: "desc" },
         });
 
         if (userFoods.length === 0) {
@@ -367,9 +367,19 @@ export class AIToolRegistry {
           protein: Number(f.protein),
         }));
 
-        const match = FoodNLP.findBestMatch(targetQuery, candidates);
+        const genericWords = ["it", "this", "the meal", "the food", "the recipe", "that", "this meal", "this recipe", "my recipe"];
+        let matchedFood: any = null;
 
-        if (!match || !match.bestMatch) {
+        if ((genericWords.includes(targetQuery.toLowerCase()) || !targetQuery) && userFoods.length > 0) {
+          matchedFood = userFoods[0];
+        } else {
+          const match = FoodNLP.findBestMatch(targetQuery, candidates);
+          if (match && match.bestMatch) {
+            matchedFood = userFoods.find((f) => f.id === match.bestMatch?.id);
+          }
+        }
+
+        if (!matchedFood) {
           const suggestions = userFoods.slice(0, 6).map((f) => `• "${f.name}" (${f.calories} kcal, ${f.protein}g protein)`).join("\n");
           return {
             success: false,
@@ -377,15 +387,14 @@ export class AIToolRegistry {
           };
         }
 
-        const matchedRecipe = match.bestMatch;
-        await FoodService.deleteFood(matchedRecipe.id, userId);
+        await FoodService.deleteFood(matchedFood.id, userId);
 
         return {
           success: true,
-          message: `Deleted recipe "${matchedRecipe.foodName}" from your Food Database! 🗑️📖✨`,
+          message: `Deleted recipe "${matchedFood.name}" from your Food Database! 🗑️📖✨`,
           deletedRecipe: {
-            id: matchedRecipe.id,
-            name: matchedRecipe.foodName,
+            id: matchedFood.id,
+            name: matchedFood.name,
           },
         };
       }
