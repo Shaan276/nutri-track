@@ -249,73 +249,135 @@ export class SystemSettingsService {
   }
 
   /**
-   * Tests OpenAI API Key connectivity and returns round-trip latency.
+   * Tests AI Key connectivity with multi-provider detection (Gemini, Groq, OpenRouter, OpenAI) and automatic standby fallback testing.
    */
   static async testAIConnection(
     apiKey?: string,
     model?: string,
     baseUrl?: string
-  ): Promise<{ success: boolean; latencyMs?: number; message: string; model?: string }> {
-    const resolvedKey = apiKey || (await this.getSetting("OPENAI_API_KEY"));
-    const resolvedModel = model || (await this.getSetting("AI_MODEL", "gpt-4o-mini"));
-    const resolvedBaseUrl = baseUrl || (await this.getSetting("AI_BASE_URL", "https://api.openai.com/v1"));
+  ): Promise<{ success: boolean; latencyMs?: number; message: string; model?: string; provider?: string }> {
+    const keysToTry: Array<{ key: string; label: string }> = [];
 
-    if (!resolvedKey || resolvedKey.trim() === "") {
+    if (apiKey && apiKey.trim() !== "") {
+      keysToTry.push({ key: apiKey.trim(), label: "Provided Key" });
+    } else {
+      const primaryKey = await this.getSetting("OPENAI_API_KEY");
+      const fallback1 = await this.getSetting("OPENAI_API_KEY_FALLBACK_1");
+      const fallback2 = await this.getSetting("OPENAI_API_KEY_FALLBACK_2");
+      const envKey = process.env.OPENAI_API_KEY;
+
+      if (primaryKey && primaryKey.trim()) keysToTry.push({ key: primaryKey.trim(), label: "Primary Key" });
+      if (fallback1 && fallback1.trim()) keysToTry.push({ key: fallback1.trim(), label: "Fallback #1 (Standby)" });
+      if (fallback2 && fallback2.trim()) keysToTry.push({ key: fallback2.trim(), label: "Fallback #2 (Standby)" });
+      if (envKey && envKey.trim() && !keysToTry.some(k => k.key === envKey.trim())) {
+        keysToTry.push({ key: envKey.trim(), label: "Environment Key" });
+      }
+    }
+
+    if (keysToTry.length === 0) {
       return {
         success: false,
-        message: "No OpenAI API key provided or configured in settings.",
+        message: "No AI API key configured in Primary or Fallback settings.",
       };
     }
 
-    if (resolvedKey.startsWith("mock_") || resolvedKey.startsWith("test_")) {
-      return {
-        success: true,
-        latencyMs: 120,
-        message: "Sandbox test API key verified successfully.",
-        model: resolvedModel,
-      };
-    }
-
-    const startTime = Date.now();
-    try {
-      const endpoint = `${resolvedBaseUrl.replace(/\/+$/, "")}/chat/completions`;
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${resolvedKey}`,
-        },
-        body: JSON.stringify({
-          model: resolvedModel,
-          messages: [{ role: "user", content: "ping" }],
-          max_tokens: 5,
-        }),
-      });
-
-      const latencyMs = Date.now() - startTime;
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        const errMsg = errorData.error?.message || `HTTP Error ${res.status}: ${res.statusText}`;
+    const resolveProvider = (rawKey: string, customBaseUrl?: string, customModel?: string) => {
+      const trimmed = rawKey.trim();
+      if (trimmed.startsWith("gsk_")) {
         return {
-          success: false,
-          latencyMs,
-          message: `OpenAI rejected credentials: ${errMsg}`,
+          providerName: "Groq Cloud",
+          endpoint: "https://api.groq.com/openai/v1/chat/completions",
+          models: Array.from(new Set([customModel, "llama-3.3-70b-versatile", "llama-3.1-8b-instant"].filter(Boolean))) as string[],
+        };
+      }
+      if (trimmed.startsWith("AIza") || trimmed.startsWith("AQ.") || (customBaseUrl && customBaseUrl.includes("googleapis.com"))) {
+        return {
+          providerName: "Google Gemini",
+          endpoint: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+          models: Array.from(new Set([customModel, "gemini-flash-latest", "gemini-2.5-flash", "gemini-1.5-flash"].filter(Boolean))) as string[],
+        };
+      }
+      if (trimmed.startsWith("sk-or-") || (customBaseUrl && customBaseUrl.includes("openrouter.ai"))) {
+        return {
+          providerName: "OpenRouter",
+          endpoint: "https://openrouter.ai/api/v1/chat/completions",
+          models: Array.from(new Set([customModel, "openai/gpt-4o-mini", "google/gemini-2.5-flash"].filter(Boolean))) as string[],
+        };
+      }
+      return {
+        providerName: "OpenAI",
+        endpoint: `${(customBaseUrl || "https://api.openai.com/v1").replace(/\/+$/, "")}/chat/completions`,
+        models: Array.from(new Set([customModel, "gpt-4o-mini", "gpt-4o"].filter(Boolean))) as string[],
+      };
+    };
+
+    let lastError = "All AI API keys failed.";
+    let lastLatency = 0;
+
+    for (const keyItem of keysToTry) {
+      const { key, label } = keyItem;
+
+      if (key.startsWith("mock_") || key.startsWith("test_")) {
+        return {
+          success: true,
+          latencyMs: 110,
+          message: `${label} verified successfully (Sandbox Mock Mode).`,
+          model: model || "mock-engine",
+          provider: "Sandbox",
         };
       }
 
-      return {
-        success: true,
-        latencyMs,
-        message: `Connected successfully! Response received in ${latencyMs}ms.`,
-        model: resolvedModel,
-      };
-    } catch (err: any) {
-      return {
-        success: false,
-        latencyMs: Date.now() - startTime,
-        message: `Network connection failed: ${err.message || "Unknown error"}`,
-      };
+      const configuredBaseUrl = baseUrl || (await this.getSetting("AI_BASE_URL"));
+      const provider = resolveProvider(key, configuredBaseUrl, model);
+
+      for (const targetModel of provider.models) {
+        const startTime = Date.now();
+        try {
+          const res = await fetch(provider.endpoint, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${key}`,
+            },
+            body: JSON.stringify({
+              model: targetModel,
+              messages: [{ role: "user", content: "ping" }],
+              max_tokens: 5,
+            }),
+          });
+
+          lastLatency = Date.now() - startTime;
+
+          if (res.ok) {
+            return {
+              success: true,
+              latencyMs: lastLatency,
+              message: `${label} (${provider.providerName} • ${targetModel}) connected successfully in ${lastLatency}ms! ⚡`,
+              model: targetModel,
+              provider: provider.providerName,
+            };
+          }
+
+          const errorData = await res.json().catch(() => ({}));
+          const errMsg = errorData.error?.message || `HTTP Error ${res.status}: ${res.statusText}`;
+          lastError = `${label} (${provider.providerName}): ${errMsg}`;
+
+          // If rate limited (429) or quota exceeded, proceed to next key in pool
+          if (res.status === 429 || res.status === 401 || res.status === 402 || res.status === 403) {
+            break;
+          }
+        } catch (fetchErr: any) {
+          lastLatency = Date.now() - startTime;
+          lastError = `${label} network error: ${fetchErr.message || "Unknown error"}`;
+          break;
+        }
+      }
     }
+
+    return {
+      success: false,
+      latencyMs: lastLatency,
+      message: lastError,
+    };
   }
 }
