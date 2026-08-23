@@ -119,8 +119,8 @@ export function AIAssessmentWelcomeModal({
         </div>
       )}
 
-      {/* 2. Subtle, Non-Intrusive Resume Banner on Dashboard (When Incomplete or Dismissed) */}
-      {(status === "DISMISSED_FOR_NOW" || status === "IN_PROGRESS") && !isOpen && (
+      {/* 2. Non-Intrusive Banner on Dashboard for All States */}
+      {!isOpen && (
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-neutral-900/80 border border-emerald-500/20 rounded-2xl p-4 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
@@ -128,12 +128,16 @@ export function AIAssessmentWelcomeModal({
             </div>
             <div>
               <p className="text-xs sm:text-sm font-bold text-white">
-                {status === "IN_PROGRESS"
+                {status === "COMPLETED"
+                  ? "AI Health Blueprint Active"
+                  : status === "IN_PROGRESS"
                   ? "AI Health Assessment In Progress"
                   : "Personalize your nutrition with AI Health Assessment"}
               </p>
               <p className="text-[11px] sm:text-xs text-neutral-400">
-                Let your AI Coach analyze your data and propose custom calorie, protein, and hydration targets.
+                {status === "COMPLETED"
+                  ? "Your personalized calorie, protein, hydration, and training targets are actively synchronized."
+                  : "Let your AI Coach analyze your biometric baseline and propose custom daily targets."}
               </p>
             </div>
           </div>
@@ -142,7 +146,13 @@ export function AIAssessmentWelcomeModal({
             onClick={handleStartAssessment}
             className="inline-flex items-center justify-center gap-1.5 py-2 px-3.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs font-bold rounded-xl transition-colors shrink-0 cursor-pointer"
           >
-            <span>{status === "IN_PROGRESS" ? "Resume Assessment" : "Start Assessment"}</span>
+            <span>
+              {status === "COMPLETED"
+                ? "Update Assessment"
+                : status === "IN_PROGRESS"
+                ? "Resume Assessment"
+                : "Start Assessment"}
+            </span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>

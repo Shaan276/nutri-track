@@ -187,7 +187,7 @@ export class AIClient {
   /**
    * Executes HTTP request with multi-key and multi-provider fallback, cooldown auto-recovery, and mock mode support
    */
-  private static async executeWithFallback(
+  public static async executeWithFallback(
     messages: ChatCompletionMessage[],
     model: string,
     allowTools: boolean

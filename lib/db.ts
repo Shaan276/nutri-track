@@ -4225,6 +4225,10 @@ const postgresDbClient = {
         updatedAt: new Date(row.updated_at),
       }));
     },
+    findFirst: async ({ where, orderBy }: { where?: any; orderBy?: any } = {}) => {
+      const results = await postgresDbClient.aiMemory.findMany({ where, orderBy });
+      return results && results.length > 0 ? results[0] : null;
+    },
     findUnique: async ({ where }: { where: { id: string } }) => {
       const pool = await getPool();
       const res = await pool.query("SELECT * FROM ai_memories WHERE id = $1", [where.id]);
@@ -4287,13 +4291,20 @@ const postgresDbClient = {
       await syncToDisk();
       return existing;
     },
-    deleteMany: async ({ where }: { where: { userId?: string } }) => {
+    deleteMany: async ({ where }: { where?: { userId?: any } } = {}) => {
       const pool = await getPool();
+      let count = 0;
       if (where?.userId) {
-        await pool.query("DELETE FROM ai_memories WHERE user_id = $1", [where.userId]);
+        if (typeof where.userId === "object" && Array.isArray(where.userId.in)) {
+          const res = await pool.query("DELETE FROM ai_memories WHERE user_id = ANY($1)", [where.userId.in]);
+          count = res.rowCount || 0;
+        } else if (typeof where.userId === "string") {
+          const res = await pool.query("DELETE FROM ai_memories WHERE user_id = $1", [where.userId]);
+          count = res.rowCount || 0;
+        }
         await syncToDisk();
       }
-      return { count: 1 };
+      return { count };
     },
   },
   friendship: {

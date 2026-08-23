@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Bot,
   Send,
@@ -24,11 +25,16 @@ import {
   ImagePlus,
   ChevronLeft,
   Square,
+  Volume2,
+  VolumeX,
+  ClipboardCheck,
 } from "lucide-react";
 import { GoalConfirmationCard } from "./GoalConfirmationCard";
 import { LiveHealthSnapshotDrawer } from "./LiveHealthSnapshotDrawer";
 import { AIMemoryModal } from "./AIMemoryModal";
 import { WeeklyPlanModal } from "./WeeklyPlanModal";
+import { FoodScannerModal } from "./FoodScannerModal";
+import { AssessmentQuestionnaireWidget } from "./AssessmentQuestionnaireWidget";
 
 interface MessageItem {
   id: string;
@@ -107,6 +113,53 @@ export function AICoachClient() {
   // Modals state
   const [isMemoryModalOpen, setIsMemoryModalOpen] = useState(false);
   const [isWeeklyPlanModalOpen, setIsWeeklyPlanModalOpen] = useState(false);
+  const [isFoodScannerOpen, setIsFoodScannerOpen] = useState(false);
+  const [isQuestionnaireOpen, setIsQuestionnaireOpen] = useState(false);
+  const [isTTSVoiceEnabled, setIsTTSVoiceEnabled] = useState(false);
+  const [assessmentStatus, setAssessmentStatus] = useState<string>("NOT_STARTED");
+
+  const searchParams = useSearchParams();
+
+  // Load TTS preference from local storage
+  useEffect(() => {
+    try {
+      const savedTTS = localStorage.getItem("nt_ai_tts_enabled");
+      if (savedTTS === "true") setIsTTSVoiceEnabled(true);
+    } catch {}
+  }, []);
+
+  const toggleTTSVoice = () => {
+    setIsTTSVoiceEnabled((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("nt_ai_tts_enabled", String(next));
+      } catch {}
+      if (!next && typeof window !== "undefined" && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+      return next;
+    });
+  };
+
+  const speakText = (text: string) => {
+    if (!isTTSVoiceEnabled || typeof window === "undefined" || !window.speechSynthesis) return;
+    try {
+      window.speechSynthesis.cancel();
+      // Clean excessive markdown and URLs for natural speaking
+      const cleanText = text
+        .replace(/[*#_`~[\]()]/g, "")
+        .replace(/https?:\/\/\S+/g, "")
+        .replace(/[•⚡🌱🔬💪💧🥗🔥🎯🍳🥣🍗🍚🧘🚀🧡🥄🫖🥜🌾]/g, "")
+        .trim();
+      if (!cleanText) return;
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.rate = 1.05;
+      utterance.pitch = 1.0;
+      window.speechSynthesis.speak(utterance);
+    } catch (err) {
+      console.warn("TTS speak notice:", err);
+    }
+  };
 
   // Live health metrics snapshot
   const [healthSnapshot, setHealthSnapshot] = useState<any>(null);
@@ -277,17 +330,83 @@ export function AICoachClient() {
     }
   };
 
-  // 1. Initial Load: Conversations, Health Context Snapshot
+  const loadAssessmentStatus = async () => {
+    try {
+      const res = await fetch("/api/ai/assessment/status");
+      if (res.ok) {
+        const data = await res.json();
+        setAssessmentStatus(data.status || "NOT_STARTED");
+      }
+    } catch {}
+  };
+
+  const handleTriggerAssessment = async () => {
+    try {
+      setIsLoading(true);
+      setIsQuestionnaireOpen(true);
+      const res = await fetch("/api/ai/assessment/start", { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.conversationId) {
+          setActiveConvId(data.conversationId);
+          setMessages(data.messages || []);
+          setAssessmentStatus("IN_PROGRESS");
+          // Add to conversations list if not present
+          setConversations((prev) => {
+            const exists = prev.some((c) => c.id === data.conversationId);
+            if (exists) return prev;
+            return [
+              {
+                id: data.conversationId,
+                title: "Health & Goal Assessment",
+                lastMessageAt: new Date().toISOString(),
+                messageCount: (data.messages || []).length,
+              },
+              ...prev,
+            ];
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Trigger assessment error:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleMealLoggedFromScanner = (mealData: any) => {
+    loadHealthSnapshot();
+    // Add assistant acknowledgment into chat
+    const logNotice: MessageItem = {
+      id: `scan_notice_${Date.now()}`,
+      role: "assistant",
+      content: `📸 **Scanned Meal Logged Successfully!** 🥗✨\n\n• **Dish**: ${mealData.foodName} (${mealData.mealType})\n• **Nutrition**: ${mealData.calories} kcal | ${mealData.protein}g Protein | ${mealData.carbohydrates}g Carbs | ${mealData.fat}g Fat | ${mealData.fiber}g Fiber\n\nYour daily totals, macros, and Dynamic Nutrition targets have been updated in real-time! 🚀💪`,
+      createdAt: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, logNotice]);
+    speakText(`Logged ${mealData.foodName} into your ${mealData.mealType} log!`);
+  };
+
+  // Check ?mode=assessment on mount
+  useEffect(() => {
+    if (searchParams && searchParams.get("mode") === "assessment") {
+      handleTriggerAssessment();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  // 1. Initial Load: Conversations, Health Context Snapshot, Assessment Status
   useEffect(() => {
     async function loadInitialData() {
       try {
         setIsInitialLoading(true);
         setErrorMessage(null);
 
-        // Fetch conversations & health snapshot in parallel
+        // Fetch conversations & health snapshot & assessment status in parallel
         const [convRes] = await Promise.all([
           fetch("/api/ai/conversations").catch(() => null),
           loadHealthSnapshot(),
+          loadAssessmentStatus(),
         ]);
 
         if (convRes?.ok) {
@@ -769,6 +888,42 @@ export function AICoachClient() {
 
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <button
+              onClick={toggleTTSVoice}
+              className={`py-1.5 px-2 sm:px-2.5 rounded-lg text-xs border flex items-center gap-1.5 transition-colors cursor-pointer ${
+                isTTSVoiceEnabled
+                  ? "bg-amber-950/80 hover:bg-amber-900/90 text-amber-200 border-amber-500/80 shadow-xs"
+                  : "bg-neutral-900 hover:bg-neutral-800 text-neutral-400 border-neutral-800"
+              }`}
+              title={isTTSVoiceEnabled ? "Voice Speech Output is ON (Click to mute)" : "Enable AI Voice Speech Output 🔊"}
+            >
+              {isTTSVoiceEnabled ? <Volume2 className="w-3.5 h-3.5 text-amber-400 shrink-0" /> : <VolumeX className="w-3.5 h-3.5 shrink-0" />}
+              <span className="hidden sm:inline font-medium">Voice</span>
+            </button>
+
+            <button
+              onClick={() => {
+                if (!isQuestionnaireOpen) {
+                  handleTriggerAssessment();
+                } else {
+                  setIsQuestionnaireOpen(false);
+                }
+              }}
+              className={`py-1.5 px-2 sm:px-2.5 rounded-lg text-xs border flex items-center gap-1.5 transition-colors cursor-pointer ${
+                isQuestionnaireOpen || assessmentStatus === "IN_PROGRESS"
+                  ? "bg-emerald-950/80 hover:bg-emerald-900/90 text-emerald-200 border-emerald-500/80 shadow-xs"
+                  : assessmentStatus === "COMPLETED"
+                  ? "bg-neutral-900 hover:bg-neutral-800 text-emerald-400 border-neutral-800"
+                  : "bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border-emerald-500/40 animate-pulse"
+              }`}
+              title="AI Health Assessment & Goal Discovery"
+            >
+              <ClipboardCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span className="hidden sm:inline font-medium">
+                {assessmentStatus === "COMPLETED" ? "Assessment ✓" : "Assessment"}
+              </span>
+            </button>
+
+            <button
               onClick={() => setIsWeeklyPlanModalOpen(true)}
               className="py-1.5 px-2 sm:px-2.5 rounded-lg text-xs bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-800/50 flex items-center gap-1.5 transition-colors cursor-pointer"
               title="View Weekly Health & Fitness Blueprint"
@@ -812,6 +967,15 @@ export function AICoachClient() {
 
         {/* Messages Scroll Area */}
         <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-4">
+          {isQuestionnaireOpen && (
+            <AssessmentQuestionnaireWidget
+              onSubmitAnswers={(textPayload) => {
+                setIsQuestionnaireOpen(false);
+                handleSendMessage(textPayload);
+              }}
+            />
+          )}
+
           {isInitialLoading ? (
             <div className="flex flex-col items-center justify-center h-64 text-neutral-500 gap-3">
               <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
@@ -994,15 +1158,26 @@ export function AICoachClient() {
             />
 
             <div className="flex items-center gap-1.5 sm:gap-2 bg-neutral-900 border border-neutral-800 rounded-2xl p-1.5 focus-within:border-emerald-500/50 focus-within:ring-1 focus-within:ring-emerald-500/30 transition-all">
-              {/* Photo Scan Button */}
+              {/* Live Camera Food Scanner Button */}
+              <button
+                type="button"
+                onClick={() => setIsFoodScannerOpen(true)}
+                disabled={isLoading}
+                className="p-2 text-neutral-400 hover:text-emerald-400 hover:bg-neutral-800 rounded-xl transition-colors disabled:opacity-40 cursor-pointer"
+                title="Scan food with AI Camera Vision & Viewfinder 📸"
+              >
+                <Camera className="w-4 h-4 text-emerald-400" />
+              </button>
+
+              {/* Gallery Image Upload Button */}
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isLoading}
                 className="p-2 text-neutral-400 hover:text-emerald-400 hover:bg-neutral-800 rounded-xl transition-colors disabled:opacity-40 cursor-pointer"
-                title="Upload or capture meal photo for nutrition recognition 📸"
+                title="Upload meal photo from gallery / files 🖼️"
               >
-                <Camera className="w-4 h-4" />
+                <ImagePlus className="w-4 h-4" />
               </button>
 
               {/* Speech-to-Text Mic Button */}
@@ -1096,6 +1271,13 @@ export function AICoachClient() {
       <WeeklyPlanModal
         isOpen={isWeeklyPlanModalOpen}
         onClose={() => setIsWeeklyPlanModalOpen(false)}
+      />
+
+      {/* 6. Live Food Camera & Vision Scanner Modal */}
+      <FoodScannerModal
+        isOpen={isFoodScannerOpen}
+        onClose={() => setIsFoodScannerOpen(false)}
+        onMealLogged={handleMealLoggedFromScanner}
       />
     </div>
   );

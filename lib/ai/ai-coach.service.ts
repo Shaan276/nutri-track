@@ -330,17 +330,17 @@ export class AICoachService {
       });
 
       // Mark AI Assessment as COMPLETED via AIMemory
-      const existingMem = await prisma.aIMemory.findFirst({
+      const existingMem = await (prisma as any).aiMemory.findFirst({
         where: { userId, category: "ASSESSMENT_STATUS" },
       }).catch(() => null);
 
       if (existingMem) {
-        await prisma.aIMemory.update({
+        await (prisma as any).aiMemory.update({
           where: { id: existingMem.id },
           data: { content: "COMPLETED", updatedAt: new Date() },
         }).catch(() => {});
       } else {
-        await prisma.aIMemory.create({
+        await (prisma as any).aiMemory.create({
           data: {
             userId,
             category: "ASSESSMENT_STATUS",
@@ -375,6 +375,79 @@ export class AICoachService {
       success: true,
       message: `Successfully updated your ${targetKey} target to ${newValue}! 🎯✨`,
       updatedSettings: updated,
+    };
+  }
+
+  /**
+   * Starts or resumes an interactive all-in-one health assessment for the user.
+   */
+  static async startOrResumeAssessment(userId: string): Promise<{
+    conversationId: string;
+    isFreshStart: boolean;
+    messages: any[];
+  }> {
+    const todayStr = new Date().toISOString().split("T")[0];
+    const { HealthContextService } = await import("@/lib/services/health-context.service");
+    const snapshot = await HealthContextService.getHealthSnapshot(userId, todayStr);
+
+    // Find or create assessment conversation
+    let conv = await (prisma as any).aiConversation.findFirst({
+      where: { userId, title: "Health & Goal Assessment" },
+      include: { messages: { orderBy: { createdAt: "asc" } } },
+    });
+
+    let isFreshStart = false;
+
+    if (!conv) {
+      conv = await (prisma as any).aiConversation.create({
+        data: {
+          userId,
+          title: "Health & Goal Assessment",
+        },
+        include: { messages: true },
+      });
+      isFreshStart = true;
+    }
+
+    // If conversation is empty, generate initial comprehensive assessment greeting
+    if (conv.messages.length === 0) {
+      isFreshStart = true;
+      const p = snapshot.profile;
+      const existingStats = `• 📊 **Current Profile**: ${p.heightCm} cm | ${p.weightKg} kg (BMR: ${p.bmr} kcal | TDEE: ${p.tdee} kcal)\n• 🎯 **Current Targets**: ${snapshot.nutrition.calorieTarget} kcal | ${snapshot.nutrition.proteinTarget}g Protein | ${snapshot.hydration.targetMl}ml Water`;
+
+      const initialMessage = `Alright ${p.name || "friend"}! 😄 I've already analyzed your biometric data and activity records so you won't need to repeat anything I already know:\n\n${existingStats}\n\nTo build your personalized nutrition, training, and recovery blueprint, let's look at your key lifestyle details together: 🎯✨\n\n1. 🎯 **Primary Goal & Priority**\n   • What is your top focus right now? (Fat Loss, Muscle Gain, Weight Maintenance, Running Performance, Strength, Better Health)\n\n2. 📏 **Specific Target & Timeline**\n   • What is your goal target (e.g. target weight, 5k/10k run goal) and preferred timeline?\n\n3. 🏠 **Living Situation**\n   • Where do you currently live? (With Family, Living Alone, Hostel / Dormitory, Shared Flat)\n\n4. 🕒 **Daily Routine & Activity**\n   • What is your typical day like? (Desk job, standing, walking commute, general movement)\n\n5. 🥗 **Food Environment & Control**\n   • Who cooks your meals? Any dietary preferences (Vegetarian, Vegan, Eggetarian), foods you dislike, or budget limits?\n\n6. 💤 **Sleep & Recovery**\n   • Average hours of sleep per night and overall sleep quality?\n\n7. 🏃‍♂️ **Training Priorities**\n   • Favorite activities? (Running, Gym Lifting, Home Workouts, Walking, HIIT)\n\n8. ⚠️ **Important Constraints**\n   • Any past injuries, schedule limits, or food restrictions I should factor in?\n\n💡 *Feel free to type your answers, speak with voice 🎙️, or select the interactive questionnaire chips! Once answered, I will immediately calculate and propose your custom calorie, macro, and hydration blueprint!* 🚀🔥`;
+
+      const welcomeMsg = await (prisma as any).aiMessage.create({
+        data: {
+          conversationId: conv.id,
+          role: "assistant",
+          content: initialMessage,
+          metadata: JSON.stringify({ isAssessmentGreeting: true }),
+        },
+      });
+
+      conv.messages = [welcomeMsg];
+    }
+
+    // Set persistent assessment status to IN_PROGRESS if not already completed
+    const existingStatus = await (prisma as any).aiMemory.findFirst({
+      where: { userId, category: "ASSESSMENT_STATUS" },
+    }).catch(() => null);
+
+    if (!existingStatus || existingStatus.content !== "COMPLETED") {
+      await AIMemoryService.setOrReplaceTopicMemory(userId, "ASSESSMENT_STATUS", "IN_PROGRESS", 5);
+    }
+
+    return {
+      conversationId: conv.id,
+      isFreshStart,
+      messages: conv.messages.map((m: any) => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        metadata: m.metadata ? (typeof m.metadata === "string" ? JSON.parse(m.metadata) : m.metadata) : null,
+        createdAt: m.createdAt.toISOString(),
+      })),
     };
   }
 }

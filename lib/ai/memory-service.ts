@@ -93,20 +93,67 @@ export class AIMemoryService {
   }
 
   /**
-   * Scans user text for obvious recurring dietary/training preferences and stores them safely.
+   * Sets or updates a single-topic memory (e.g., living situation, primary goal, diet style),
+   * replacing older contradictory memories cleanly.
+   */
+  static async setOrReplaceTopicMemory(
+    userId: string,
+    topicKey: "LIVING_SITUATION" | "PRIMARY_GOAL" | "DIETARY_PREFERENCE" | "TRAINING_PREFERENCE" | "SLEEP_ROUTINE" | "CONSTRAINTS" | "ASSESSMENT_STATUS",
+    content: string,
+    importance: number = 4
+  ) {
+    const trimmed = content.trim();
+    if (!trimmed) return null;
+
+    // Check if an existing memory for this category or topic pattern exists
+    const existing = await (prisma as any).aiMemory.findFirst({
+      where: {
+        userId,
+        category: topicKey,
+      },
+    });
+
+    if (existing) {
+      return (prisma as any).aiMemory.update({
+        where: { id: existing.id },
+        data: {
+          category: topicKey,
+          content: trimmed,
+          importance,
+          updatedAt: new Date(),
+        },
+      });
+    }
+
+    return (prisma as any).aiMemory.create({
+      data: {
+        userId,
+        category: topicKey,
+        content: trimmed,
+        importance,
+        source: "AI_ASSESSMENT",
+      },
+    });
+  }
+
+  /**
+   * Scans user text for obvious recurring dietary, lifestyle, living situation, and training preferences and stores them safely.
    */
   static async autoCapturePreferences(userId: string, userMessage: string): Promise<void> {
     const lower = userMessage.toLowerCase();
 
-    const rules: Array<{ pattern: RegExp; content: string; category: CreateMemoryInput["category"] }> = [
+    // 1. Dietary and Allergy Rules
+    const dietaryRules: Array<{ pattern: RegExp; content: string; category: CreateMemoryInput["category"] }> = [
       { pattern: /\b(i am|i'm|i am a)\s+vegetarian\b/i, content: "Prefers vegetarian dietary choices", category: "PREFERENCE" },
-      { pattern: /\b(i am|i'm|i am a)\s+vegan\b/i, content: "Follows a vegan diet", category: "PREFERENCE" },
+      { pattern: /\b(i am|i'm|i am a)\s+vegan\b/i, content: "Follows a strict vegan diet", category: "PREFERENCE" },
+      { pattern: /\b(i am|i'm|i am a)\s+eggetarian\b/i, content: "Follows an eggetarian diet (eats eggs & dairy, no meat)", category: "PREFERENCE" },
       { pattern: /\b(lactose|dairy)\s+(intolerant|free|allergy)\b/i, content: "Avoids dairy products (lactose sensitive)", category: "CONSTRAINT" },
       { pattern: /\b(gluten\s+free|celiac)\b/i, content: "Requires gluten-free foods", category: "CONSTRAINT" },
+      { pattern: /\b(peanut|nut)\s+allergy\b/i, content: "Severe nut allergy - exclude all nuts and peanuts", category: "CONSTRAINT" },
       { pattern: /\b(training for|preparing for)\s+(a\s+)?(marathon|half marathon|10k|5k)\b/i, content: "Training for a running distance event", category: "TRAINING" },
     ];
 
-    for (const rule of rules) {
+    for (const rule of dietaryRules) {
       if (rule.pattern.test(lower)) {
         await this.addMemory(userId, {
           category: rule.category,
@@ -115,6 +162,30 @@ export class AIMemoryService {
           source: "AUTO_DETECTED",
         }).catch(() => {});
       }
+    }
+
+    // 2. Living Situation Rules (Single-Topic replacement)
+    if (/\b(live in a hostel|living in hostel|hostel mess|dormitory|dorm food)\b/i.test(lower)) {
+      await this.setOrReplaceTopicMemory(
+        userId,
+        "LIVING_SITUATION",
+        "Lives in a Hostel / Dormitory (Eats mess food with limited cooking facilities. Needs practical high-protein additions like milk, curd, paneer, soy, eggs, and fruits).",
+        4
+      ).catch(() => {});
+    } else if (/\b(live alone|living alone|stay alone|staying alone|cook for myself|bachelor)\b/i.test(lower)) {
+      await this.setOrReplaceTopicMemory(
+        userId,
+        "LIVING_SITUATION",
+        "Lives Alone (Responsible for grocery shopping, cooking, cleaning, and meal prep. Consider active household time and quick preparation options).",
+        4
+      ).catch(() => {});
+    } else if (/\b(live with family|living with family|live with parents|home cooked meals|family meals)\b/i.test(lower)) {
+      await this.setOrReplaceTopicMemory(
+        userId,
+        "LIVING_SITUATION",
+        "Lives with Family (Shares traditional family meals with partial control over recipes. Emphasize portion adjustment and smart additions over demanding separate cooking).",
+        4
+      ).catch(() => {});
     }
   }
 }
