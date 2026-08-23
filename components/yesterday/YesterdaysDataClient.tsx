@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import {
   Zap,
@@ -9,18 +9,12 @@ import {
   Droplets,
   Activity,
   Dumbbell,
-  ArrowRight,
-  TrendingUp,
-  TrendingDown,
   CheckCircle2,
   Calendar,
   RefreshCw,
   Bot,
-  ShieldAlert,
-  Loader2,
   Award,
   ChevronRight,
-  Target,
 } from "lucide-react";
 import { DynamicNutritionTargetResult } from "@/lib/services/dynamic-nutrition.service";
 
@@ -87,13 +81,13 @@ export function YesterdaysDataClient({ initialData }: YesterdaysDataClientProps)
         <div>
           <div className="flex items-center gap-2 text-xs font-bold text-brand-400 uppercase tracking-wider mb-1">
             <Sparkles className="w-4 h-4" />
-            AI Intelligence & Yesterday's Performance
+            AI Intelligence &amp; Yesterday&apos;s Performance
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground-primary tracking-tight">
-            Yesterday's Data & Dynamic Nutrition
+            Yesterday&apos;s Data &amp; Dynamic Nutrition
           </h1>
           <p className="text-xs sm:text-sm text-foreground-secondary mt-1 max-w-2xl leading-relaxed">
-            Every morning, Nutri-Track reviews yesterday's actual nutrition, workouts, and running volume to dynamically adapt today's protein, carbs, and hydration for maximum recovery and metabolic momentum.
+            Every morning, Nutri-Track reviews yesterday&apos;s actual nutrition, workouts, and running volume to dynamically adapt today&apos;s protein, carbs, and hydration for maximum recovery and metabolic momentum.
           </p>
         </div>
 
@@ -162,7 +156,7 @@ export function YesterdaysDataClient({ initialData }: YesterdaysDataClientProps)
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-black font-extrabold text-xs transition-all shadow-md cursor-pointer shrink-0"
           >
             <Bot className="w-4 h-4" />
-            <span>Consult AI Coach on Today's Plan</span>
+            <span>Consult AI Coach on Today&apos;s Plan</span>
             <ChevronRight className="w-3.5 h-3.5" />
           </Link>
         </div>
@@ -270,7 +264,7 @@ export function YesterdaysDataClient({ initialData }: YesterdaysDataClientProps)
           <div className="space-y-3 pt-2">
             <div className="text-xs font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-2">
               <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-              Why Today's Targets Were Adjusted (AI Physiological Rationale)
+              Why Today&apos;s Targets Were Adjusted (AI Physiological Rationale)
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
               {data.adjustments.map((adj, idx) => (
@@ -303,7 +297,7 @@ export function YesterdaysDataClient({ initialData }: YesterdaysDataClientProps)
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-foreground-primary flex items-center gap-2">
             <Calendar className="w-4 h-4 text-brand-400" />
-            Yesterday's Performance Logs ({y.date})
+            Yesterday&apos;s Performance Logs ({y.date})
           </h2>
           <span className="text-xs text-foreground-muted">24-hour consolidated audit</span>
         </div>
@@ -391,7 +385,7 @@ export function YesterdaysDataClient({ initialData }: YesterdaysDataClientProps)
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-foreground-secondary flex items-center gap-1.5">
                 <Activity className="w-4 h-4 text-emerald-400" />
-                Cardio & Steps
+                Cardio &amp; Steps
               </span>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300">
                 {y.movement.activeCaloriesBurned} kcal burned
@@ -418,7 +412,7 @@ export function YesterdaysDataClient({ initialData }: YesterdaysDataClientProps)
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-foreground-secondary flex items-center gap-1.5">
                 <Dumbbell className="w-4 h-4 text-amber-400" />
-                Strength & Lifting
+                Strength &amp; Lifting
               </span>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300">
                 {y.workouts.sessionsCount} Sessions
@@ -448,10 +442,10 @@ export function YesterdaysDataClient({ initialData }: YesterdaysDataClientProps)
       <div className="p-6 rounded-3xl bg-background-elevated border border-border-subtle flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="space-y-1">
           <h3 className="text-sm font-bold text-foreground-primary">
-            Want the AI to adapt specific meals for today's dynamic target?
+            Want the AI to adapt specific meals for today&apos;s dynamic target?
           </h3>
           <p className="text-xs text-foreground-secondary">
-            Ask the AI Coach in chat: <em>"How should I split today's {data.optimized.protein}g protein across my meals?"</em>
+            Ask the AI Coach in chat: <em>&quot;How should I split today&apos;s {data.optimized.protein}g protein across my meals?&quot;</em>
           </p>
         </div>
 
