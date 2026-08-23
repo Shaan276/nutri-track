@@ -22,6 +22,8 @@ export interface LiveHealthSnapshotDrawerProps {
   isLoading?: boolean;
   onRefresh?: () => void;
   onDeleteMemory?: (id: string) => void;
+  isOpen?: boolean;
+  onToggleOpen?: () => void;
   isMobileOpen?: boolean;
   onCloseMobile?: () => void;
 }
@@ -31,63 +33,61 @@ export function LiveHealthSnapshotDrawer({
   isLoading = false,
   onRefresh,
   onDeleteMemory,
+  isOpen = true,
+  onToggleOpen,
   isMobileOpen = false,
   onCloseMobile,
 }: LiveHealthSnapshotDrawerProps) {
-  const [isOpen, setIsOpen] = useState(true);
-
   if (!snapshot) {
     return (
       <div
-        className={`hidden lg:flex flex-col border-l border-neutral-800 bg-neutral-950 transition-all duration-300 ${
-          isOpen ? "w-80" : "w-12"
+        className={`hidden xl:flex flex-col border-l border-neutral-800 bg-neutral-950 transition-all duration-300 ${
+          isOpen ? "w-80 opacity-100" : "w-0 opacity-0 overflow-hidden border-none pointer-events-none"
         }`}
       >
         <div className="flex items-center justify-between p-3 border-b border-neutral-800 bg-neutral-900/50">
-          {isOpen && (
-            <div className="flex items-center gap-2">
-              <Activity className="w-4 h-4 text-emerald-400" />
-              <span className="text-xs font-semibold uppercase tracking-wider text-neutral-300">
-                Live Health Snapshot
-              </span>
-            </div>
-          )}
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="p-1 text-neutral-400 hover:text-white rounded hover:bg-neutral-800 transition-colors mx-auto"
-          >
-            {isOpen ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-          </button>
-        </div>
-        {isOpen && (
-          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-xs text-neutral-400 space-y-3">
-            {isLoading ? (
-              <>
-                <RefreshCw className="w-5 h-5 animate-spin text-emerald-400 mx-auto" />
-                <span>Loading live health metrics...</span>
-              </>
-            ) : (
-              <>
-                <Activity className="w-8 h-8 text-neutral-600 mx-auto" />
-                <div>
-                  <p className="font-bold text-neutral-300">Live Health Context</p>
-                  <p className="text-[11px] text-neutral-500 mt-1">
-                    Your daily calories, hydration, workouts, and activity will appear here in real-time.
-                  </p>
-                </div>
-                {onRefresh && (
-                  <button
-                    onClick={onRefresh}
-                    className="px-3 py-1.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-neutral-800 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Refresh Snapshot</span>
-                  </button>
-                )}
-              </>
-            )}
+          <div className="flex items-center gap-2">
+            <Activity className="w-4 h-4 text-emerald-400" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-neutral-300">
+              Live Health Snapshot
+            </span>
           </div>
-        )}
+          {onToggleOpen && (
+            <button
+              onClick={onToggleOpen}
+              className="p-1 text-neutral-400 hover:text-white rounded hover:bg-neutral-800 transition-colors cursor-pointer"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-xs text-neutral-400 space-y-3">
+          {isLoading ? (
+            <>
+              <RefreshCw className="w-5 h-5 animate-spin text-emerald-400 mx-auto" />
+              <span>Loading live health metrics...</span>
+            </>
+          ) : (
+            <>
+              <Activity className="w-8 h-8 text-neutral-600 mx-auto" />
+              <div>
+                <p className="font-bold text-neutral-300">Live Health Context</p>
+                <p className="text-[11px] text-neutral-500 mt-1">
+                  Your daily calories, hydration, workouts, and activity will appear here in real-time.
+                </p>
+              </div>
+              {onRefresh && (
+                <button
+                  onClick={onRefresh}
+                  className="px-3 py-1.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-neutral-800 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Refresh Snapshot</span>
+                </button>
+              )}
+            </>
+          )}
+        </div>
       </div>
     );
   }
@@ -101,7 +101,7 @@ export function LiveHealthSnapshotDrawer({
       {isMobileOpen && (
         <div
           onClick={onCloseMobile}
-          className="fixed inset-0 bg-black/70 z-40 lg:hidden backdrop-blur-sm transition-opacity"
+          className="fixed inset-0 bg-black/70 z-40 xl:hidden backdrop-blur-sm transition-opacity"
         />
       )}
 
@@ -110,25 +110,23 @@ export function LiveHealthSnapshotDrawer({
           isMobileOpen
             ? "fixed inset-y-0 right-0 z-50 w-80 max-w-[90vw] flex flex-col bg-neutral-950 border-l border-neutral-800 shadow-2xl"
             : "hidden xl:flex flex-col border-l border-neutral-800 bg-neutral-950 transition-all duration-300"
-        } ${!isMobileOpen && (isOpen ? "w-72 2xl:w-80" : "w-12")}`}
+        } ${!isMobileOpen && (isOpen ? "w-80 opacity-100" : "w-0 opacity-0 overflow-hidden border-none pointer-events-none")}`}
       >
         {/* Drawer Header Toggle */}
-        <div className="flex items-center justify-between p-3 border-b border-neutral-800 bg-neutral-900/50">
-          {(isOpen || isMobileOpen) && (
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-2">
-                <Activity className="w-4 h-4 text-emerald-400" />
-                <span className="text-xs font-semibold uppercase tracking-wider text-neutral-300">
-                  Live Health Snapshot
-                </span>
-              </div>
-              {snapshot.generatedAt && (
+        <div className="flex items-center justify-between p-3 border-b border-neutral-800 bg-neutral-900/50 shrink-0">
+          <div className="space-y-0.5 min-w-0">
+            <div className="flex items-center gap-2">
+              <Activity className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span className="text-xs font-semibold uppercase tracking-wider text-neutral-300 truncate">
+                Live Health Snapshot
+              </span>
+            </div>
+            {snapshot.generatedAt && (
               <p className="text-[10px] text-neutral-500 font-mono pl-6">
                 Updated {new Date(snapshot.generatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
               </p>
             )}
           </div>
-        )}
         <div className="flex items-center gap-1">
           {isOpen && onRefresh && (
             <button
@@ -140,13 +138,25 @@ export function LiveHealthSnapshotDrawer({
               <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin text-emerald-400" : ""}`} />
             </button>
           )}
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="p-1 text-neutral-400 hover:text-white rounded hover:bg-neutral-800 transition-colors cursor-pointer"
-            title={isOpen ? "Collapse panel" : "Expand panel"}
-          >
-            {isOpen ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-          </button>
+          {isMobileOpen ? (
+            <button
+              onClick={onCloseMobile}
+              className="p-1 text-neutral-400 hover:text-white rounded hover:bg-neutral-800 transition-colors cursor-pointer"
+              title="Close panel"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          ) : (
+            onToggleOpen && (
+              <button
+                onClick={onToggleOpen}
+                className="p-1 text-neutral-400 hover:text-white rounded hover:bg-neutral-800 transition-colors cursor-pointer"
+                title={isOpen ? "Collapse panel" : "Expand panel"}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            )
+          )}
         </div>
       </div>
 

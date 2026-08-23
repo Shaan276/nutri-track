@@ -22,6 +22,7 @@ import {
   MicOff,
   Camera,
   ImagePlus,
+  ChevronLeft,
 } from "lucide-react";
 import { GoalConfirmationCard } from "./GoalConfirmationCard";
 import { LiveHealthSnapshotDrawer } from "./LiveHealthSnapshotDrawer";
@@ -109,7 +110,16 @@ export function AICoachClient() {
   // Live health metrics snapshot
   const [healthSnapshot, setHealthSnapshot] = useState<any>(null);
   const [isSnapshotLoading, setIsSnapshotLoading] = useState(false);
+  const [isSnapshotOpenDesktop, setIsSnapshotOpenDesktop] = useState(true);
   const [isSnapshotOpenMobile, setIsSnapshotOpenMobile] = useState(false);
+
+  const handleToggleSnapshot = () => {
+    if (typeof window !== "undefined" && window.innerWidth >= 1280) {
+      setIsSnapshotOpenDesktop((prev) => !prev);
+    } else {
+      setIsSnapshotOpenMobile((prev) => !prev);
+    }
+  };
 
   // Voice & Image Input States
   const [isListening, setIsListening] = useState(false);
@@ -699,29 +709,33 @@ export function AICoachClient() {
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <button
               onClick={() => setIsWeeklyPlanModalOpen(true)}
-              className="py-1.5 px-2.5 rounded-lg text-xs bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-800/50 flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="py-1.5 px-2 sm:px-2.5 rounded-lg text-xs bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-800/50 flex items-center gap-1.5 transition-colors cursor-pointer"
               title="View Weekly Health & Fitness Blueprint"
             >
-              <Calendar className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="hidden lg:inline font-medium">Blueprint</span>
+              <Calendar className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span className="hidden sm:inline font-medium">Blueprint</span>
             </button>
 
             <button
               onClick={() => setIsMemoryModalOpen(true)}
-              className="py-1.5 px-2.5 rounded-lg text-xs bg-purple-950/40 hover:bg-purple-900/60 text-purple-300 border border-purple-800/50 flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="py-1.5 px-2 sm:px-2.5 rounded-lg text-xs bg-purple-950/40 hover:bg-purple-900/60 text-purple-300 border border-purple-800/50 flex items-center gap-1.5 transition-colors cursor-pointer"
               title="Manage AI Memories & Constraints"
             >
-              <Brain className="w-3.5 h-3.5 text-purple-400" />
-              <span className="hidden lg:inline font-medium">Memories</span>
+              <Brain className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+              <span className="hidden sm:inline font-medium">Memories</span>
             </button>
 
             <button
-              onClick={() => setIsSnapshotOpenMobile(true)}
-              className="py-1.5 px-2.5 rounded-lg text-xs bg-sky-950/40 hover:bg-sky-900/60 text-sky-300 border border-sky-800/50 flex items-center gap-1.5 transition-colors cursor-pointer"
-              title="View Live Health Context Snapshot"
+              onClick={handleToggleSnapshot}
+              className={`py-1.5 px-2 sm:px-2.5 rounded-lg text-xs border flex items-center gap-1.5 transition-colors cursor-pointer ${
+                (isSnapshotOpenDesktop || isSnapshotOpenMobile)
+                  ? "bg-sky-950/80 hover:bg-sky-900/90 text-sky-200 border-sky-600/80 shadow-xs"
+                  : "bg-sky-950/40 hover:bg-sky-900/60 text-sky-300 border-sky-800/50"
+              }`}
+              title="Toggle Live Health Snapshot Sidebar"
             >
-              <Activity className="w-3.5 h-3.5 text-sky-400" />
-              <span className="hidden md:inline font-medium">Snapshot</span>
+              <Activity className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+              <span className="hidden sm:inline font-medium">Snapshot</span>
             </button>
 
             <button
@@ -729,7 +743,7 @@ export function AICoachClient() {
               className="py-1.5 px-2.5 sm:px-3 rounded-lg text-xs bg-emerald-500 hover:bg-emerald-400 text-black font-semibold flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer"
               title="Start New Conversation"
             >
-              <Plus className="w-3.5 h-3.5" />
+              <Plus className="w-3.5 h-3.5 shrink-0" />
               <span className="hidden sm:inline">New Chat</span>
             </button>
           </div>
@@ -954,6 +968,17 @@ export function AICoachClient() {
             </div>
           </div>
         </div>
+        {/* Floating Expand Tab for Live Health Snapshot on Desktop */}
+        {!isSnapshotOpenDesktop && (
+          <button
+            onClick={() => setIsSnapshotOpenDesktop(true)}
+            className="hidden xl:flex absolute right-0 top-1/2 -translate-y-1/2 z-20 py-3 px-1.5 bg-neutral-900/95 hover:bg-neutral-800 border-l border-y border-neutral-700 rounded-l-xl text-neutral-400 hover:text-emerald-400 shadow-2xl items-center gap-1 transition-all cursor-pointer group"
+            title="Expand Live Health Snapshot"
+          >
+            <Activity className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" />
+            <ChevronLeft className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
 
       {/* 3. Right Live Health Snapshot Drawer */}
@@ -962,6 +987,8 @@ export function AICoachClient() {
         isLoading={isSnapshotLoading}
         onRefresh={loadHealthSnapshot}
         onDeleteMemory={handleDeleteMemory}
+        isOpen={isSnapshotOpenDesktop}
+        onToggleOpen={() => setIsSnapshotOpenDesktop((prev) => !prev)}
         isMobileOpen={isSnapshotOpenMobile}
         onCloseMobile={() => setIsSnapshotOpenMobile(false)}
       />

@@ -211,6 +211,53 @@ export const AI_COACH_TOOLS: ToolDefinition[] = [
   {
     type: "function",
     function: {
+      name: "delete_meal_entry",
+      description: "Deletes or removes a specific food item or meal from the user's food logs (e.g. 'remove the eggs I logged for breakfast', 'delete daal from lunch').",
+      parameters: {
+        type: "object",
+        properties: {
+          foodName: {
+            type: "string",
+            description: "Name of the logged food or dish to remove (e.g. 'Eggs', 'Mixed Daal', 'Rice').",
+          },
+          mealType: {
+            type: "string",
+            enum: ["BREAKFAST", "LUNCH", "DINNER", "SNACK"],
+            description: "Optional meal section to delete from.",
+          },
+          date: {
+            type: "string",
+            description: "Optional ISO date (YYYY-MM-DD). Defaults to today.",
+          },
+        },
+        required: ["foodName"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "clear_day_logs",
+      description: "Clears or resets all food logs, hydration logs, or activities for a specific date or for today (e.g. 'clear today's logs', 'reset today's meal journal', 'remove all food logged today').",
+      parameters: {
+        type: "object",
+        properties: {
+          date: {
+            type: "string",
+            description: "Optional ISO date (YYYY-MM-DD). Defaults to today.",
+          },
+          section: {
+            type: "string",
+            enum: ["ALL", "MEALS", "HYDRATION", "ACTIVITIES"],
+            description: "Which section to clear: 'ALL' (everything today), 'MEALS' (only food logs), 'HYDRATION' (only water), 'ACTIVITIES' (workouts). Defaults to 'ALL'.",
+          },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "create_recipe_in_database",
       description: "Saves a new custom recipe or food item into the user's permanent Food Database with calculated macros and micronutrients from raw ingredients.",
       parameters: {

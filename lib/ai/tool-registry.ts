@@ -217,6 +217,62 @@ export class AIToolRegistry {
         };
       }
 
+      case "delete_meal_entry": {
+        const { foodName, mealType, date } = args;
+        const dateStr = date || new Date().toISOString().split("T")[0];
+
+        const daily = await NutritionService.getDailyNutrition(userId, dateStr);
+        let foundEntry: any = null;
+        let foundMealType: any = null;
+
+        for (const meal of daily.meals) {
+          if (mealType && meal.mealType !== mealType) continue;
+          for (const ent of meal.entries) {
+            const entName = ent.foodName || "";
+            if (
+              entName.toLowerCase().includes(String(foodName).toLowerCase()) ||
+              String(foodName).toLowerCase().includes(entName.toLowerCase())
+            ) {
+              foundEntry = ent;
+              foundMealType = meal.mealType;
+              break;
+            }
+          }
+          if (foundEntry) break;
+        }
+
+        if (!foundEntry) {
+          return {
+            success: false,
+            message: `Could not find an entry for "${foodName}" in your ${dateStr} logs to delete.`,
+          };
+        }
+
+        await NutritionService.deleteMealEntry(userId, foundEntry.id);
+        const updatedDaily = await NutritionService.getDailyNutrition(userId, dateStr);
+
+        return {
+          success: true,
+          message: `Deleted "${foundEntry.foodName}" from ${foundMealType} for ${dateStr}! 🗑️✨ Updated daily calories: ${updatedDaily.totals.calories} kcal.`,
+          newDailyTotals: updatedDaily.totals,
+        };
+      }
+
+      case "clear_day_logs": {
+        const { date, section = "ALL" } = args;
+        const dateStr = date || new Date().toISOString().split("T")[0];
+
+        const cleared = await NutritionService.clearDailyLogs(userId, dateStr, section as any);
+        const updatedDaily = await NutritionService.getDailyNutrition(userId, dateStr);
+
+        return {
+          success: true,
+          message: `Cleared ${cleared.clearedMealsCount} meal entries, ${cleared.clearedHydrationCount} hydration logs, and ${cleared.clearedActivitiesCount} activities for ${dateStr}! 🗑️✨ Daily calories and macros are now reset to 0.`,
+          clearedCounts: cleared,
+          newDailyTotals: updatedDaily.totals,
+        };
+      }
+
       case "create_recipe_in_database": {
         const {
           name,

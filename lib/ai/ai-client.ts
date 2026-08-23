@@ -241,7 +241,7 @@ export class AIClient {
 
             if (res.status === 429) {
               console.warn(`[AIClient] Rate limited on ${provider.providerName}. Failing over immediately to next standby key...`);
-              keyManager.recordExhaustion(activeKeyInfo.index);
+              keyManager.recordRateLimit(activeKeyInfo.index, 3000);
               keyExhausted = true;
               break;
             }

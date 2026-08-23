@@ -528,4 +528,56 @@ export class NutritionService {
 
     return deleted;
   }
+
+  /**
+   * Clears daily logs for a given user and date
+   */
+  static async clearDailyLogs(
+    userId: string,
+    date: string,
+    section: "ALL" | "MEALS" | "HYDRATION" | "ACTIVITIES" = "ALL"
+  ) {
+    let clearedMealsCount = 0;
+    let clearedHydrationCount = 0;
+    let clearedActivitiesCount = 0;
+
+    if (section === "ALL" || section === "MEALS") {
+      const mealLogs = await prisma.mealLog.findMany({
+        where: { userId, date },
+        include: { entries: true },
+      });
+      clearedMealsCount = mealLogs.reduce((acc, m) => acc + m.entries.length, 0);
+
+      if (mealLogs.length > 0) {
+        await prisma.mealLog.deleteMany({
+          where: { userId, date },
+        });
+      }
+    }
+
+    if (section === "ALL" || section === "HYDRATION") {
+      const deletedHydration = await prisma.hydrationLog.deleteMany({
+        where: { userId, date },
+      });
+      clearedHydrationCount = deletedHydration.count;
+    }
+
+    if (section === "ALL" || section === "ACTIVITIES") {
+      try {
+        const deletedActivities = await (prisma as any).activity.deleteMany({
+          where: { userId, date },
+        });
+        clearedActivitiesCount = deletedActivities.count;
+      } catch {}
+    }
+
+    // Smart background synchronization (non-blocking)
+    GoogleSheetsService.triggerAutoSync(userId);
+
+    return {
+      clearedMealsCount,
+      clearedHydrationCount,
+      clearedActivitiesCount,
+    };
+  }
 }
