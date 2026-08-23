@@ -142,38 +142,52 @@ export class DynamicNutritionService {
     const yesterdayStr = yesterday.toISOString().split("T")[0];
 
     const [dailyNutrition, dailyHydration, dailyActivities, dailyWorkouts, profile] = await Promise.all([
-      NutritionService.getDailyNutrition(userId, yesterdayStr),
-      HydrationService.getDailyHydration(userId, yesterdayStr),
-      ActivityService.getDailyActivity(userId, yesterdayStr),
-      WorkoutService.getDailyWorkouts(userId, yesterdayStr),
-      HealthContextService.getHealthSnapshot(userId, yesterdayStr),
+      NutritionService.getDailyNutrition(userId, yesterdayStr).catch(() => ({
+        totals: { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0 },
+      })),
+      HydrationService.getDailyHydration(userId, yesterdayStr).catch(() => ({
+        totalMl: 0,
+        targetMl: 2500,
+      })),
+      ActivityService.getDailyActivity(userId, yesterdayStr).catch(() => ({
+        totalSteps: 0,
+        totalDistanceKm: 0,
+        totalCaloriesBurned: 0,
+        activities: [],
+      })),
+      WorkoutService.getDailyWorkouts(userId, yesterdayStr).catch(() => ({
+        totalCaloriesBurned: 0,
+        totalSetsCompleted: 0,
+        sessions: [],
+      })),
+      HealthContextService.getHealthSnapshot(userId, yesterdayStr).catch(() => null),
     ]);
 
-    const caloriesConsumed = dailyNutrition.totals.calories || 0;
-    const calorieTarget = profile.nutrition.calorieTarget || 2000;
-    const proteinConsumed = dailyNutrition.totals.protein || 0;
-    const proteinTarget = profile.nutrition.proteinTarget || 120;
-    const carbsConsumed = dailyNutrition.totals.carbs || 0;
-    const carbsTarget = profile.nutrition.carbsTarget || 250;
-    const fatConsumed = dailyNutrition.totals.fat || 0;
-    const fatTarget = profile.nutrition.fatsTarget || 65;
-    const fiberConsumed = dailyNutrition.totals.fiber || 0;
+    const caloriesConsumed = dailyNutrition?.totals?.calories || 0;
+    const calorieTarget = profile?.nutrition?.calorieTarget || 2000;
+    const proteinConsumed = dailyNutrition?.totals?.protein || 0;
+    const proteinTarget = profile?.nutrition?.proteinTarget || 120;
+    const carbsConsumed = dailyNutrition?.totals?.carbs || 0;
+    const carbsTarget = profile?.nutrition?.carbsTarget || 250;
+    const fatConsumed = dailyNutrition?.totals?.fat || 0;
+    const fatTarget = profile?.nutrition?.fatsTarget || 65;
+    const fiberConsumed = dailyNutrition?.totals?.fiber || 0;
 
-    const consumedMl = dailyHydration.totalMl || 0;
-    const targetMl = profile.hydration.targetMl || 2500;
+    const consumedMl = dailyHydration?.totalMl || 0;
+    const targetMl = profile?.hydration?.targetMl || 2500;
 
-    const steps = dailyActivities.totalSteps || 0;
-    const distanceKm = dailyActivities.totalDistanceKm || 0;
-    const activeCaloriesBurned = dailyActivities.totalCaloriesBurned || 0;
-    const runsCount = (dailyActivities.activities || []).filter((a: any) => a.activityType === "RUNNING").length;
+    const steps = dailyActivities?.totalSteps || 0;
+    const distanceKm = dailyActivities?.totalDistanceKm || 0;
+    const activeCaloriesBurned = dailyActivities?.totalCaloriesBurned || 0;
+    const runsCount = (dailyActivities?.activities || []).filter((a: any) => a.activityType === "RUNNING").length;
 
-    const workoutCalories = dailyWorkouts.totalCaloriesBurned || 0;
-    const totalSets = dailyWorkouts.totalSetsCompleted || 0;
+    const workoutCalories = dailyWorkouts?.totalCaloriesBurned || 0;
+    const totalSets = dailyWorkouts?.totalSetsCompleted || 0;
     let totalVolumeKg = 0;
 
-    for (const wk of dailyWorkouts.sessions) {
-      for (const ex of wk.exercises || []) {
-        for (const s of ex.sets || []) {
+    for (const wk of (dailyWorkouts?.sessions || [])) {
+      for (const ex of (wk.exercises || [])) {
+        for (const s of (ex.sets || [])) {
           totalVolumeKg += (Number(s.weightKg) || 0) * (Number(s.reps) || 0);
         }
       }
@@ -198,7 +212,7 @@ export class DynamicNutritionService {
         consumedMl,
         targetMl,
         deltaMl: consumedMl - targetMl,
-        percentage: Math.round((consumedMl / targetMl) * 100),
+        percentage: Math.round((consumedMl / (targetMl || 1)) * 100),
       },
       movement: {
         steps,
@@ -209,7 +223,7 @@ export class DynamicNutritionService {
         totalExpenditureKcal: activeCaloriesBurned + workoutCalories,
       },
       workouts: {
-        sessionsCount: dailyWorkouts.sessions.length,
+        sessionsCount: (dailyWorkouts?.sessions || []).length,
         totalSets,
         totalVolumeKg: Math.round(totalVolumeKg),
       },
