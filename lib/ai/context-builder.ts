@@ -1,12 +1,14 @@
 import { HealthContextService } from "@/lib/services/health-context.service";
 import { ReportService } from "@/lib/services/report.service";
 import { AIRulesEngine } from "./rules-engine";
+import { AIQueryClassifier, QueryCategory } from "./query-classifier";
 import { prisma } from "@/lib/db";
 
 export interface AssembledAIContext {
   systemPrompt: string;
   recentMessages: Array<{ role: string; content: string }>;
   relevanceCategories: string[];
+  queryCategory: QueryCategory;
 }
 
 export class AIContextBuilder {
@@ -49,37 +51,118 @@ export class AIContextBuilder {
   }
 
   /**
-   * Assembles 4-layer personalized context grounded in actual user data
+   * Assembles category-aware, selective context grounded in actual user data.
+   * Prevents full database dumps for general or casual queries.
    */
   public static async buildContext(
     userId: string,
     conversationId: string,
-    userPrompt: string
+    userPrompt: string,
+    explicitCategory?: QueryCategory
   ): Promise<AssembledAIContext> {
     const todayStr = new Date().toISOString().split("T")[0];
+    const category = explicitCategory || AIQueryClassifier.classifyQuery(userPrompt).category;
     const relevance = this.analyzeQueryRelevance(userPrompt);
-    const relevanceCategories: string[] = [];
+    const relevanceCategories: string[] = [category];
 
     // --- Layer 1: Recent Conversation Messages ---
     const rawMessages = await (prisma as any).aiMessage.findMany({
       where: { conversationId },
       orderBy: { createdAt: "asc" },
     });
-    const recentMessages = rawMessages.slice(-6).map((m: any) => ({
+    const messageLimit = category === "GENERAL" ? 4 : 6;
+    const recentMessages = rawMessages.slice(-messageLimit).map((m: any) => ({
       role: m.role,
       content: m.content,
     }));
 
-    // --- Retrieve User Record for Dynamic Daily Age Calculation ---
+    // --- Retrieve User Record ---
     const userRecord = await prisma.user.findUnique({
       where: { id: userId },
       include: { profile: true },
     });
+    const userName = userRecord?.name || "Friend";
 
-    // --- Retrieve Centralized Health Context Snapshot ---
+    // ─────────────────────────────────────────────────────────
+    // 1. GENERAL QUESTION: Minimal Context Injection
+    // ─────────────────────────────────────────────────────────
+    if (category === "GENERAL") {
+      const systemPrompt = `You are Nutri-Track AI — a brilliant, witty, helpful conversational assistant.
+The user is asking a general knowledge, trivia, science, or everyday question.
+• User Name: ${userName}
+• Guidelines:
+  - Answer the user's question directly, accurately, and engagingly.
+  - Do NOT mention nutrition, calories, protein, hydration, health scores, or meal logging.
+  - Do NOT append unsolicited health advice or meal logging prompts.`;
+
+      return {
+        systemPrompt,
+        recentMessages,
+        relevanceCategories,
+        queryCategory: category,
+      };
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 2. CASUAL CHAT: Persona, Warmth & Empathy Context
+    // ─────────────────────────────────────────────────────────
+    if (category === "CASUAL_CHAT") {
+      const primaryGoal = userRecord?.profile?.primaryGoal
+        ? userRecord.profile.primaryGoal.replace(/_/g, " ").toLowerCase()
+        : "general health & wellness";
+
+      const systemPrompt = `You are Nutri-Track AI Coach — an intelligent, empathetic, supportive, and occasionally humorous health companion and coach.
+• User Name: ${userName}
+• Primary Focus: ${primaryGoal}
+• Guidelines:
+  - Respond naturally, conversationally, and empathetically.
+  - If the user feels tired, demotivated, or skipped a workout, be encouraging with light humor (e.g. "Arre 😭 don't worry, even athletes have rest days. Let's make tomorrow count!").
+  - Do NOT recite raw database tables or force unsolicited macro breakdowns into casual conversations.`;
+
+      return {
+        systemPrompt,
+        recentMessages,
+        relevanceCategories,
+        queryCategory: category,
+      };
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 3. HEALTH_GENERAL: Evidence-Based Science + Optional Goal
+    // ─────────────────────────────────────────────────────────
+    if (category === "HEALTH_GENERAL") {
+      const primaryGoal = userRecord?.profile?.primaryGoal || "General Fitness";
+      const profile = userRecord?.profile;
+      let metabolicNote = "";
+      if (profile?.heightCm && profile?.weightKg) {
+        metabolicNote = `• Physical Baseline: Height ${profile.heightCm}cm, Weight ${profile.weightKg}kg`;
+      }
+
+      const systemPrompt = `You are Nutri-Track AI Coach — an evidence-based sports, fitness, and nutrition science expert.
+• User: ${userName} | Primary Goal: ${primaryGoal}
+${metabolicNote}
+• Guidelines:
+  - Answer the specific health/physiology question directly and scientifically first.
+  - Explain the mechanism clearly (e.g. energy balance, caffeine, muscle protein synthesis, sleep cycles).
+  - Optionally add a brief, practical 1-sentence note for the user's goal (${primaryGoal}) ONLY if genuinely helpful.
+  - Do NOT append unsolicited full-day meal templates or "Would you like me to log a meal for you?".
+  - Do NOT force Ayurvedic routines unprompted unless the user asked about Ayurveda.`;
+
+      return {
+        systemPrompt,
+        recentMessages,
+        relevanceCategories,
+        queryCategory: category,
+      };
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 4. HEALTH_PERSONALIZED / NUTRI_TRACK_DATA / ACTION_COMMAND
+    // (Load Full Health Snapshot, Goals, Food DB & Dynamic Nutrition)
+    // ─────────────────────────────────────────────────────────
     const snapshot = await HealthContextService.getHealthSnapshot(userId, todayStr);
 
-    // --- Layer 0: AI Governance Rules Engine (General Rules + Personalized Goal Rules + Daily Age) ---
+    // AI Governance Rules Engine
     const rulesPrompt = await AIRulesEngine.buildAIRulesPrompt(
       userId,
       snapshot.profile.primaryGoal,
@@ -87,13 +170,15 @@ export class AIContextBuilder {
       userRecord?.createdAt
     );
 
-    // --- Layer 2: User Memories & Saved Preferences ---
+    // User Memories & Saved Preferences
     let memoryContext = "";
     if (snapshot.memories.length > 0) {
       memoryContext = `\n[SAVED USER PREFERENCES & CONSTRAINTS]:\n${snapshot.memories
         .map((m: any) => `• [${m.category}] ${m.content}`)
         .join("\n")}`;
-    }    // --- Layer 3: User Profile & Goals ---
+    }
+
+    // Profile Context
     let profileContext = `
 [USER PROFILE & METABOLIC BASELINE]:
 • Name: ${snapshot.profile.name}
@@ -124,69 +209,60 @@ export class AIContextBuilder {
     profileContext += `• Hydration Target: ${snapshot.hydration.targetMl ? `${snapshot.hydration.targetMl} ml/day` : "2,500 ml/day"} | Step Target: ${snapshot.movement.dailyStepTarget.toLocaleString()} steps/day | Running: ${snapshot.movement.weeklyRunningTargetKm} km/week | Workouts: ${snapshot.workouts.weeklyWorkoutTarget} sessions/week
 `;
 
-    // --- Layer 3.5: User's Food Database Items & Custom Recipes ---
-    const userFoods = await prisma.food.findMany({
-      where: {
-        OR: [{ userId }, { isSystemFood: true }],
-        isArchived: false,
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
+    // Food Database Items
     let foodDbContext = "";
-    if (userFoods.length > 0) {
-      foodDbContext = `\n[SAVED FOOD DATABASE ITEMS & RECIPES (Use these exact macros when logging)]:\n${userFoods
-        .slice(0, 40)
-        .map(
-          (f: any) =>
-            `• "${f.name}" (${f.servingSize} ${f.servingUnit}): ${f.calories} kcal, ${f.protein}g protein, ${f.carbohydrates}g carbs, ${f.fat}g fat`
-        )
-        .join("\n")}\n`;
+    if (category === "ACTION_COMMAND" || relevance.wantsNutrition) {
+      const userFoods = await prisma.food.findMany({
+        where: {
+          OR: [{ userId }, { isSystemFood: true }],
+          isArchived: false,
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (userFoods.length > 0) {
+        foodDbContext = `\n[SAVED FOOD DATABASE ITEMS (Use exact macros when logging)]:\n${userFoods
+          .slice(0, 30)
+          .map(
+            (f: any) =>
+              `• "${f.name}" (${f.servingSize} ${f.servingUnit}): ${f.calories} kcal, ${f.protein}g protein, ${f.carbohydrates}g carbs, ${f.fat}g fat`
+          )
+          .join("\n")}\n`;
+      }
     }
 
-    // --- Layer 4: Live Dynamic Health Snapshot (Relevance-Driven) ---
+    // Live Data Context
     const n = snapshot.nutrition;
     const h = snapshot.hydration;
     const m = snapshot.movement;
-    const w = snapshot.workouts;
 
     const carbsTarget = n.carbsTarget || 250;
     const carbsConsumed = n.carbsConsumed || 0;
     const carbsRemaining = Math.max(0, carbsTarget - carbsConsumed);
-    const carbsPct = Math.round((carbsConsumed / carbsTarget) * 100);
 
     const fatsTarget = n.fatsTarget || 65;
     const fatsConsumed = n.fatsConsumed || 0;
     const fatsRemaining = Math.max(0, fatsTarget - fatsConsumed);
-    const fatsPct = Math.round((fatsConsumed / fatsTarget) * 100);
-
-    const fiberTarget = 30;
-    const fiberConsumed = n.fiberConsumed || 0;
-    const fiberRemaining = Math.max(0, fiberTarget - fiberConsumed);
-    const fiberPct = Math.round((fiberConsumed / fiberTarget) * 100);
 
     const hasCalTarget = Boolean(n.calorieTarget);
     const hasProtTarget = Boolean(n.proteinTarget);
     const calPct = hasCalTarget && n.calorieTarget! > 0 ? Math.round((n.caloriesConsumed / n.calorieTarget!) * 100) : 0;
     const protPct = hasProtTarget && n.proteinTarget! > 0 ? Math.round((n.proteinConsumed / n.proteinTarget!) * 100) : 0;
 
-    let liveDataContext = "\n[LIVE HEALTH DATA & COMPLETE MACRONUTRIENT QUANTITIES]:";
+    let liveDataContext = "\n[LIVE HEALTH DATA & TODAY'S QUANTITATIVE LOGS]:";
 
     liveDataContext += `
 • Date: ${todayStr} (Current day in progress — incomplete logging during the day is normal, not a failure)
 • Nutrition State: ${n.dataState === "LOGGED" ? "DATA_LOGGED" : "NOT_LOGGED_YET (No meals recorded yet today)"}
 • Calories: ${n.caloriesConsumed.toLocaleString()}${hasCalTarget ? ` / ${n.calorieTarget!.toLocaleString()} kcal (${calPct}% achieved | ${n.caloriesRemaining ?? 0} kcal remaining)` : " kcal (Target pending assessment)"}
 • Protein: ${n.proteinConsumed}g${hasProtTarget ? ` / ${n.proteinTarget!}g (${protPct}% achieved | ${n.proteinRemaining ?? 0}g remaining)` : " (Target pending assessment)"}
-• Carbohydrates: ${carbsConsumed}g${n.carbsTarget ? ` / ${n.carbsTarget}g (${carbsPct}% achieved | ${carbsRemaining}g remaining)` : ""}
-• Healthy Fats: ${fatsConsumed}g${n.fatsTarget ? ` / ${n.fatsTarget}g (${fatsPct}% achieved | ${fatsRemaining}g remaining)` : ""}
-• Dietary Fiber: ${fiberConsumed}g${n.fiberConsumed ? ` / ${fiberTarget}g (${fiberPct}% achieved | ${fiberRemaining}g remaining)` : ""}
-• Sugar Intake: ${n.sugarConsumed}g
+• Carbohydrates: ${carbsConsumed}g${n.carbsTarget ? ` / ${n.carbsTarget}g (${carbsRemaining}g remaining)` : ""}
+• Healthy Fats: ${fatsConsumed}g${n.fatsTarget ? ` / ${n.fatsTarget}g (${fatsRemaining}g remaining)` : ""}
 • Hydration Logged Today: ${h.consumedMl.toLocaleString()} / ${(h.targetMl || 2500).toLocaleString()} ml (${h.percentage}% achieved | ${h.remainingMl} ml remaining, Streak: ${h.streakDays} days)
-• Movement & Steps: ${m.todaySteps.toLocaleString()} / ${m.dailyStepTarget.toLocaleString()} steps (${m.stepPercentage}% of target | ${m.todayDistanceKm} km covered)
-• Active Energy Burned Today: ${m.totalActiveCalories} kcal (${m.activityCalories} kcal cardio/activities + ${m.workoutCalories} kcal workouts)
-• 7-Day Health Score: ${snapshot.healthScore.isPending ? "PENDING (Getting Started)" : `${snapshot.healthScore.score}/100 (Grade: ${snapshot.healthScore.letterGrade})`}
+• Movement & Steps: ${m.todaySteps.toLocaleString()} / ${m.dailyStepTarget.toLocaleString()} steps (${m.todayDistanceKm} km covered)
+• Active Energy Burned Today: ${m.totalActiveCalories} kcal
+• 7-Day Health Score: ${snapshot.healthScore.isPending ? "PENDING (Getting Started)" : `${snapshot.healthScore.score}/100`}
 `;
-    relevanceCategories.push("NUTRITION", "HYDRATION");
 
     // Include Running data if relevant
     if (relevance.wantsRunning) {
@@ -195,19 +271,8 @@ export class AIContextBuilder {
       liveDataContext += `
 • 30-Day Running Volume: ${act?.totalDistanceKm || 0} km across ${act?.totalSessions || 0} sessions (This week: ${snapshot.movement.weeklyRunningDistanceKm} km / target ${snapshot.movement.weeklyRunningTargetKm} km)
 • Average Running Pace: ${act?.avgPaceFormatted || "N/A"}
-• Recent Pace Trend: ${(rep.charts?.runningPaceTrend || []).slice(-3).map((p) => `${p.date}: ${p.formattedPace}`).join(", ") || "No recent runs"}
 `;
       relevanceCategories.push("RUNNING");
-    }
-
-    // Include Workout data if relevant
-    if (relevance.wantsWorkout) {
-      const rep = await ReportService.getFullReport(userId, "last30days");
-      const wk = rep.overview?.workouts;
-      liveDataContext += `
-• 30-Day Strength Training: ${wk?.totalSessions || 0} sessions, ${wk?.totalSets || 0} sets, ${(wk?.totalVolumeKg || 0).toLocaleString()} kg total tonnage volume (This week: ${snapshot.workouts.weeklyWorkoutSessions} sessions, ${snapshot.workouts.weeklyWorkoutVolumeKg.toLocaleString()} kg)
-`;
-      relevanceCategories.push("WORKOUTS");
     }
 
     // Include Deep Micronutrients if relevant
@@ -219,38 +284,17 @@ export class AIContextBuilder {
       relevanceCategories.push("MICRONUTRIENTS");
     }
 
-    // Include Weekly Plan if relevant
-    if (relevance.wantsWeeklyPlan) {
+    let dynamicNutritionContext = "";
+    if (category === "HEALTH_PERSONALIZED") {
       try {
-        const { WeeklyPlanService } = await import("@/lib/services/weekly-plan.service");
-        const activePlan = await WeeklyPlanService.getActiveWeeklyPlan(userId, todayStr);
-        if (activePlan) {
-          liveDataContext += `
-[ACTIVE WEEKLY HEALTH & FITNESS BLUEPRINT]:
-• Week: ${activePlan.startDate} to ${activePlan.endDate}
-• Goal Summary: ${activePlan.goalSummary}
-• Adherence: ${activePlan.completedItemsCount}/${activePlan.totalItemsCount} items completed (${activePlan.adherencePercentage}%)
-• Daily Plan Breakdown:
-${activePlan.items.map((i) => `  - [${i.date}] (${i.category}) ${i.title}: ${i.isCompleted ? "✅ Completed" : "⏳ Planned"}`).join("\n")}
+        const { DynamicNutritionService } = await import("@/lib/services/dynamic-nutrition.service");
+        const dyn = await DynamicNutritionService.calculateDynamicOptimization(userId);
+        dynamicNutritionContext = `\n[DYNAMIC NUTRITION & RECOVERY RATIONALE]:
+• Today's Optimized Targets: ${dyn.optimized.calories} kcal | ${dyn.optimized.protein}g Protein | ${dyn.optimized.carbohydrates}g Carbs
+• Optimization Rationale: ${dyn.adjustments.map((a) => a.reason).join("; ") || "Balanced expenditure and intake."}
 `;
-        }
       } catch {}
     }
-
-    let dynamicNutritionContext = "";
-    try {
-      const { DynamicNutritionService } = await import("@/lib/services/dynamic-nutrition.service");
-      const dyn = await DynamicNutritionService.calculateDynamicOptimization(userId);
-      const y = dyn.yesterdaysSummary;
-      dynamicNutritionContext = `\n[YESTERDAY'S PERFORMANCE & DYNAMIC NUTRITION INTELLIGENCE]:
-• Dynamic Nutrition Status: ${dyn.isDynamicEnabled ? "ENABLED (Targets auto-adapt daily)" : "DISABLED (Using static baseline)"}
-• Yesterday's Date: ${y.date}
-• Yesterday's Consumed: ${y.nutrition.caloriesConsumed} / ${y.nutrition.calorieTarget} kcal, ${y.nutrition.proteinConsumed} / ${y.nutrition.proteinTarget}g Protein
-• Yesterday's Active Burn: ${y.movement.totalExpenditureKcal} kcal (${y.movement.distanceKm} km running, ${y.workouts.totalVolumeKg} kg lifting volume)
-• Today's Optimized Targets: ${dyn.optimized.calories} kcal | ${dyn.optimized.protein}g Protein | ${dyn.optimized.carbohydrates}g Carbs | ${dyn.optimized.hydrationMl}ml Water
-• Rationale: ${dyn.adjustments.map((a) => a.reason).join("; ") || "Balanced expenditure and intake."}
-`;
-    } catch {}
 
     const systemPrompt = `${rulesPrompt}\n${profileContext}${memoryContext}${foodDbContext}${dynamicNutritionContext}${liveDataContext}`;
 
@@ -258,6 +302,7 @@ ${activePlan.items.map((i) => `  - [${i.date}] (${i.category}) ${i.title}: ${i.i
       systemPrompt,
       recentMessages,
       relevanceCategories,
+      queryCategory: category,
     };
   }
 }

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import {
   Bot,
   Send,
@@ -28,6 +29,17 @@ import {
   Volume2,
   VolumeX,
   ClipboardCheck,
+  Copy,
+  Check,
+  ArrowRight,
+  ShieldCheck,
+  FileText,
+  RotateCcw,
+  CheckCircle2,
+  ExternalLink,
+  Sliders,
+  History,
+  Info,
 } from "lucide-react";
 import { GoalConfirmationCard } from "./GoalConfirmationCard";
 import { LiveHealthSnapshotDrawer } from "./LiveHealthSnapshotDrawer";
@@ -51,47 +63,57 @@ interface ConversationItem {
   messageCount: number;
 }
 
-const ANCHOR_PROMPTS = [
-  "Plan my week",
-  "Review my week",
-];
-
-const DYNAMIC_PROMPT_POOL = [
-  "How much protein do I have left today?",
-  "Which micronutrients am I low in?",
-  "Recommend a high-protein vegetarian meal",
-  "Estimate calories burned for a 45 min run",
-  "Best pre-run carbs for a morning 10k run",
-  "How can I boost my Vitamin D & B12 naturally?",
-  "Suggest a quick 500 kcal muscle recovery snack",
-  "Calculate nutrition for 2 paneer rotis and mixed daal",
-  "What should I eat to hit my carbs without spiking fat?",
-  "How does my running pace affect calorie burn?",
-  "Foods high in magnesium for better sleep & muscle relaxation",
-  "How to maximize plant-based iron absorption with Vitamin C?",
-  "Suggest a rest day nutrition plan",
-  "High-protein breakfast under 400 kcal",
-  "Hydration strategy for long distance running",
-  "How much iron and calcium have I had today?",
-  "Post-workout meal to stop muscle breakdown",
-  "Healthiest Indian dinner options for runners",
-  "Set my daily water goal to 3000ml",
-  "Set my protein target to 150g",
-  "Give me 3 actionable tips for faster recovery",
-  "Analyze my hydration trend for this week",
-  "High-protein vegan meal with 30g protein",
-  "Quick 10-minute high-protein dinner recipe",
-  "Is my sodium-potassium electrolyte balance on track?",
-];
-
-function getRandomPromptSuggestions(count: number = 7): string[] {
-  const shuffled = [...DYNAMIC_PROMPT_POOL].sort(() => 0.5 - Math.random());
-  const anchors = [...ANCHOR_PROMPTS].sort(() => 0.5 - Math.random()).slice(0, 1);
-  const combined = Array.from(new Set([...anchors, ...shuffled])).slice(0, count);
-  return combined;
+interface ActionDiffItem {
+  key: string;
+  label: string;
+  previousValue: string;
+  proposedValue: string;
+  unit?: string;
+  isNewConfig?: boolean;
 }
 
+interface ParsedValidationState {
+  isValid: boolean;
+  actionType: string;
+  parsedAction?: any;
+  diffs: ActionDiffItem[];
+  reason: string;
+  requiresConfirmation: boolean;
+  warnings: string[];
+  errors: string[];
+}
+
+interface ActionLogItem {
+  id: string;
+  actionType: string;
+  source: string;
+  payload: string;
+  previousState?: string | null;
+  newState?: string | null;
+  status: string;
+  errorMessage?: string | null;
+  requiresConfirmation: boolean;
+  confirmedAt?: string | null;
+  revertedAt?: string | null;
+  createdAt: string;
+}
+
+const DYNAMIC_PROMPT_POOL = [
+  "Log 500ml of water",
+  "Set my daily water goal to 3000ml",
+  "I had 2 boiled eggs and 1 slice of whole wheat toast for breakfast",
+  "Set my protein target to 140g and calories to 2200",
+  "Log a 5 km morning tempo run in 26 minutes",
+  "Record workout: 4 sets bench press, 3 sets pullups",
+  "What is my calorie and protein intake today?",
+  "How much hydration do I have left to drink?",
+];
+
 export function AICoachClient() {
+  // Navigation & View Mode
+  const [activeTab, setActiveTab] = useState<"hub" | "chat">("hub");
+
+  // Chat State
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
   const [messages, setMessages] = useState<MessageItem[]>([]);
@@ -102,1226 +124,718 @@ export function AICoachClient() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [quickPrompts, setQuickPrompts] = useState<string[]>([]);
 
-  useEffect(() => {
-    setQuickPrompts(getRandomPromptSuggestions(7));
-  }, []);
+  // Action Bridge State
+  const [actionInput, setActionInput] = useState("");
+  const [isParsingAction, setIsParsingAction] = useState(false);
+  const [isExecutingAction, setIsExecutingAction] = useState(false);
+  const [validationState, setValidationState] = useState<ParsedValidationState | null>(null);
+  const [actionSuccessMessage, setActionSuccessMessage] = useState<string | null>(null);
+  const [actionErrorMessage, setActionErrorMessage] = useState<string | null>(null);
+  const [actionHistory, setActionHistory] = useState<ActionLogItem[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [revertingLogId, setRevertingLogId] = useState<string | null>(null);
 
-  const handleShufflePrompts = () => {
-    setQuickPrompts(getRandomPromptSuggestions(7));
-  };
+  // Copy Feedback State
+  const [copiedType, setCopiedType] = useState<string | null>(null);
 
-  // Modals state
+  // Modals & Drawers
   const [isMemoryModalOpen, setIsMemoryModalOpen] = useState(false);
   const [isWeeklyPlanModalOpen, setIsWeeklyPlanModalOpen] = useState(false);
   const [isFoodScannerOpen, setIsFoodScannerOpen] = useState(false);
   const [isQuestionnaireOpen, setIsQuestionnaireOpen] = useState(false);
-  const [isTTSVoiceEnabled, setIsTTSVoiceEnabled] = useState(false);
   const [assessmentStatus, setAssessmentStatus] = useState<string>("NOT_STARTED");
 
   const searchParams = useSearchParams();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Load TTS preference from local storage
+  // Load Prompt pool
   useEffect(() => {
-    try {
-      const savedTTS = localStorage.getItem("nt_ai_tts_enabled");
-      if (savedTTS === "true") setIsTTSVoiceEnabled(true);
-    } catch {}
+    setQuickPrompts([...DYNAMIC_PROMPT_POOL].sort(() => 0.5 - Math.random()).slice(0, 5));
   }, []);
 
-  const toggleTTSVoice = () => {
-    setIsTTSVoiceEnabled((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem("nt_ai_tts_enabled", String(next));
-      } catch {}
-      if (!next && typeof window !== "undefined" && window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-      }
-      return next;
-    });
-  };
+  // Fetch initial state & history
+  useEffect(() => {
+    loadActionHistory();
+    loadConversations();
+    checkAssessmentStatus();
+  }, []);
 
-  const speakText = (text: string) => {
-    if (!isTTSVoiceEnabled || typeof window === "undefined" || !window.speechSynthesis) return;
+  const loadActionHistory = async () => {
+    setIsLoadingHistory(true);
     try {
-      window.speechSynthesis.cancel();
-      // Clean excessive markdown and URLs for natural speaking
-      const cleanText = text
-        .replace(/[*#_`~[\]()]/g, "")
-        .replace(/https?:\/\/\S+/g, "")
-        .replace(/[•⚡🌱🔬💪💧🥗🔥🎯🍳🥣🍗🍚🧘🚀🧡🥄🫖🥜🌾]/g, "")
-        .trim();
-      if (!cleanText) return;
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.rate = 1.05;
-      utterance.pitch = 1.0;
-      window.speechSynthesis.speak(utterance);
-    } catch (err) {
-      console.warn("TTS speak notice:", err);
-    }
-  };
-
-  // Live health metrics snapshot
-  const [healthSnapshot, setHealthSnapshot] = useState<any>(null);
-  const [isSnapshotLoading, setIsSnapshotLoading] = useState(false);
-  const [isSnapshotOpenDesktop, setIsSnapshotOpenDesktop] = useState(true);
-  const [isSnapshotOpenMobile, setIsSnapshotOpenMobile] = useState(false);
-
-  const handleToggleSnapshot = () => {
-    if (typeof window !== "undefined" && window.innerWidth >= 1280) {
-      setIsSnapshotOpenDesktop((prev) => !prev);
-    } else {
-      setIsSnapshotOpenMobile((prev) => !prev);
-    }
-  };
-
-  // Voice & Image Input States
-  const [isListening, setIsListening] = useState(false);
-  const [selectedImageBase64, setSelectedImageBase64] = useState<string | null>(null);
-  const [selectedImageName, setSelectedImageName] = useState<string | null>(null);
-
-  const recognitionRef = useRef<any>(null);
-  const shouldKeepListeningRef = useRef(false);
-  const baseTextRef = useRef("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const isSendingRef = useRef(false);
-  const lastSyncTimeRef = useRef<number>(0);
-
-  const toggleListening = async () => {
-    if (isListening || shouldKeepListeningRef.current) {
-      shouldKeepListeningRef.current = false;
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.abort?.();
-          recognitionRef.current.stop?.();
-        } catch {}
-      }
-      setIsListening(false);
-      return;
-    }
-
-    if (typeof window === "undefined") return;
-
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      alert("Speech recognition is not supported in this browser. Please type your message.");
-      return;
-    }
-
-    try {
-      // Ensure microphone permission is granted and audio track is active
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        try {
-          await navigator.mediaDevices.getUserMedia({ audio: true });
-        } catch (permErr) {
-          console.warn("Microphone permission check:", permErr);
-        }
-      }
-
-      baseTextRef.current = inputText.trim();
-      const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = navigator.language || "en-US";
-      recognition.maxAlternatives = 1;
-
-      shouldKeepListeningRef.current = true;
-
-      recognition.onstart = () => {
-        setIsListening(true);
-      };
-
-      recognition.onresult = (event: any) => {
-        let accumulated = "";
-        for (let i = 0; i < event.results.length; i++) {
-          accumulated += event.results[i][0].transcript + " ";
-        }
-        const fullText = baseTextRef.current
-          ? `${baseTextRef.current} ${accumulated.trim()}`
-          : accumulated.trim();
-        setInputText(fullText);
-      };
-
-      recognition.onerror = (event: any) => {
-        console.warn("Speech recognition notice:", event.error);
-        if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-          shouldKeepListeningRef.current = false;
-          setIsListening(false);
-          alert("Microphone permission was denied. Please allow microphone access in your browser settings to use voice input.");
-        }
-        // Don't terminate for momentary pauses or silence
-      };
-
-      recognition.onend = () => {
-        // Safe delayed restart to let browser audio pipeline reset cleanly
-        if (shouldKeepListeningRef.current) {
-          setTimeout(() => {
-            if (shouldKeepListeningRef.current) {
-              try {
-                recognition.start();
-              } catch (startErr) {
-                console.warn("Speech restart retry:", startErr);
-              }
-            }
-          }, 150);
-        } else {
-          setIsListening(false);
-        }
-      };
-
-      recognitionRef.current = recognition;
-      recognition.start();
-    } catch (err) {
-      console.error("Speech recognition init error:", err);
-      shouldKeepListeningRef.current = false;
-      setIsListening(false);
-    }
-  };
-
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      alert("Please upload a valid image file (PNG, JPG, WEBP).");
-      return;
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-      alert("Image size should be under 10MB.");
-      return;
-    }
-
-    setSelectedImageName(file.name);
-
-    const reader = new FileReader();
-    reader.onload = (uploadEvent) => {
-      const result = uploadEvent.target?.result as string;
-      setSelectedImageBase64(result);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleClearImage = () => {
-    setSelectedImageBase64(null);
-    setSelectedImageName(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
-
-  const loadHealthSnapshot = async () => {
-    try {
-      setIsSnapshotLoading(true);
-      const localDate = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD in user's local timezone
-      const res = await fetch(`/api/health-context/snapshot?date=${localDate}`);
-      if (res.ok) {
-        const data = await res.json();
-        setHealthSnapshot(data.data || null);
+      const res = await fetch("/api/ai/actions/history");
+      const data = await res.json();
+      if (data.success && data.history) {
+        setActionHistory(data.history);
       }
     } catch (err) {
-      console.error("Failed to load health snapshot:", err);
+      console.error("Failed to load action history:", err);
     } finally {
-      setIsSnapshotLoading(false);
+      setIsLoadingHistory(false);
     }
   };
 
-  const loadAssessmentStatus = async () => {
+  const checkAssessmentStatus = async () => {
     try {
       const res = await fetch("/api/ai/assessment/status");
-      if (res.ok) {
-        const data = await res.json();
-        setAssessmentStatus(data.status || "NOT_STARTED");
+      const data = await res.json();
+      if (data.status) {
+        setAssessmentStatus(data.status);
       }
     } catch {}
   };
 
-  const handleTriggerAssessment = async () => {
+  const loadConversations = async () => {
     try {
-      setIsLoading(true);
-      setIsQuestionnaireOpen(true);
-      const res = await fetch("/api/ai/assessment/start", { method: "POST" });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.conversationId) {
-          setActiveConvId(data.conversationId);
-          setMessages(data.messages || []);
-          setAssessmentStatus("IN_PROGRESS");
-          // Add to conversations list if not present
-          setConversations((prev) => {
-            const exists = prev.some((c) => c.id === data.conversationId);
-            if (exists) return prev;
-            return [
-              {
-                id: data.conversationId,
-                title: "Health & Goal Assessment",
-                lastMessageAt: new Date().toISOString(),
-                messageCount: (data.messages || []).length,
-              },
-              ...prev,
-            ];
-          });
+      const res = await fetch("/api/ai/conversations");
+      const data = await res.json();
+      if (data.success && data.conversations) {
+        setConversations(data.conversations);
+        if (data.conversations.length > 0 && !activeConvId) {
+          setActiveConvId(data.conversations[0].id);
+          loadMessages(data.conversations[0].id);
         }
       }
     } catch (err) {
-      console.error("Trigger assessment error:", err);
+      console.error("Failed to load conversations:", err);
     } finally {
-      setIsLoading(false);
+      setIsInitialLoading(false);
     }
   };
 
-  const handleMealLoggedFromScanner = (mealData: any) => {
-    loadHealthSnapshot();
-    // Add assistant acknowledgment into chat
-    const logNotice: MessageItem = {
-      id: `scan_notice_${Date.now()}`,
-      role: "assistant",
-      content: `📸 **Scanned Meal Logged Successfully!** 🥗✨\n\n• **Dish**: ${mealData.foodName} (${mealData.mealType})\n• **Nutrition**: ${mealData.calories} kcal | ${mealData.protein}g Protein | ${mealData.carbohydrates}g Carbs | ${mealData.fat}g Fat | ${mealData.fiber}g Fiber\n\nYour daily totals, macros, and Dynamic Nutrition targets have been updated in real-time! 🚀💪`,
-      createdAt: new Date().toISOString(),
-    };
-    setMessages((prev) => [...prev, logNotice]);
-    speakText(`Logged ${mealData.foodName} into your ${mealData.mealType} log!`);
-  };
-
-  // Check ?mode=assessment on mount
-  useEffect(() => {
-    if (searchParams && searchParams.get("mode") === "assessment") {
-      handleTriggerAssessment();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
-
-  // 1. Initial Load: Conversations, Health Context Snapshot, Assessment Status
-  useEffect(() => {
-    async function loadInitialData() {
-      try {
-        setIsInitialLoading(true);
-        setErrorMessage(null);
-
-        // Fetch conversations & health snapshot & assessment status in parallel
-        const [convRes] = await Promise.all([
-          fetch("/api/ai/conversations").catch(() => null),
-          loadHealthSnapshot(),
-          loadAssessmentStatus(),
-        ]);
-
-        if (convRes?.ok) {
-          const convData = await convRes.json();
-          const convList = convData.conversations || [];
-          setConversations(convList);
-
-          // Restore last active conversation from localStorage if valid, or default
-          let targetId = convData.defaultConversationId || convList[0]?.id;
-          try {
-            const savedId = localStorage.getItem("nt_active_conv_id");
-            if (savedId && convList.some((c: any) => c.id === savedId)) {
-              targetId = savedId;
-            }
-          } catch {}
-
-          if (targetId) {
-            setActiveConvId(targetId);
-            await loadMessages(targetId);
-          }
-        }
-      } catch (err: any) {
-        console.error("Initial load error:", err);
-        setErrorMessage("Failed to load coach conversations.");
-      } finally {
-        setIsInitialLoading(false);
-      }
-    }
-
-    loadInitialData();
-  }, []);
-
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Scroll to bottom whenever messages update
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isLoading]);
-
-  // Clean up polling timer on unmount
-  useEffect(() => {
-    return () => {
-      if (pollingRef.current) {
-        clearTimeout(pollingRef.current);
-        pollingRef.current = null;
-      }
-    };
-  }, []);
-
-  // 2. Resilient message loader with non-destructive merge
-  const loadMessages = async (convId: string, isPoll = false) => {
+  const loadMessages = async (convId: string) => {
     try {
       const res = await fetch(`/api/ai/conversations/${convId}`);
-      if (res.ok) {
-        const data = await res.json();
-        const fetchedMsgs: MessageItem[] = data.messages || [];
-
-        setMessages((prev) => {
-          // If server returned messages, merge cleanly preserving any pending optimistic user message
-          if (fetchedMsgs.length > 0) {
-            const pendingTemp = prev.filter(
-              (m) => m.id.startsWith("temp_") && !fetchedMsgs.some((fm) => fm.content === m.content)
-            );
-            return [...fetchedMsgs, ...pendingTemp];
-          }
-
-          // If server returned 0 messages (e.g. freshly created conversation), preserve current welcome message if present
-          if (prev.length > 0) {
-            return prev;
-          }
-
-          return [
-            {
-              id: `init_${Date.now()}`,
-              role: "assistant",
-              content: "Hello! I am your Nutri-Track AI Coach. 🥗✨ How can I help you optimize your health, nutrition, or training today?",
-              createdAt: new Date().toISOString(),
-            },
-          ];
-        });
-
-        // Check if the latest message is a user prompt without an assistant reply yet
-        const lastMsg = fetchedMsgs[fetchedMsgs.length - 1];
-        const msgAgeMs = lastMsg ? Date.now() - new Date(lastMsg.createdAt).getTime() : Infinity;
-
-        if (lastMsg && lastMsg.role === "user" && msgAgeMs < 25000 && isSendingRef.current) {
-          setIsLoading(true);
-          if (pollingRef.current) clearTimeout(pollingRef.current);
-          pollingRef.current = setTimeout(() => {
-            loadMessages(convId, true);
-          }, 1500);
-        } else {
-          if (pollingRef.current) {
-            clearTimeout(pollingRef.current);
-            pollingRef.current = null;
-          }
-          if (!isSendingRef.current) {
-            setIsLoading(false);
-          }
-        }
+      const data = await res.json();
+      if (data.success && data.messages) {
+        setMessages(data.messages);
       }
     } catch (err) {
-      console.error("Load messages error:", err);
-      if (!isPoll && !isSendingRef.current) setIsLoading(false);
+      console.error("Failed to load messages:", err);
     }
   };
 
-  // Re-sync messages on window focus or tab visibility change with 10s throttling
-  useEffect(() => {
-    const handleFocusSync = () => {
-      const now = Date.now();
-      if (now - lastSyncTimeRef.current < 10000) return; // 10s debounce
-      if (document.visibilityState === "visible" && activeConvId && !isSendingRef.current) {
-        lastSyncTimeRef.current = now;
-        loadMessages(activeConvId, false);
-        loadHealthSnapshot();
+  const handleCopy = async (type: "instructions" | "context" | "assessment") => {
+    try {
+      let endpoint = "";
+      if (type === "instructions") endpoint = "/api/ai/chatgpt/instructions";
+      else if (type === "context") endpoint = "/api/ai/chatgpt/context";
+      else if (type === "assessment") endpoint = "/api/ai/chatgpt/assessment-prompt";
+
+      const res = await fetch(endpoint);
+      const data = await res.json();
+      const content = data.instructions || data.context || data.prompt || data.markdown || "";
+
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(content);
+        setCopiedType(type);
+        setTimeout(() => setCopiedType(null), 3000);
       }
-    };
-
-    window.addEventListener("focus", handleFocusSync);
-    document.addEventListener("visibilitychange", handleFocusSync);
-    return () => {
-      window.removeEventListener("focus", handleFocusSync);
-      document.removeEventListener("visibilitychange", handleFocusSync);
-    };
-  }, [activeConvId]);
-
-  const handleSelectConversation = async (convId: string) => {
-    if (pollingRef.current) {
-      clearTimeout(pollingRef.current);
-      pollingRef.current = null;
+    } catch (err) {
+      console.error("Failed to copy:", err);
     }
-    setActiveConvId(convId);
-    try {
-      localStorage.setItem("nt_active_conv_id", convId);
-    } catch {}
-    setSidebarOpen(false);
-    await loadMessages(convId);
   };
 
-  // 3. Create New Conversation
-  const handleNewConversation = async () => {
+  const handleParseAction = async () => {
+    if (!actionInput.trim()) return;
+    setIsParsingAction(true);
+    setActionErrorMessage(null);
+    setActionSuccessMessage(null);
+    setValidationState(null);
+
     try {
-      setIsLoading(true);
-      const res = await fetch("/api/ai/conversations", {
+      const res = await fetch("/api/ai/actions/parse", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: "New Conversation" }),
+        body: JSON.stringify({ actionString: actionInput }),
       });
+      const data = await res.json();
 
-      if (res.ok) {
-        const newConv = await res.json();
-        setConversations((prev) => [newConv, ...prev]);
-        setActiveConvId(newConv.id);
-        try {
-          localStorage.setItem("nt_active_conv_id", newConv.id);
-        } catch {}
-        setMessages([
-          {
-            id: `init_${Date.now()}`,
-            role: "assistant",
-            content: "Hello! I am your Nutri-Track AI Coach. 🥗✨ How can I help you optimize your health, nutrition, or training today?",
-            createdAt: new Date().toISOString(),
-          },
-        ]);
-        setSidebarOpen(false);
-      }
-    } catch (err) {
-      console.error("Create conversation error:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // 4. Delete Conversation
-  const handleDeleteConversation = async (convId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!confirm("Are you sure you want to delete this conversation?")) return;
-
-    try {
-      const res = await fetch(`/api/ai/conversations/${convId}`, { method: "DELETE" });
-      if (res.ok) {
-        setConversations((prev) => prev.filter((c) => c.id !== convId));
-        if (activeConvId === convId) {
-          const remaining = conversations.filter((c) => c.id !== convId);
-          if (remaining.length > 0) {
-            setActiveConvId(remaining[0].id);
-            await loadMessages(remaining[0].id);
-          } else {
-            await handleNewConversation();
-          }
+      if (data.validation) {
+        setValidationState(data.validation);
+        if (!data.validation.isValid) {
+          setActionErrorMessage(data.validation.errors.join("; "));
         }
+      } else if (data.error) {
+        setActionErrorMessage(data.error);
       }
-    } catch (err) {
-      console.error("Delete conversation error:", err);
+    } catch (err: any) {
+      setActionErrorMessage(err.message || "Failed to parse action.");
+    } finally {
+      setIsParsingAction(false);
     }
   };
 
-  // 5. Delete AI Memory
-  const handleDeleteMemory = async (memoryId: string) => {
+  const handleExecuteAction = async () => {
+    if (!validationState || !validationState.isValid) return;
+    setIsExecutingAction(true);
+    setActionErrorMessage(null);
+    setActionSuccessMessage(null);
+
     try {
-      const res = await fetch(`/api/ai/memories?id=${memoryId}`, { method: "DELETE" });
-      if (res.ok) {
-        await loadHealthSnapshot();
+      const res = await fetch("/api/ai/actions/execute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: validationState.parsedAction || actionInput,
+          source: "CHATGPT_ACTION",
+          confirmed: true,
+        }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setActionSuccessMessage(data.result?.message || "Action applied successfully to Nutri-Track!");
+        setActionInput("");
+        setValidationState(null);
+        loadActionHistory();
+      } else {
+        setActionErrorMessage(data.error || "Failed to execute action.");
       }
-    } catch (err) {
-      console.error("Delete memory error:", err);
+    } catch (err: any) {
+      setActionErrorMessage(err.message || "Execution exception occurred.");
+    } finally {
+      setIsExecutingAction(false);
     }
   };
 
-  // 6. Stop AI Generation
-  const handleStopGenerating = () => {
-    if (abortControllerRef.current) {
-      try {
-        abortControllerRef.current.abort();
-      } catch {}
-      abortControllerRef.current = null;
+  const handleRevertAction = async (actionLogId: string) => {
+    setRevertingLogId(actionLogId);
+    setActionErrorMessage(null);
+    setActionSuccessMessage(null);
+
+    try {
+      const res = await fetch(`/api/ai/actions/${actionLogId}/revert`, { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        setActionSuccessMessage(data.message || "Successfully reverted targets.");
+        loadActionHistory();
+      } else {
+        setActionErrorMessage(data.error || "Failed to revert action.");
+      }
+    } catch (err: any) {
+      setActionErrorMessage(err.message || "Revert error occurred.");
+    } finally {
+      setRevertingLogId(null);
     }
-    if (pollingRef.current) {
-      clearTimeout(pollingRef.current);
-      pollingRef.current = null;
-    }
-    isSendingRef.current = false;
-    setIsLoading(false);
   };
 
-  // 7. Send User Message
-  const handleSendMessage = async (textToSend?: string) => {
-    const imageToSend = selectedImageBase64;
-    const text = (textToSend || inputText).trim();
-    if ((!text && !imageToSend) || isSendingRef.current) return;
+  const handleSendChatMessage = async (textToSend?: string) => {
+    const text = textToSend || inputText;
+    if (!text.trim() || isLoading) return;
 
-    isSendingRef.current = true;
     setInputText("");
-    if (inputRef.current) {
-      inputRef.current.style.height = "auto";
-    }
-    setSelectedImageBase64(null);
-    setSelectedImageName(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-    shouldKeepListeningRef.current = false;
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.abort?.();
-        recognitionRef.current.stop?.();
-      } catch {}
-      setIsListening(false);
-    }
+    setIsLoading(true);
     setErrorMessage(null);
 
-    // Auto-resolve or create active conversation if not ready yet
-    let convIdToUse = activeConvId;
-    if (!convIdToUse) {
-      try {
-        const convRes = await fetch("/api/ai/conversations", { method: "POST" });
-        if (convRes.ok) {
-          const newConv = await convRes.json();
-          convIdToUse = newConv.id;
-          setActiveConvId(newConv.id);
-          setConversations((prev) => [newConv, ...prev]);
-        }
-      } catch {
-        // Fallback
-      }
-    }
-
-    // Optimistically add user message
-    const tempUserMsg: MessageItem = {
-      id: `temp_${Date.now()}`,
+    const userMessage: MessageItem = {
+      id: `msg_${Date.now()}`,
       role: "user",
-      content: text || "📸 [Attached Food Image for Nutrition Analysis]",
-      metadata: imageToSend ? { hasImage: true, imagePreview: imageToSend } : undefined,
+      content: text,
       createdAt: new Date().toISOString(),
     };
-    setMessages((prev) => [...prev, tempUserMsg]);
-    setIsLoading(true);
 
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
+    setMessages((prev) => [...prev, userMessage]);
 
     try {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          conversationId: convIdToUse,
           message: text,
-          imageBase64: imageToSend,
+          conversationId: activeConvId,
         }),
-        signal: controller.signal,
       });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || "Failed to get AI response");
-      }
-
       const data = await res.json();
 
-      // Replace messages with updated assistant response
-      setMessages((prev) => {
-        const filtered = prev.filter((m) => m.id !== tempUserMsg.id);
-        const assistantMsg = data.assistantMessage || {
-          id: `asst_${Date.now()}`,
+      if (data.success && data.message) {
+        const assistantMessage: MessageItem = {
+          id: data.message.id || `msg_${Date.now() + 1}`,
           role: "assistant",
-          content: "I've processed your request! 🥗✨",
-          createdAt: new Date().toISOString(),
+          content: data.message.content,
+          metadata: data.message.metadata,
+          createdAt: data.message.createdAt || new Date().toISOString(),
         };
-        return [...filtered, data.userMessage || tempUserMsg, assistantMsg];
-      });
-
-      // Update conversation title if provided
-      if (data.conversationTitle && convIdToUse) {
-        setConversations((prev) =>
-          prev.map((c) => (c.id === convIdToUse ? { ...c, title: data.conversationTitle } : c))
-        );
-      }
-
-      // Refresh health context snapshot in background to reflect any new memories or logged state
-      loadHealthSnapshot();
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new Event("nutritrack:data-updated"));
+        setMessages((prev) => [...prev, assistantMessage]);
+        if (data.conversationId && data.conversationId !== activeConvId) {
+          setActiveConvId(data.conversationId);
+          loadConversations();
+        }
+      } else {
+        setErrorMessage(data.error || "Failed to receive response from AI Integrator.");
       }
     } catch (err: any) {
-      if (err.name === "AbortError") {
-        console.log("AI response stopped by user.");
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `stop_${Date.now()}`,
-            role: "assistant",
-            content: "⏹️ *Response generation was stopped.*",
-            createdAt: new Date().toISOString(),
-          },
-        ]);
-      } else {
-        console.error("Send message error:", err);
-        setMessages((prev) => {
-          const filtered = prev.filter((m) => m.id !== tempUserMsg.id);
-          return [
-            ...filtered,
-            tempUserMsg,
-            {
-              id: `err_${Date.now()}`,
-              role: "assistant",
-              content: err.message || "I ran into a temporary hiccup processing your request. Please try again! 🥗✨",
-              createdAt: new Date().toISOString(),
-            },
-          ];
-        });
-      }
+      setErrorMessage(err.message || "Network error occurred.");
     } finally {
-      abortControllerRef.current = null;
-      isSendingRef.current = false;
       setIsLoading(false);
-      setTimeout(() => inputRef.current?.focus(), 50);
     }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInputText(e.target.value);
-    if (inputRef.current) {
-      inputRef.current.style.height = "auto";
-      inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 160)}px`;
-    }
-  };
-
-  // Helper to format assistant response markdown (bold, lists, code)
-  const renderFormattedMessage = (content: string) => {
-    const lines = content.split("\n");
-    return lines.map((line, idx) => {
-      // Bold rendering
-      let formattedLine: React.ReactNode = line;
-      if (line.includes("**")) {
-        const parts = line.split(/(\*\*.*?\*\*)/g);
-        formattedLine = parts.map((p, pIdx) => {
-          if (p.startsWith("**") && p.endsWith("**")) {
-            return <strong key={pIdx} className="font-semibold text-white">{p.slice(2, -2)}</strong>;
-          }
-          return p;
-        });
-      }
-
-      // Bullet points
-      if (line.trim().startsWith("• ") || line.trim().startsWith("- ") || line.trim().startsWith("* ")) {
-        return (
-          <li key={idx} className="ml-4 list-disc text-neutral-200 my-0.5">
-            {typeof formattedLine === "string" ? formattedLine.replace(/^[\s•*-]+/, "") : formattedLine}
-          </li>
-        );
-      }
-
-      if (!line.trim()) {
-        return <div key={idx} className="h-2" />;
-      }
-
-      return (
-        <p key={idx} className="my-1 leading-relaxed text-neutral-200">
-          {formattedLine}
-        </p>
-      );
-    });
   };
 
   return (
-    <div className="flex h-full w-full bg-background-midnight text-neutral-100 overflow-hidden relative">
-      {/* 1. Left Conversation Sidebar Drawer */}
-      <div
-        className={`fixed inset-y-0 left-0 z-40 w-64 bg-neutral-950 border-r border-neutral-800 transition-all duration-300 md:static ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full md:-ml-64"
-        }`}
-      >
-        <div className="flex flex-col h-full">
-          <div className="p-3 border-b border-neutral-800 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Bot className="w-5 h-5 text-emerald-400" />
-              <span className="font-bold text-sm tracking-wide text-white">AI Coach</span>
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+      {/* Top Architecture Banner */}
+      <div className="bg-background-surface border border-border-default rounded-3xl p-6 sm:p-8 shadow-surface-card text-left space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="space-y-1.5">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/15 border border-brand-500/30 text-brand-400 text-xs font-bold uppercase tracking-wider">
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>Two-Layer AI Health Architecture</span>
             </div>
+            <h1 className="text-2xl sm:text-3xl font-black text-foreground-primary tracking-tight">
+              AI Health Coach &amp; Integrator Hub
+            </h1>
+            <p className="text-sm text-foreground-secondary max-w-3xl leading-relaxed">
+              Use your personal <strong>ChatGPT Project</strong> as your daily conversational health, nutrition, and workout coach. When your coach proposes new targets or meals, paste the structured action into Nutri-Track&apos;s <strong>AI Integrator</strong> to validate and apply them safely.
+            </p>
+          </div>
+
+          {/* Tab Switcher */}
+          <div className="flex items-center gap-2 p-1.5 bg-background-elevated rounded-2xl border border-border-subtle shrink-0">
             <button
-              onClick={() => setSidebarOpen(false)}
-              className="p-1 text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-900"
-              title="Close sidebar"
+              onClick={() => setActiveTab("hub")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                activeTab === "hub"
+                  ? "bg-brand-500 text-neutral-950 shadow-brand-glow"
+                  : "text-foreground-secondary hover:text-foreground-primary"
+              }`}
             >
-              <X className="w-4 h-4" />
+              ChatGPT Coach &amp; Action Bridge
             </button>
-          </div>
-
-          <div className="p-3">
             <button
-              onClick={handleNewConversation}
-              disabled={isLoading}
-              className="w-full py-2 px-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all hover:border-emerald-500/50 cursor-pointer"
+              onClick={() => setActiveTab("chat")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                activeTab === "chat"
+                  ? "bg-brand-500 text-neutral-950 shadow-brand-glow"
+                  : "text-foreground-secondary hover:text-foreground-primary"
+              }`}
             >
-              <Plus className="w-4 h-4" />
-              New Conversation
+              <Zap className="h-3.5 w-3.5" />
+              AI Integrator Chat
             </button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto px-2 space-y-1">
-            <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
-              Conversations
-            </div>
-            {conversations.map((conv) => {
-              const isActive = conv.id === activeConvId;
-              return (
-                <div
-                  key={conv.id}
-                  onClick={() => handleSelectConversation(conv.id)}
-                  className={`group flex items-center justify-between p-2.5 rounded-lg text-xs cursor-pointer transition-all ${
-                    isActive
-                      ? "bg-neutral-900 text-white font-medium border border-neutral-800 shadow-sm"
-                      : "text-neutral-400 hover:bg-neutral-900/50 hover:text-neutral-200"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 truncate pr-1">
-                    <MessageSquare className={`w-3.5 h-3.5 shrink-0 ${isActive ? "text-emerald-400" : "text-neutral-600"}`} />
-                    <span className="truncate">{conv.title || "New Conversation"}</span>
-                  </div>
-                  <button
-                    onClick={(e) => handleDeleteConversation(conv.id, e)}
-                    className="opacity-0 group-hover:opacity-100 p-1 text-neutral-500 hover:text-rose-400 transition-opacity"
-                    title="Delete conversation"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="p-3 border-t border-neutral-800 text-[11px] text-neutral-500 flex items-center gap-1.5">
-            <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            <span>Powered by <strong>Google Gemini Engine</strong></span>
           </div>
         </div>
       </div>
 
-      {/* Backdrop for mobile conversation sidebar */}
-      {sidebarOpen && (
-        <div
-          onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 bg-black/60 z-30 md:hidden backdrop-blur-xs"
-        />
-      )}
+      {activeTab === "hub" ? (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-left">
+          {/* Left Column: ChatGPT Project Tools (5 cols) */}
+          <div className="lg:col-span-5 space-y-6">
+            {/* Step 1: ChatGPT Project Setup Card */}
+            <div className="bg-background-surface border border-border-default rounded-3xl p-6 shadow-surface-card space-y-5">
+              <div className="flex items-center justify-between border-b border-border-subtle pb-3">
+                <div className="flex items-center gap-2">
+                  <Bot className="h-5 w-5 text-brand-400" />
+                  <h3 className="text-base font-extrabold text-foreground-primary">
+                    1. ChatGPT Project Setup
+                  </h3>
+                </div>
+                <a
+                  href="https://chatgpt.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs font-bold text-brand-400 hover:text-brand-300 transition-colors"
+                >
+                  Open ChatGPT <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
 
-      {/* 2. Center Main Chat Panel */}
-      <div className="flex-1 flex flex-col h-full bg-black min-w-0 overflow-hidden">
-        {/* Chat Header */}
-        <div className="h-14 border-b border-neutral-800 bg-neutral-950/90 backdrop-blur-md px-3 sm:px-4 flex items-center justify-between gap-2 shrink-0">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <button
-              onClick={() => setSidebarOpen((prev) => !prev)}
-              className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-900 shrink-0 cursor-pointer"
-              title="Toggle conversations sidebar"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <h2 className="font-semibold text-xs sm:text-sm text-white truncate max-w-[140px] sm:max-w-xs md:max-w-md">
-                  {conversations.find((c) => c.id === activeConvId)?.title || "AI Health & Fitness Coach"}
-                </h2>
-                <span className="text-[10px] bg-emerald-950/80 text-emerald-400 border border-emerald-800/40 px-2 py-0.5 rounded-full font-medium shrink-0 hidden sm:inline-flex items-center gap-1">
-                  <Sparkles className="w-2.5 h-2.5" /> Grounded
+              <p className="text-xs text-foreground-secondary leading-relaxed">
+                Create a dedicated <strong>ChatGPT Project</strong> (or chat thread) named <em>&quot;Nutri-Track Coach&quot;</em>. Copy and paste your personalized Custom Instructions and Health Profile into it:
+              </p>
+
+              {/* Action Buttons */}
+              <div className="space-y-2.5">
+                <button
+                  onClick={() => handleCopy("instructions")}
+                  className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-background-elevated border border-border-subtle hover:border-brand-500/40 hover:bg-brand-500/5 transition-all text-left group"
+                >
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-extrabold text-foreground-primary group-hover:text-brand-400 transition-colors">
+                      Copy Project Instructions
+                    </p>
+                    <p className="text-[11px] text-foreground-muted">
+                      Custom instructions, coach persona &amp; action block rules
+                    </p>
+                  </div>
+                  <div className="shrink-0 p-2 rounded-xl bg-background-surface text-brand-400">
+                    {copiedType === "instructions" ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => handleCopy("assessment")}
+                  className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-background-elevated border border-border-subtle hover:border-brand-500/40 hover:bg-brand-500/5 transition-all text-left group"
+                >
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-extrabold text-foreground-primary group-hover:text-brand-400 transition-colors">
+                      Copy Initial Assessment Prompt
+                    </p>
+                    <p className="text-[11px] text-foreground-muted">
+                      Grouped 7-part health, lifestyle &amp; living situation intake
+                    </p>
+                  </div>
+                  <div className="shrink-0 p-2 rounded-xl bg-background-surface text-brand-400">
+                    {copiedType === "assessment" ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => handleCopy("context")}
+                  className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-background-elevated border border-border-subtle hover:border-brand-500/40 hover:bg-brand-500/5 transition-all text-left group"
+                >
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-extrabold text-foreground-primary group-hover:text-brand-400 transition-colors">
+                      Copy Health Context Snapshot
+                    </p>
+                    <p className="text-[11px] text-foreground-muted">
+                      Fresh Nutri-Track logged macros, hydration &amp; workouts
+                    </p>
+                  </div>
+                  <div className="shrink-0 p-2 rounded-xl bg-background-surface text-brand-400">
+                    {copiedType === "context" ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+                  </div>
+                </button>
+              </div>
+
+              {copiedType && (
+                <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 shrink-0" />
+                  <span>Copied to clipboard! Paste directly into your ChatGPT Project.</span>
+                </div>
+              )}
+            </div>
+
+            {/* Step 2: Health Preferences & Memories */}
+            <div className="bg-background-surface border border-border-default rounded-3xl p-6 shadow-surface-card space-y-4">
+              <div className="flex items-center justify-between border-b border-border-subtle pb-3">
+                <div className="flex items-center gap-2">
+                  <Brain className="h-5 w-5 text-purple-400" />
+                  <h3 className="text-base font-extrabold text-foreground-primary">
+                    Health Notes &amp; Preferences
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setIsMemoryModalOpen(true)}
+                  className="px-3 py-1 rounded-xl bg-background-elevated hover:bg-background-surface border border-border-subtle text-xs font-bold text-foreground-primary transition-colors"
+                >
+                  Manage Notes
+                </button>
+              </div>
+              <p className="text-xs text-foreground-secondary leading-relaxed">
+                Nutri-Track stores persistent, long-term health constraints (e.g. food intolerances, living in a hostel, morning running routine) to maintain factual consistency across sessions.
+              </p>
+            </div>
+          </div>
+
+          {/* Right Column: Nutri-Track Action Bridge (7 cols) */}
+          <div className="lg:col-span-7 space-y-6">
+            {/* Action Paste & Diff Box */}
+            <div className="bg-background-surface border border-border-default rounded-3xl p-6 shadow-surface-card space-y-5">
+              <div className="flex items-center justify-between border-b border-border-subtle pb-3">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-5 w-5 text-brand-400" />
+                  <h3 className="text-base font-extrabold text-foreground-primary">
+                    2. Nutri-Track Action Bridge
+                  </h3>
+                </div>
+                <span className="text-[11px] font-bold text-foreground-muted uppercase tracking-wider">
+                  Validated &amp; Scoped Execution
                 </span>
               </div>
-              <p className="text-[11px] text-neutral-400 hidden xl:block truncate">
-                Personalized nutrition, running analysis & workout intelligence
+
+              <p className="text-xs text-foreground-secondary leading-relaxed">
+                When your ChatGPT Health Coach outputs a <code className="text-brand-400 font-mono font-bold">NUTRI-TRACK ACTION</code> block (e.g. proposed calorie/protein targets or logged meals), paste it below:
               </p>
-            </div>
-          </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <button
-              onClick={toggleTTSVoice}
-              className={`py-1.5 px-2 sm:px-2.5 rounded-lg text-xs border flex items-center gap-1.5 transition-colors cursor-pointer ${
-                isTTSVoiceEnabled
-                  ? "bg-amber-950/80 hover:bg-amber-900/90 text-amber-200 border-amber-500/80 shadow-xs"
-                  : "bg-neutral-900 hover:bg-neutral-800 text-neutral-400 border-neutral-800"
-              }`}
-              title={isTTSVoiceEnabled ? "Voice Speech Output is ON (Click to mute)" : "Enable AI Voice Speech Output 🔊"}
-            >
-              {isTTSVoiceEnabled ? <Volume2 className="w-3.5 h-3.5 text-amber-400 shrink-0" /> : <VolumeX className="w-3.5 h-3.5 shrink-0" />}
-              <span className="hidden sm:inline font-medium">Voice</span>
-            </button>
+              <div className="space-y-3">
+                <textarea
+                  value={actionInput}
+                  onChange={(e) => {
+                    setActionInput(e.target.value);
+                    if (validationState) setValidationState(null);
+                  }}
+                  rows={6}
+                  placeholder={`Paste your NUTRI-TRACK ACTION JSON or formatted block here, e.g.:\n{\n  "version": 1,\n  "action": "UPDATE_GOALS",\n  "data": { "proteinG": 140, "caloriesKcal": 2200, "hydrationMl": 3000 },\n  "reason": "Adjusted for 10k training"\n}`}
+                  className="w-full bg-background-elevated border border-border-subtle focus:border-brand-500/50 rounded-2xl p-4 text-xs font-mono text-foreground-primary focus:outline-none resize-none transition-colors"
+                />
 
-            <button
-              onClick={() => {
-                if (!isQuestionnaireOpen) {
-                  handleTriggerAssessment();
-                } else {
-                  setIsQuestionnaireOpen(false);
-                }
-              }}
-              className={`py-1.5 px-2 sm:px-2.5 rounded-lg text-xs border flex items-center gap-1.5 transition-colors cursor-pointer ${
-                isQuestionnaireOpen || assessmentStatus === "IN_PROGRESS"
-                  ? "bg-emerald-950/80 hover:bg-emerald-900/90 text-emerald-200 border-emerald-500/80 shadow-xs"
-                  : assessmentStatus === "COMPLETED"
-                  ? "bg-neutral-900 hover:bg-neutral-800 text-emerald-400 border-neutral-800"
-                  : "bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border-emerald-500/40 animate-pulse"
-              }`}
-              title="AI Health Assessment & Goal Discovery"
-            >
-              <ClipboardCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-              <span className="hidden sm:inline font-medium">
-                {assessmentStatus === "COMPLETED" ? "Assessment ✓" : "Assessment"}
-              </span>
-            </button>
+                <div className="flex items-center justify-between gap-3">
+                  <button
+                    onClick={() => {
+                      setActionInput("");
+                      setValidationState(null);
+                      setActionErrorMessage(null);
+                      setActionSuccessMessage(null);
+                    }}
+                    className="px-3.5 py-2 rounded-xl text-xs font-bold text-foreground-muted hover:text-foreground-primary transition-colors"
+                  >
+                    Clear Box
+                  </button>
 
-            <button
-              onClick={() => setIsWeeklyPlanModalOpen(true)}
-              className="py-1.5 px-2 sm:px-2.5 rounded-lg text-xs bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-800/50 flex items-center gap-1.5 transition-colors cursor-pointer"
-              title="View Weekly Health & Fitness Blueprint"
-            >
-              <Calendar className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-              <span className="hidden sm:inline font-medium">Blueprint</span>
-            </button>
-
-            <button
-              onClick={() => setIsMemoryModalOpen(true)}
-              className="py-1.5 px-2 sm:px-2.5 rounded-lg text-xs bg-purple-950/40 hover:bg-purple-900/60 text-purple-300 border border-purple-800/50 flex items-center gap-1.5 transition-colors cursor-pointer"
-              title="Manage AI Memories & Constraints"
-            >
-              <Brain className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-              <span className="hidden sm:inline font-medium">Memories</span>
-            </button>
-
-            <button
-              onClick={handleToggleSnapshot}
-              className={`py-1.5 px-2 sm:px-2.5 rounded-lg text-xs border flex items-center gap-1.5 transition-colors cursor-pointer ${
-                (isSnapshotOpenDesktop || isSnapshotOpenMobile)
-                  ? "bg-sky-950/80 hover:bg-sky-900/90 text-sky-200 border-sky-600/80 shadow-xs"
-                  : "bg-sky-950/40 hover:bg-sky-900/60 text-sky-300 border-sky-800/50"
-              }`}
-              title="Toggle Live Health Snapshot Sidebar"
-            >
-              <Activity className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-              <span className="hidden sm:inline font-medium">Snapshot</span>
-            </button>
-
-            <button
-              onClick={handleNewConversation}
-              className="py-1.5 px-2.5 sm:px-3 rounded-lg text-xs bg-emerald-500 hover:bg-emerald-400 text-black font-semibold flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer"
-              title="Start New Conversation"
-            >
-              <Plus className="w-3.5 h-3.5 shrink-0" />
-              <span className="hidden sm:inline">New Chat</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Messages Scroll Area */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-4">
-          {isQuestionnaireOpen && (
-            <AssessmentQuestionnaireWidget
-              onSubmitAnswers={(textPayload) => {
-                setIsQuestionnaireOpen(false);
-                handleSendMessage(textPayload);
-              }}
-            />
-          )}
-
-          {isInitialLoading ? (
-            <div className="flex flex-col items-center justify-center h-64 text-neutral-500 gap-3">
-              <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
-              <span className="text-xs">Initializing AI Coach & connecting live database...</span>
-            </div>
-          ) : messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-72 text-center text-neutral-400 max-w-md mx-auto space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                <Sparkles className="w-6 h-6 text-emerald-400" />
+                  <button
+                    onClick={handleParseAction}
+                    disabled={isParsingAction || !actionInput.trim()}
+                    className="px-5 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-neutral-950 font-bold text-xs flex items-center gap-2 transition-all disabled:opacity-50 shadow-brand-glow"
+                  >
+                    {isParsingAction ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                    Parse &amp; Preview Changes
+                  </button>
+                </div>
               </div>
-              <h3 className="font-semibold text-base text-white">Your Nutri-Track AI Coach</h3>
-              <p className="text-xs text-neutral-400 leading-relaxed">
-                Ask about today&apos;s remaining macros, estimate exercise calories, check micronutrient gaps, or analyze running pace trends.
-              </p>
-            </div>
-          ) : (
-            messages.map((msg) => {
-              const isUser = msg.role === "user";
-              const metadata = msg.metadata || {};
-              const proposal = metadata.proposedGoal;
 
-              return (
-                <div
-                  key={msg.id}
-                  className={`flex gap-3 max-w-3xl ${isUser ? "ml-auto justify-end" : "mr-auto justify-start"}`}
-                >
-                  {!isUser && (
-                    <div className="w-8 h-8 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center shrink-0 mt-0.5">
-                      <Bot className="w-4 h-4 text-emerald-400" />
-                    </div>
-                  )}
-
-                  <div className={`space-y-2 max-w-[88%] sm:max-w-2xl ${isUser ? "items-end" : "items-start"}`}>
-                    {isUser && metadata?.imagePreview && (
-                      <div className="mb-2 max-w-xs overflow-hidden rounded-xl border border-emerald-500/40 shadow-sm ml-auto">
-                        <img src={metadata.imagePreview} alt="Logged meal photo" className="w-full h-auto object-cover max-h-48" />
-                      </div>
-                    )}
-
-                    <div
-                      className={`p-3.5 rounded-2xl text-xs sm:text-sm leading-relaxed shadow-sm ${
-                        isUser
-                          ? "bg-emerald-600 text-white rounded-br-none"
-                          : "bg-neutral-900/90 border border-neutral-800 text-neutral-100 rounded-bl-none"
-                      }`}
-                    >
-                      {isUser ? msg.content : renderFormattedMessage(msg.content)}
-                    </div>
-
-                    {/* Tool badges & action confirmations */}
-                    {!isUser && ((metadata.executedActions && metadata.executedActions.length > 0) || (metadata.toolsExecuted && metadata.toolsExecuted.length > 0)) && (
-                      <div className="flex flex-wrap gap-1.5 px-1">
-                        {(metadata.executedActions || metadata.toolsExecuted.map((t: string) => ({ toolName: t, success: true }))).map((act: any, tIdx: number) => {
-                          const name = typeof act === "string" ? act : act.toolName;
-                          const isOk = typeof act === "object" ? act.success !== false : true;
-                          const cleanLabel = name
-                            .replace(/_/g, " ")
-                            .replace(/^log /, "logged ")
-                            .replace(/^update /, "updated ")
-                            .replace(/^create /, "created ")
-                            .replace(/^delete /, "deleted ");
-                          return (
-                            <span
-                              key={tIdx}
-                              className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md border shadow-2xs ${
-                                isOk
-                                  ? "text-emerald-300 bg-emerald-950/40 border-emerald-800/60"
-                                  : "text-rose-300 bg-rose-950/40 border-rose-800/60"
-                              }`}
-                            >
-                              <Zap className="w-2.5 h-2.5 text-emerald-400 shrink-0" />
-                              <span className="capitalize">{cleanLabel}</span>
-                            </span>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* In-chat Goal Confirmation Card */}
-                    {!isUser && proposal && (
-                      <GoalConfirmationCard
-                        proposal={proposal}
-                        onConfirmed={async () => {
-                          await loadHealthSnapshot();
-                        }}
-                        onModify={(text) => {
-                          setInputText(text);
-                          inputRef.current?.focus();
-                        }}
-                      />
-                    )}
+              {/* Error Message */}
+              {actionErrorMessage && (
+                <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300 flex items-start gap-2.5">
+                  <AlertCircle className="h-4 w-4 text-rose-400 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="font-bold">Validation Error:</strong> {actionErrorMessage}
                   </div>
                 </div>
-              );
-            })
-          )}
+              )}
 
-          {/* Typing Indicator */}
-          {isLoading && (
-            <div className="flex gap-3 max-w-md mr-auto">
-              <div className="w-8 h-8 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center shrink-0">
-                <Bot className="w-4 h-4 text-emerald-400" />
-              </div>
-              <div className="p-3.5 rounded-2xl rounded-bl-none bg-neutral-900/90 border border-neutral-800 flex items-center gap-2 text-xs text-neutral-400">
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
-                <span>Analyzing data and preparing response...</span>
-              </div>
+              {/* Success Message */}
+              {actionSuccessMessage && (
+                <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 flex items-center gap-2.5">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                  <span>{actionSuccessMessage}</span>
+                </div>
+              )}
+
+              {/* Validation & Proposed Diff Card */}
+              {validationState && validationState.isValid && (
+                <div className="p-5 rounded-2xl bg-background-elevated/70 border border-brand-500/30 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-extrabold text-brand-400 uppercase tracking-wider">
+                      <Sliders className="h-4 w-4" />
+                      <span>Proposed Changes Preview ({validationState.actionType})</span>
+                    </div>
+                    {validationState.requiresConfirmation && (
+                      <span className="px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[10px] font-extrabold uppercase">
+                        Requires Confirmation
+                      </span>
+                    )}
+                  </div>
+
+                  {validationState.reason && (
+                    <p className="text-xs text-foreground-secondary italic">
+                      &quot;{validationState.reason}&quot;
+                    </p>
+                  )}
+
+                  {/* Diff List */}
+                  <div className="space-y-2">
+                    {validationState.diffs.map((diff, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between p-2.5 rounded-xl bg-background-surface border border-border-subtle text-xs"
+                      >
+                        <span className="font-bold text-foreground-secondary">{diff.label}</span>
+                        <div className="flex items-center gap-2 font-mono">
+                          <span className="text-foreground-muted line-through">{diff.previousValue}</span>
+                          <ArrowRight className="h-3.5 w-3.5 text-brand-400" />
+                          <span className="font-extrabold text-brand-400">{diff.proposedValue}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Execution Action Buttons */}
+                  <div className="flex items-center justify-end gap-3 pt-2">
+                    <button
+                      onClick={() => setValidationState(null)}
+                      className="px-4 py-2 rounded-xl text-xs font-bold text-foreground-muted hover:text-foreground-primary transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleExecuteAction}
+                      disabled={isExecutingAction}
+                      className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-extrabold text-xs flex items-center gap-2 transition-all shadow-md"
+                    >
+                      {isExecutingAction ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                      Apply Changes to Nutri-Track
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
 
-          {errorMessage && (
-            <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-800/50 text-rose-300 text-xs flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-              <span>{errorMessage}</span>
+            {/* Action History / Audit Log */}
+            <div className="bg-background-surface border border-border-default rounded-3xl p-6 shadow-surface-card space-y-4">
+              <div className="flex items-center justify-between border-b border-border-subtle pb-3">
+                <div className="flex items-center gap-2">
+                  <History className="h-5 w-5 text-blue-400" />
+                  <h3 className="text-base font-extrabold text-foreground-primary">
+                    Action History &amp; Audit Log
+                  </h3>
+                </div>
+                <button
+                  onClick={loadActionHistory}
+                  className="p-1.5 rounded-xl hover:bg-background-elevated text-foreground-muted hover:text-foreground-primary transition-colors"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </button>
+              </div>
+
+              {isLoadingHistory ? (
+                <div className="py-8 text-center text-xs text-foreground-muted flex items-center justify-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Loading action history...</span>
+                </div>
+              ) : actionHistory.length === 0 ? (
+                <div className="py-6 text-center text-xs text-foreground-muted">
+                  No applied actions recorded yet.
+                </div>
+              ) : (
+                <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                  {actionHistory.map((item) => (
+                    <div
+                      key={item.id}
+                      className="p-3 rounded-2xl bg-background-elevated/70 border border-border-subtle flex items-center justify-between text-xs gap-3"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold text-foreground-primary font-mono">
+                            {item.actionType}
+                          </span>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                              item.status === "SUCCESS"
+                                ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                                : item.status === "REVERTED"
+                                ? "bg-purple-500/15 text-purple-400 border border-purple-500/30"
+                                : "bg-rose-500/15 text-rose-400 border border-rose-500/30"
+                            }`}
+                          >
+                            {item.status}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-foreground-muted">
+                          {new Date(item.createdAt).toLocaleString()} &bull; Source: {item.source}
+                        </p>
+                      </div>
+
+                      {(item.actionType === "UPDATE_GOALS" || item.actionType === "UPDATE_TARGETS" || item.actionType === "UPDATE_PROFILE") &&
+                        item.status === "SUCCESS" &&
+                        !item.revertedAt && (
+                          <button
+                            onClick={() => handleRevertAction(item.id)}
+                            disabled={revertingLogId === item.id}
+                            className="px-2.5 py-1 rounded-xl bg-background-surface hover:bg-background-elevated border border-border-subtle text-[11px] font-bold text-foreground-secondary hover:text-foreground-primary flex items-center gap-1.5 transition-colors"
+                          >
+                            {revertingLogId === item.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
+                            Revert
+                          </button>
+                        )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-
-          <div ref={messagesEndRef} />
+          </div>
         </div>
-
-        {/* Quick Prompts Carousel */}
-        <div className="px-4 py-2 bg-neutral-950/60 border-t border-neutral-900/80 overflow-x-auto no-scrollbar">
-          <div className="flex items-center gap-2 min-w-max">
+      ) : (
+        /* AI Integrator Chat View */
+        <div className="bg-background-surface border border-border-default rounded-3xl p-6 sm:p-8 shadow-surface-card space-y-6 text-left">
+          <div className="flex items-center justify-between border-b border-border-subtle pb-4">
+            <div>
+              <h2 className="text-lg font-extrabold text-foreground-primary">
+                AI Integrator Quick Execution
+              </h2>
+              <p className="text-xs text-foreground-secondary">
+                Directly execute structured queries and quick logging via Nutri-Track&apos;s internal AI Integrator.
+              </p>
+            </div>
             <button
-              onClick={handleShufflePrompts}
-              title="Shuffle prompt suggestions"
-              className="text-[10px] uppercase font-semibold text-neutral-400 hover:text-emerald-400 flex items-center gap-1.5 py-1 px-2.5 rounded-full bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 transition-colors cursor-pointer"
+              onClick={() => setIsFoodScannerOpen(true)}
+              className="px-3 py-1.5 rounded-xl bg-brand-500/10 border border-brand-500/20 text-brand-400 font-bold text-xs hover:bg-brand-500/20 transition-colors flex items-center gap-1.5"
             >
-              <Shuffle className="w-3 h-3 text-emerald-400" />
-              <span>New Ideas</span>
+              <Camera className="h-4 w-4" />
+              Scan Food Photo
             </button>
+          </div>
+
+          {/* Quick Command Chips */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-foreground-muted">Quick Commands:</span>
             {quickPrompts.map((prompt, idx) => (
               <button
                 key={idx}
-                onClick={() => handleSendMessage(prompt)}
-                disabled={isLoading}
-                className="py-1 px-2.5 rounded-full text-[11px] bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-neutral-800 hover:border-neutral-700 transition-colors disabled:opacity-50 cursor-pointer"
+                onClick={() => handleSendChatMessage(prompt)}
+                className="px-3 py-1 rounded-full bg-background-elevated hover:bg-brand-500/15 border border-border-subtle hover:border-brand-500/30 text-xs text-foreground-secondary hover:text-brand-300 font-semibold transition-colors"
               >
                 {prompt}
               </button>
             ))}
           </div>
-        </div>
 
-        {/* Input Bar */}
-        <div className="p-3 sm:p-4 bg-neutral-950 border-t border-neutral-800 shrink-0">
-          <div className="max-w-4xl mx-auto">
-            {/* Selected Image Preview Pill */}
-            {selectedImageBase64 && (
-              <div className="mb-2 flex items-center gap-2.5 p-2 bg-neutral-900 border border-emerald-500/40 rounded-xl max-w-sm shadow-md animate-fadeIn">
-                <img
-                  src={selectedImageBase64}
-                  alt="Meal preview"
-                  className="w-12 h-12 object-cover rounded-lg border border-neutral-700 shrink-0"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-white truncate">{selectedImageName || "Meal Photo"}</p>
-                  <p className="text-[10px] text-emerald-400 flex items-center gap-1 font-medium">
-                    <Sparkles className="w-2.5 h-2.5" /> Food image attached for AI recognition
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleClearImage}
-                  className="p-1 rounded-md text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer"
-                  title="Remove image"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+          {/* Chat Messages Log */}
+          <div className="h-96 overflow-y-auto space-y-4 p-4 rounded-2xl bg-background-elevated/40 border border-border-subtle">
+            {messages.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center text-foreground-muted space-y-2">
+                <Bot className="h-8 w-8 text-foreground-muted opacity-50" />
+                <p className="text-xs">Type a command or question to execute via the AI Integrator.</p>
               </div>
+            ) : (
+              messages.map((msg, idx) => (
+                <div
+                  key={idx}
+                  className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                >
+                  <div
+                    className={`max-w-xl p-4 rounded-2xl text-xs leading-relaxed space-y-2 ${
+                      msg.role === "user"
+                        ? "bg-brand-500 text-neutral-950 font-semibold rounded-br-sm"
+                        : "bg-background-elevated border border-border-subtle text-foreground-primary rounded-bl-sm"
+                    }`}
+                  >
+                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                  </div>
+                </div>
+              ))
             )}
+            <div ref={messagesEndRef} />
+          </div>
 
-            {/* Hidden File Input for Camera/Gallery */}
+          {/* Chat Input Bar */}
+          <div className="flex items-center gap-3">
             <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleImageSelect}
-            />
-
-            <div className="flex items-center gap-1.5 sm:gap-2 bg-neutral-900 border border-neutral-800 rounded-2xl p-1.5 focus-within:border-emerald-500/50 focus-within:ring-1 focus-within:ring-emerald-500/30 transition-all">
-              {/* Live Camera Food Scanner Button */}
-              <button
-                type="button"
-                onClick={() => setIsFoodScannerOpen(true)}
-                disabled={isLoading}
-                className="p-2 text-neutral-400 hover:text-emerald-400 hover:bg-neutral-800 rounded-xl transition-colors disabled:opacity-40 cursor-pointer"
-                title="Scan food with AI Camera Vision & Viewfinder 📸"
-              >
-                <Camera className="w-4 h-4 text-emerald-400" />
-              </button>
-
-              {/* Gallery Image Upload Button */}
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isLoading}
-                className="p-2 text-neutral-400 hover:text-emerald-400 hover:bg-neutral-800 rounded-xl transition-colors disabled:opacity-40 cursor-pointer"
-                title="Upload meal photo from gallery / files 🖼️"
-              >
-                <ImagePlus className="w-4 h-4" />
-              </button>
-
-              {/* Speech-to-Text Mic Button */}
-              <button
-                type="button"
-                onClick={toggleListening}
-                disabled={isLoading}
-                className={`p-2 rounded-xl transition-all cursor-pointer ${
-                  isListening
-                    ? "bg-rose-500 text-white animate-pulse shadow-lg shadow-rose-500/40 ring-2 ring-rose-400"
-                    : "text-neutral-400 hover:text-emerald-400 hover:bg-neutral-800"
-                }`}
-                title={isListening ? "Listening to your voice... (Click to stop)" : "Voice speech-to-text input 🎙️"}
-              >
-                {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-              </button>
-
-              <textarea
-                ref={inputRef}
-                rows={1}
-                value={inputText}
-                onChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                placeholder={
-                  isListening
-                    ? "Listening... Speak your meal or question now"
-                    : selectedImageBase64
-                    ? "Add a note (e.g. 'Lunch at cafe') or hit send to scan photo..."
-                    : "Ask coach, log meal, or upload food photo... (Shift+Enter for new line)"
+              type="text"
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendChatMessage();
                 }
-                disabled={isLoading}
-                className="flex-1 bg-transparent px-2 sm:px-3 py-2 text-xs sm:text-sm text-white placeholder-neutral-500 focus:outline-none disabled:opacity-50 min-w-0 resize-none max-h-36 overflow-y-auto leading-relaxed"
-              />
-
-              {isLoading ? (
-                <button
-                  type="button"
-                  onClick={handleStopGenerating}
-                  className="p-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold transition-all cursor-pointer shrink-0 flex items-center justify-center shadow-md shadow-rose-900/30 hover:scale-105 active:scale-95"
-                  title="Stop generating response ⏹️"
-                >
-                  <Square className="w-4 h-4 fill-white" />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => handleSendMessage()}
-                  disabled={!inputText.trim() && !selectedImageBase64}
-                  className="p-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-semibold disabled:opacity-30 disabled:hover:bg-emerald-500 transition-colors cursor-pointer shrink-0"
-                  title="Send message"
-                >
-                  <Send className="w-4 h-4" />
-                </button>
-              )}
-            </div>
+              }}
+              placeholder="Type a quick command (e.g. 'Log 500ml water' or 'Set protein target to 140g')..."
+              className="flex-1 bg-background-elevated border border-border-subtle focus:border-brand-500/50 rounded-2xl px-4 py-3 text-xs text-foreground-primary focus:outline-none transition-colors"
+            />
+            <button
+              onClick={() => handleSendChatMessage()}
+              disabled={isLoading || !inputText.trim()}
+              className="px-5 py-3 rounded-2xl bg-brand-500 hover:bg-brand-400 text-neutral-950 font-bold text-xs flex items-center gap-2 transition-all disabled:opacity-50 shadow-brand-glow shrink-0"
+            >
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              Execute
+            </button>
           </div>
         </div>
-        {/* Floating Expand Tab for Live Health Snapshot on Desktop */}
-        {!isSnapshotOpenDesktop && (
-          <button
-            onClick={() => setIsSnapshotOpenDesktop(true)}
-            className="hidden xl:flex absolute right-0 top-1/2 -translate-y-1/2 z-20 py-3 px-1.5 bg-neutral-900/95 hover:bg-neutral-800 border-l border-y border-neutral-700 rounded-l-xl text-neutral-400 hover:text-emerald-400 shadow-2xl items-center gap-1 transition-all cursor-pointer group"
-            title="Expand Live Health Snapshot"
-          >
-            <Activity className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" />
-            <ChevronLeft className="w-3.5 h-3.5" />
-          </button>
-        )}
-      </div>
+      )}
 
-      {/* 3. Right Live Health Snapshot Drawer */}
-      <LiveHealthSnapshotDrawer
-        snapshot={healthSnapshot}
-        isLoading={isSnapshotLoading}
-        onRefresh={loadHealthSnapshot}
-        onDeleteMemory={handleDeleteMemory}
-        isOpen={isSnapshotOpenDesktop}
-        onToggleOpen={() => setIsSnapshotOpenDesktop((prev) => !prev)}
-        isMobileOpen={isSnapshotOpenMobile}
-        onCloseMobile={() => setIsSnapshotOpenMobile(false)}
-      />
-
-      {/* 4. AI Memories Hub Modal */}
-      <AIMemoryModal
-        isOpen={isMemoryModalOpen}
-        onClose={() => setIsMemoryModalOpen(false)}
-        onMemoryChanged={loadHealthSnapshot}
-      />
-
-      {/* 5. Weekly Blueprint & Retrospective Modal */}
-      <WeeklyPlanModal
-        isOpen={isWeeklyPlanModalOpen}
-        onClose={() => setIsWeeklyPlanModalOpen(false)}
-      />
-
-      {/* 6. Live Food Camera & Vision Scanner Modal */}
+      {/* Persistent Memory & Food Scanner Modals */}
+      <AIMemoryModal isOpen={isMemoryModalOpen} onClose={() => setIsMemoryModalOpen(false)} />
+      <WeeklyPlanModal isOpen={isWeeklyPlanModalOpen} onClose={() => setIsWeeklyPlanModalOpen(false)} />
       <FoodScannerModal
         isOpen={isFoodScannerOpen}
         onClose={() => setIsFoodScannerOpen(false)}
-        onMealLogged={handleMealLoggedFromScanner}
+        onMealLogged={() => {
+          loadActionHistory();
+        }}
       />
     </div>
   );
 }
+
+export default AICoachClient;

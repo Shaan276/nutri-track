@@ -75,7 +75,7 @@ export class WorkoutService {
         userId,
         workoutType: input.workoutType || "GYM_WORKOUT",
         name: input.name.trim(),
-        date: input.date,
+        date: input.date || new Date().toISOString().split("T")[0],
         durationSeconds: input.durationSeconds || 0,
         caloriesBurned: input.caloriesBurned || 0,
         notes: input.notes ? input.notes.trim() : null,

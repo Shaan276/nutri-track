@@ -31,6 +31,7 @@ interface PersistentData {
   ai_conversations: Array<any>;
   ai_messages: Array<any>;
   ai_memories: Array<any>;
+  ai_action_logs: Array<any>;
   friendships: Array<any>;
   user_privacy_settings: Array<any>;
   privacy_settings: Array<any>;
@@ -77,6 +78,7 @@ function loadPersistedData(): PersistentData {
         ai_conversations: parsed.ai_conversations || [],
         ai_messages: parsed.ai_messages || [],
         ai_memories: parsed.ai_memories || [],
+        ai_action_logs: parsed.ai_action_logs || [],
         friendships: parsed.friendships || [],
         user_privacy_settings: parsed.user_privacy_settings || [],
         privacy_settings: parsed.privacy_settings || [],
@@ -118,6 +120,7 @@ function loadPersistedData(): PersistentData {
     ai_conversations: [],
     ai_messages: [],
     ai_memories: [],
+    ai_action_logs: [],
     friendships: [],
     user_privacy_settings: [],
     privacy_settings: [],
@@ -462,6 +465,22 @@ async function getPool(): Promise<any> {
         source TEXT DEFAULT 'USER_STATED',
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS ai_action_logs (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        action_type TEXT NOT NULL,
+        source TEXT DEFAULT 'CHATGPT_ACTION',
+        payload TEXT NOT NULL,
+        previous_state TEXT,
+        new_state TEXT,
+        status TEXT DEFAULT 'SUCCESS',
+        error_message TEXT,
+        requires_confirmation BOOLEAN DEFAULT FALSE,
+        confirmed_at TIMESTAMP WITH TIME ZONE,
+        reverted_at TIMESTAMP WITH TIME ZONE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
 
       CREATE TABLE IF NOT EXISTS friendships (
@@ -997,6 +1016,16 @@ async function getPool(): Promise<any> {
       } catch {}
     }
 
+    for (const act of saved.ai_action_logs || []) {
+      try {
+        await pool.query(
+          `INSERT INTO ai_action_logs (id, user_id, action_type, source, payload, previous_state, new_state, status, error_message, requires_confirmation, confirmed_at, reverted_at, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+          [act.id, act.user_id, act.action_type, act.source || "CHATGPT_ACTION", act.payload, act.previous_state, act.new_state, act.status || "SUCCESS", act.error_message, act.requires_confirmation || false, act.confirmed_at, act.reverted_at, act.created_at]
+        );
+      } catch {}
+    }
+
     for (const f of saved.friendships || []) {
       try {
         await pool.query(
@@ -1343,6 +1372,7 @@ async function syncToDisk() {
   const aiConversationsRes = await pool.query("SELECT * FROM ai_conversations");
   const aiMessagesRes = await pool.query("SELECT * FROM ai_messages");
   const aiMemoriesRes = await pool.query("SELECT * FROM ai_memories");
+  const aiActionLogsRes = await pool.query("SELECT * FROM ai_action_logs");
   const friendshipsRes = await pool.query("SELECT * FROM friendships");
   const privacySettingsRes = await pool.query("SELECT * FROM user_privacy_settings");
   const privacyCategorySettingsRes = await pool.query("SELECT * FROM privacy_settings");
@@ -1380,6 +1410,7 @@ async function syncToDisk() {
     ai_conversations: aiConversationsRes.rows || [],
     ai_messages: aiMessagesRes.rows || [],
     ai_memories: aiMemoriesRes.rows || [],
+    ai_action_logs: aiActionLogsRes.rows || [],
     friendships: friendshipsRes.rows || [],
     user_privacy_settings: privacySettingsRes.rows || [],
     privacy_settings: privacyCategorySettingsRes.rows || [],
@@ -4289,6 +4320,227 @@ const postgresDbClient = {
       return { count };
     },
   },
+  aiActionLog: {
+    findMany: async ({ where, orderBy, take, skip }: { where?: any; orderBy?: any; take?: number; skip?: number } = {}) => {
+      const pool = await getPool();
+      let query = "SELECT * FROM ai_action_logs";
+      const params: any[] = [];
+      const clauses: string[] = [];
+
+      if (where?.userId) {
+        clauses.push(`user_id = $${params.length + 1}`);
+        params.push(where.userId);
+      }
+      if (where?.actionType) {
+        clauses.push(`action_type = $${params.length + 1}`);
+        params.push(where.actionType);
+      }
+      if (where?.status) {
+        clauses.push(`status = $${params.length + 1}`);
+        params.push(where.status);
+      }
+
+      if (clauses.length > 0) {
+        query += " WHERE " + clauses.join(" AND ");
+      }
+      query += " ORDER BY created_at DESC";
+
+      if (take) {
+        query += ` LIMIT ${take}`;
+      }
+      if (skip) {
+        query += ` OFFSET ${skip}`;
+      }
+
+      const res = await pool.query(query, params);
+      return (res.rows || []).map((row: any) => ({
+        id: row.id,
+        userId: row.user_id,
+        actionType: row.action_type,
+        source: row.source,
+        payload: row.payload,
+        previousState: row.previous_state,
+        newState: row.new_state,
+        status: row.status,
+        errorMessage: row.error_message,
+        requiresConfirmation: Boolean(row.requires_confirmation),
+        confirmedAt: row.confirmed_at ? new Date(row.confirmed_at) : null,
+        revertedAt: row.reverted_at ? new Date(row.reverted_at) : null,
+        createdAt: new Date(row.created_at),
+      }));
+    },
+    findUnique: async ({ where }: { where: { id: string } }) => {
+      const pool = await getPool();
+      const res = await pool.query("SELECT * FROM ai_action_logs WHERE id = $1", [where.id]);
+      if (!res.rows || res.rows.length === 0) return null;
+      const row = res.rows[0];
+      return {
+        id: row.id,
+        userId: row.user_id,
+        actionType: row.action_type,
+        source: row.source,
+        payload: row.payload,
+        previousState: row.previous_state,
+        newState: row.new_state,
+        status: row.status,
+        errorMessage: row.error_message,
+        requiresConfirmation: Boolean(row.requires_confirmation),
+        confirmedAt: row.confirmed_at ? new Date(row.confirmed_at) : null,
+        revertedAt: row.reverted_at ? new Date(row.reverted_at) : null,
+        createdAt: new Date(row.created_at),
+      };
+    },
+    findFirst: async ({ where, orderBy }: { where?: any; orderBy?: any } = {}) => {
+      const pool = await getPool();
+      let query = "SELECT * FROM ai_action_logs";
+      const params: any[] = [];
+      const clauses: string[] = [];
+
+      if (where?.userId) {
+        clauses.push(`user_id = $${params.length + 1}`);
+        params.push(where.userId);
+      }
+      if (where?.actionType) {
+        clauses.push(`action_type = $${params.length + 1}`);
+        params.push(where.actionType);
+      }
+      if (where?.status) {
+        clauses.push(`status = $${params.length + 1}`);
+        params.push(where.status);
+      }
+
+      if (clauses.length > 0) {
+        query += " WHERE " + clauses.join(" AND ");
+      }
+      query += " ORDER BY created_at DESC LIMIT 1";
+
+      const res = await pool.query(query, params);
+      if (!res.rows || res.rows.length === 0) return null;
+      const row = res.rows[0];
+      return {
+        id: row.id,
+        userId: row.user_id,
+        actionType: row.action_type,
+        source: row.source,
+        payload: row.payload,
+        previousState: row.previous_state,
+        newState: row.new_state,
+        status: row.status,
+        errorMessage: row.error_message,
+        requiresConfirmation: Boolean(row.requires_confirmation),
+        confirmedAt: row.confirmed_at ? new Date(row.confirmed_at) : null,
+        revertedAt: row.reverted_at ? new Date(row.reverted_at) : null,
+        createdAt: new Date(row.created_at),
+      };
+    },
+    create: async ({ data }: { data: any }) => {
+      const pool = await getPool();
+      const id = data.id || `act_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      const now = new Date().toISOString();
+
+      await pool.query(
+        `INSERT INTO ai_action_logs (id, user_id, action_type, source, payload, previous_state, new_state, status, error_message, requires_confirmation, confirmed_at, reverted_at, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+        [
+          id,
+          data.userId,
+          data.actionType,
+          data.source || "CHATGPT_ACTION",
+          typeof data.payload === "string" ? data.payload : JSON.stringify(data.payload || {}),
+          data.previousState ? (typeof data.previousState === "string" ? data.previousState : JSON.stringify(data.previousState)) : null,
+          data.newState ? (typeof data.newState === "string" ? data.newState : JSON.stringify(data.newState)) : null,
+          data.status || "SUCCESS",
+          data.errorMessage || null,
+          data.requiresConfirmation || false,
+          data.confirmedAt ? new Date(data.confirmedAt).toISOString() : null,
+          data.revertedAt ? new Date(data.revertedAt).toISOString() : null,
+          now,
+        ]
+      );
+
+      await syncToDisk();
+      const createdRes = await pool.query("SELECT * FROM ai_action_logs WHERE id = $1", [id]);
+      const row = createdRes.rows[0];
+      return {
+        id: row.id,
+        userId: row.user_id,
+        actionType: row.action_type,
+        source: row.source,
+        payload: row.payload,
+        previousState: row.previous_state,
+        newState: row.new_state,
+        status: row.status,
+        errorMessage: row.error_message,
+        requiresConfirmation: Boolean(row.requires_confirmation),
+        confirmedAt: row.confirmed_at ? new Date(row.confirmed_at) : null,
+        revertedAt: row.reverted_at ? new Date(row.reverted_at) : null,
+        createdAt: new Date(row.created_at),
+      };
+    },
+    update: async ({ where, data }: { where: { id: string }; data: any }) => {
+      const pool = await getPool();
+      await pool.query(
+        `UPDATE ai_action_logs
+         SET status = COALESCE($1, status),
+             error_message = COALESCE($2, error_message),
+             confirmed_at = COALESCE($3, confirmed_at),
+             reverted_at = COALESCE($4, reverted_at)
+         WHERE id = $5`,
+        [
+          data.status || null,
+          data.errorMessage || null,
+          data.confirmedAt ? new Date(data.confirmedAt).toISOString() : null,
+          data.revertedAt ? new Date(data.revertedAt).toISOString() : null,
+          where.id,
+        ]
+      );
+
+      await syncToDisk();
+      const updatedRes = await pool.query("SELECT * FROM ai_action_logs WHERE id = $1", [where.id]);
+      const row = updatedRes.rows[0];
+      return {
+        id: row.id,
+        userId: row.user_id,
+        actionType: row.action_type,
+        source: row.source,
+        payload: row.payload,
+        previousState: row.previous_state,
+        newState: row.new_state,
+        status: row.status,
+        errorMessage: row.error_message,
+        requiresConfirmation: Boolean(row.requires_confirmation),
+        confirmedAt: row.confirmed_at ? new Date(row.confirmed_at) : null,
+        revertedAt: row.reverted_at ? new Date(row.reverted_at) : null,
+        createdAt: new Date(row.created_at),
+      };
+    },
+    count: async ({ where }: { where?: any } = {}) => {
+      const pool = await getPool();
+      let query = "SELECT COUNT(*) as count FROM ai_action_logs";
+      const params: any[] = [];
+      if (where?.userId) {
+        query += " WHERE user_id = $1";
+        params.push(where.userId);
+      }
+      const res = await pool.query(query, params);
+      return Number(res.rows[0]?.count || 0);
+    },
+    deleteMany: async ({ where }: { where?: { userId?: any } } = {}) => {
+      const pool = await getPool();
+      let count = 0;
+      if (where?.userId) {
+        if (typeof where.userId === "object" && Array.isArray(where.userId.in)) {
+          const res = await pool.query("DELETE FROM ai_action_logs WHERE user_id = ANY($1)", [where.userId.in]);
+          count = res.rowCount || 0;
+        } else if (typeof where.userId === "string") {
+          const res = await pool.query("DELETE FROM ai_action_logs WHERE user_id = $1", [where.userId]);
+          count = res.rowCount || 0;
+        }
+        await syncToDisk();
+      }
+      return { count };
+    },
+  },
   friendship: {
     findMany: async (params?: { where?: any; orderBy?: any; include?: any }) => {
       const pool = await getPool();
@@ -7058,9 +7310,11 @@ function wrapWithModelAliases(client: any): any {
         if (prop === "aiConversation") return target.aIConversation || target.aiConversation;
         if (prop === "aiMessage") return target.aIMessage || target.aiMessage;
         if (prop === "aiMemory") return target.aIMemory || target.aiMemory;
+        if (prop === "aiActionLog") return target.aIActionLog || target.aiActionLog;
         if (prop === "aIConversation") return target.aiConversation || target.aIConversation;
         if (prop === "aIMessage") return target.aiMessage || target.aIMessage;
         if (prop === "aIMemory") return target.aiMemory || target.aIMemory;
+        if (prop === "aIActionLog") return target.aiActionLog || target.aIActionLog;
         if (prop === "weeklyPlan") return target.WeeklyPlan || target.weeklyPlan;
         if (prop === "weeklyPlanItem") return target.WeeklyPlanItem || target.weeklyPlanItem;
       }

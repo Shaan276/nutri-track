@@ -61,31 +61,17 @@ export class DeepNutritionService {
    * Retrieves or initializes default user nutrient targets
    */
   static async getUserTargets(userId: string) {
-    let targets = await prisma.userNutrientTarget.findUnique({
+    const targets = await prisma.userNutrientTarget.findUnique({
       where: { userId },
     });
 
     if (!targets) {
-      // Build default target mapping from definitions
-      const defaults: Record<string, number> = {};
+      // Build in-memory default target mapping without writing fake rows to database
+      const defaults: Record<string, any> = { userId, isConfigured: false };
       for (const [k, v] of Object.entries(NUTRIENT_DEFINITIONS)) {
         defaults[k] = v.defaultTarget;
       }
-
-      try {
-        targets = await prisma.userNutrientTarget.upsert({
-          where: { userId },
-          update: {},
-          create: {
-            userId,
-            ...defaults,
-          },
-        });
-      } catch {
-        targets = await prisma.userNutrientTarget.findUnique({
-          where: { userId },
-        });
-      }
+      return defaults;
     }
 
     return targets;

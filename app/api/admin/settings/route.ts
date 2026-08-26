@@ -27,7 +27,11 @@ export async function GET() {
     }
 
     const settings = await SystemSettingsService.getAllSettingsForAdmin();
-    return NextResponse.json({ settings }, { status: 200 });
+    const { AIDiagnosticsService } = await import("@/lib/services/admin/ai-diagnostics.service");
+    const diagnostics = AIDiagnosticsService.getRecentDiagnostics(25);
+    const metrics = AIDiagnosticsService.getMetricsSummary();
+
+    return NextResponse.json({ settings, diagnostics, metrics }, { status: 200 });
   } catch (error: any) {
     console.error("Failed to fetch system settings:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

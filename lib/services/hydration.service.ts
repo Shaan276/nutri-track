@@ -204,7 +204,7 @@ export class HydrationService {
         userId,
         amountMl,
         beverageType,
-        date,
+        date: date || new Date().toISOString().split("T")[0],
         consumedAt: consumedAt ? new Date(consumedAt) : new Date(),
         notes: notes ? notes.trim() : null,
       },

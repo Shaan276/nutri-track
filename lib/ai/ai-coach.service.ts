@@ -3,6 +3,10 @@ import { AIContextBuilder } from "./context-builder";
 import { AIClient, AICoachResponse } from "./ai-client";
 import { AIMemoryService } from "./memory-service";
 import { UserSettingsService } from "@/lib/services/user-settings.service";
+import { AIQueryClassifier, QueryCategory } from "./query-classifier";
+import { AIResponseValidator } from "./response-validator";
+import { AIDiagnosticsService } from "@/lib/services/admin/ai-diagnostics.service";
+import { NutriTrackActionBridge } from "./action-bridge";
 
 export interface ConversationSummaryItem {
   id: string;
@@ -180,8 +184,12 @@ export class AICoachService {
     const promptText = cleanText || (imageBase64 ? "📸 [Attached Food Image for Nutrition Analysis]" : "");
     if (!promptText) throw new Error("Message or food image cannot be empty");
 
+    const startTime = Date.now();
     const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    console.log(`[AICoachService:${requestId}] Processing message for user ${userId}, conv ${conversationId}: "${promptText.substring(0, 50)}"`);
+    const classification = AIQueryClassifier.classifyQuery(promptText);
+    const category = classification.category;
+
+    console.log(`[AICoachService:${requestId}] [${category}] Processing message for user ${userId}, conv ${conversationId}: "${promptText.substring(0, 50)}"`);
 
     // 1. Verify conversation ownership
     const conv = await (prisma as any).aiConversation.findUnique({
@@ -203,7 +211,7 @@ export class AICoachService {
         conversationId,
         role: "user",
         content: promptText,
-        metadata: JSON.stringify({ requestId, hasImage: !!imageBase64 }),
+        metadata: JSON.stringify({ requestId, queryCategory: category, hasImage: !!imageBase64 }),
       },
     });
 
@@ -212,12 +220,49 @@ export class AICoachService {
       AIMemoryService.autoCapturePreferences(userId, cleanText).catch(() => {});
     }
 
-    let aiResult: AICoachResponse;
-    try {
-      // 4. Build 4-layer personalized context grounded in PostgreSQL
-      const assembled = await AIContextBuilder.buildContext(userId, conversationId, promptText);
+    // 3.5 Deterministic Structured Action Bridge execution
+    if (cleanText && (cleanText.startsWith("{") || cleanText.toUpperCase().includes("NUTRI-TRACK ACTION") || cleanText.toUpperCase().startsWith("TYPE:"))) {
+      try {
+        const val = await NutriTrackActionBridge.validateAction(userId, cleanText);
+        if (val.isValid) {
+          const execRes = await NutriTrackActionBridge.executeAction(userId, val.parsedAction, "QUICK_COMMAND");
+          const diffSummary = val.diffs.map((d) => `• ${d.label}: ${d.previousValue} → ${d.proposedValue}`).join("\n");
+          const replyText = `✓ **${val.actionType} Executed Successfully**\n\n${execRes.message}\n\n**Applied Changes:**\n${diffSummary}`;
 
-      // 5. Generate AI Coach Response with key rotation, multimodal vision, & tool calling
+          const asstMsg = await (prisma as any).aiMessage.create({
+            data: {
+              conversationId,
+              role: "assistant",
+              content: replyText,
+              metadata: JSON.stringify({
+                isActionExecution: true,
+                actionLogId: execRes.actionLogId,
+                diffs: val.diffs,
+              }),
+            },
+          });
+
+          await (prisma as any).aiConversation.update({
+            where: { id: conversationId },
+            data: { lastMessageAt: new Date() },
+          });
+
+          return {
+            userMessage: userMsg,
+            assistantMessage: asstMsg,
+          };
+        }
+      } catch {}
+    }
+
+    let aiResult: AICoachResponse;
+    let validationStatus: "PASSED" | "RETRY_CORRECTED" | "FAILED" = "PASSED";
+
+    try {
+      // 4. Build category-aware selective context
+      const assembled = await AIContextBuilder.buildContext(userId, conversationId, promptText, category);
+
+      // 5. Generate AI Coach Response
       aiResult = await AIClient.generateCoachResponse(
         assembled.systemPrompt,
         assembled.recentMessages,
@@ -225,19 +270,87 @@ export class AICoachService {
         { userId },
         { imageBase64 }
       );
+
+      // 6. Validate Response Quality & Relevance
+      const pastAssistantMessages = (conv.messages || [])
+        .filter((m: any) => m.role === "assistant")
+        .map((m: any) => m.content);
+
+      const validation = AIResponseValidator.validateResponseQuality(
+        category,
+        promptText,
+        aiResult.reply,
+        pastAssistantMessages
+      );
+
+      // 7. Single Relevance / De-duplication Correction Retry if needed
+      if (!validation.isValid && validation.correctionPrompt) {
+        console.log(`[AICoachService:${requestId}] Response validation flag: ${validation.reason}. Executing single correction retry...`);
+        try {
+          const retrySystemPrompt = `${assembled.systemPrompt}\n\n[CRITICAL CORRECTION DIRECTIVE]: ${validation.correctionPrompt}`;
+          const retryResult = await AIClient.generateCoachResponse(
+            retrySystemPrompt,
+            assembled.recentMessages,
+            promptText,
+            { userId },
+            { imageBase64 }
+          );
+
+          if (retryResult.reply && retryResult.reply.trim().length > 0) {
+            const secondValidation = AIResponseValidator.validateResponseQuality(
+              category,
+              promptText,
+              retryResult.reply,
+              pastAssistantMessages
+            );
+
+            if (secondValidation.isValid) {
+              aiResult = retryResult;
+              validationStatus = "RETRY_CORRECTED";
+            } else {
+              console.warn(`[AICoachService:${requestId}] Retry validation also flagged: ${secondValidation.reason}`);
+              validationStatus = "FAILED";
+              aiResult.reply = "Sorry, I couldn't generate a response right now. Please try again.";
+            }
+          } else {
+            validationStatus = "FAILED";
+            aiResult.reply = "Sorry, I couldn't generate a response right now. Please try again.";
+          }
+        } catch (retryErr) {
+          console.warn(`[AICoachService:${requestId}] Correction retry warning:`, retryErr);
+          validationStatus = "FAILED";
+          aiResult.reply = "Sorry, I couldn't generate a response right now. Please try again.";
+        }
+      }
     } catch (genErr: any) {
       console.error(`[AICoachService:${requestId}] Error generating response:`, genErr);
+      validationStatus = "FAILED";
       aiResult = {
-        reply: "I ran into a temporary hiccup processing your request. Please try again! 🥗✨",
+        reply: "Sorry, I couldn't generate a response right now. Please try again.",
         modelUsed: "fallback",
         toolsExecuted: [],
       };
     }
 
-    // 6. Save assistant message with metadata
+    const latencyMs = Date.now() - startTime;
+
+    let finalReply = aiResult.reply || "Sorry, I couldn't generate a response right now. Please try again.";
+
+    // If tools were executed, but LLM response returned unavailable fallback, use the tool execution message directly!
+    if (aiResult.toolsExecuted.length > 0 && (finalReply.includes("AI Coach is currently unavailable") || finalReply.includes("Sorry, I couldn't generate a response"))) {
+      finalReply = aiResult.toolsExecuted
+        .map((t) => t.result?.message || `Processed ${t.toolName}! ✨`)
+        .filter(Boolean)
+        .join("\n\n");
+    }
+
+    // 8. Save assistant message with full metadata
     const metadataObj = {
       requestId,
+      queryCategory: category,
       modelUsed: aiResult.modelUsed,
+      latencyMs,
+      validationStatus,
       toolsExecuted: aiResult.toolsExecuted.map((t) => t.toolName),
       executedActions: aiResult.toolsExecuted.map((t) => ({
         toolName: t.toolName,
@@ -248,16 +361,6 @@ export class AICoachService {
       tokensUsed: aiResult.tokensUsed || null,
     };
 
-    let finalReply = aiResult.reply;
-
-    // If tools were executed, but LLM response returned unavailable fallback, use the tool execution message directly!
-    if (aiResult.toolsExecuted.length > 0 && finalReply.includes("AI Coach is currently unavailable")) {
-      finalReply = aiResult.toolsExecuted
-        .map((t) => t.result?.message || `Processed ${t.toolName}! ✨`)
-        .filter(Boolean)
-        .join("\n\n");
-    }
-
     const assistantMsg = await (prisma as any).aiMessage.create({
       data: {
         conversationId,
@@ -267,7 +370,33 @@ export class AICoachService {
       },
     });
 
-    // 7. Update conversation title if first user message
+    // 9. Record Admin Observability Diagnostic Entry with Full Trace
+    AIDiagnosticsService.logDiagnostic({
+      userId,
+      conversationId,
+      requestId,
+      provider: aiResult.modelUsed.includes("gpt-oss") || aiResult.modelUsed.includes("compound") ? "Groq Cloud" : aiResult.modelUsed.includes("gemini") ? "Google Gemini" : "Nutri-Track AI Engine",
+      model: aiResult.modelUsed,
+      queryCategory: category,
+      promptSnippet: promptText,
+      fallbackUsed: aiResult.modelUsed === "fallback" || aiResult.modelUsed === "offline_mock",
+      retryUsed: validationStatus === "RETRY_CORRECTED",
+      latencyMs,
+      success: validationStatus !== "FAILED" && !finalReply.includes("Sorry, I couldn't generate a response right now"),
+      validationStatus,
+      responseLength: finalReply.length,
+      trace: {
+        userMessageReceived: true,
+        historyMessagesCount: (conv.messages || []).length,
+        personalizedContextLoaded: true,
+        modelRequestCompleted: aiResult.modelUsed !== "fallback",
+        responseParsed: !!aiResult.reply,
+        duplicateDetected: validationStatus === "RETRY_CORRECTED" || validationStatus === "FAILED",
+        fallbackTriggered: aiResult.modelUsed === "fallback" || aiResult.modelUsed === "offline_mock",
+      },
+    });
+
+    // 10. Update conversation title if first user message
     let updatedTitle = conv.title;
     if (conv.title === "New Conversation" || conv.title === "Nutri-Track Coach") {
       const generatedTitle = cleanText.length > 35 ? cleanText.substring(0, 32) + "..." : cleanText;

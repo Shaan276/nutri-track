@@ -2,6 +2,7 @@ import { keyManager } from "./key-manager";
 import { AI_MODEL_CONFIG, AI_COACH_SYSTEM_PROMPT, AI_COACH_TOOLS } from "./model-config";
 import { AIToolRegistry, ToolExecutionContext, GoalProposalPayload } from "./tool-registry";
 import { SystemSettingsService } from "@/lib/services/admin/system-settings.service";
+import { AIQueryClassifier } from "./query-classifier";
 
 export interface ChatCompletionMessage {
   role: "system" | "user" | "assistant" | "tool";
@@ -151,7 +152,7 @@ export class AIClient {
 
     // 1. Groq Cloud API (Free, high-token capacity, ultra-fast endpoints)
     if (trimmed.startsWith("gsk_") || customUrl.includes("groq.com")) {
-      const groqModels = ["openai/gpt-oss-120b", "groq/compound-mini", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"];
+      const groqModels = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"];
       const models = defaultModel && groqModels.includes(defaultModel)
         ? Array.from(new Set([defaultModel, ...groqModels]))
         : groqModels;
@@ -164,7 +165,7 @@ export class AIClient {
 
     // 2. Google Gemini API (Free Flash models & Google AI Studio OpenAI endpoint)
     if (trimmed.startsWith("AIza") || trimmed.startsWith("AQ.") || customUrl.includes("googleapis.com")) {
-      const geminiModels = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-2.5-flash"];
+      const geminiModels = ["gemini-2.5-flash", "gemini-1.5-flash-latest", "gemini-2.0-flash", "gemini-1.5-pro-latest", "gemini-1.5-flash"];
       const models = defaultModel && geminiModels.includes(defaultModel)
         ? Array.from(new Set([defaultModel, ...geminiModels]))
         : geminiModels;
@@ -339,16 +340,25 @@ export class AIClient {
       }
     }
 
-    return this.generateMockResponse(messages);
+    // If all configured API providers fail or are exhausted:
+    if (process.env.NODE_ENV !== "production" || process.env.MOCK_AI === "true" || configuredKeys.some((k) => k.key.startsWith("mock_key_"))) {
+      return this.generateMockResponse(messages);
+    }
+
+    console.error("[AIClient] All configured AI providers and standby keys failed or were rate limited.");
+    return {
+      content: "Sorry, I couldn't generate a response right now. Please try again.",
+      tokensUsed: 0,
+    };
   }
 
   /**
    * Deterministic local mock response generator for tests & offline environments
    */
-  private static generateMockResponse(messages: ChatCompletionMessage[]): { content: string; tool_calls?: any[] } {
+  public static generateMockResponse(messages: ChatCompletionMessage[]): { content: string; tool_calls?: any[] } {
     const rawUserMsg = [...messages].reverse().find((m) => m.role === "user")?.content;
     const lastUserMsg = typeof rawUserMsg === "string" ? rawUserMsg : Array.isArray(rawUserMsg) ? (rawUserMsg.find((p) => p.type === "text")?.text || "") : "";
-    const lower = lastUserMsg.toLowerCase();
+    const lower = lastUserMsg.toLowerCase().trim();
 
     // Check if answering after tool response
     const lastToolMsg = messages[messages.length - 1];
@@ -361,77 +371,200 @@ export class AIClient {
 
       if (lastToolMsg.name === "propose_goal_update") {
         return {
-          content: `I recommend adjusting your target based on your training load. Would you like to confirm this goal change?`,
+          content: `Done — I've updated your target based on your request! ✨`,
         };
       }
 
       if (lastToolMsg.name === "estimate_exercise_calories") {
         return {
-          content: `Based on your weight, this exercise is estimated to burn ${parsedTool.formattedRange}. Please note that this is an ESTIMATE.`,
+          content: `Based on your weight, this exercise is estimated to burn ${parsedTool.formattedRange || "approximately 250–350 kcal"}. Please note that this is an estimate. 🏃‍♂️⚡`,
         };
       }
 
       if (lastToolMsg.name === "get_today_nutrition") {
         if (!parsedTool.hasLoggedMeals) {
           return {
-            content: `You haven't logged any nutrition yet today, so your intake is currently at 0g towards your ${parsedTool.targets.protein}g protein target.`,
+            content: `You haven't logged enough data for me to calculate that yet.`,
           };
         }
         return {
-          content: `You have logged ${parsedTool.totals.protein}g of protein today. You have approximately ${parsedTool.remaining.protein}g remaining to reach your ${parsedTool.targets.protein}g target.`,
+          content: `You have logged ${parsedTool.totals?.protein || 0}g of protein today (${parsedTool.totals?.calories || 0} kcal). You have approximately ${parsedTool.remaining?.protein || 0}g remaining to reach your ${parsedTool.targets?.protein || 130}g target.`,
+        };
+      }
+
+      if (lastToolMsg.name === "get_hydration_status") {
+        return {
+          content: `You have logged ${parsedTool.consumedMl || 0}ml of water today out of your ${parsedTool.targetMl || 2500}ml target.`,
         };
       }
     }
 
-    // Intelligent dietary & metabolic advice generators
-    if (lower.includes("how to burn calorie") || lower.includes("burn calories") || lower.includes("fat loss") || lower.includes("lose weight")) {
-      return {
-        content: `Here is the optimal evidence-based strategy to maximize calorie burning and metabolic health! 🔥🏃‍♂️
+    // Classify query category
+    const classification = AIQueryClassifier.classifyQuery(lastUserMsg);
+    const category = classification.category;
 
-• 🏃‍♂️ **Zone 2 Aerobic Running & Cardio**:
-  - Sustained moderate-intensity running (60–70% max heart rate) optimizes mitochondrial density and maximizes fat oxidation per minute! ⚡
-• 🏋️‍♂️ **Resistance & Strength Training**:
-  - Builds metabolically active lean muscle tissue, permanently raising your Basal Metabolic Rate (BMR) even at rest! 💪
-• 🚶‍♂️ **High NEAT (Non-Exercise Activity)**:
-  - Hitting 8,000–10,000 daily steps burns 300–450 kcal passively without placing excessive fatigue on your nervous system. 👟
-• 🌿 **Ayurvedic Agni (Digestive Fire) Synergy**:
-  - Sip warm ginger-cumin tea before meals to stoke digestive metabolism and prevent sluggish lymphatic stagnation! 🫖✨`,
+    // ─────────────────────────────────────────────────────────
+    // A. GENERAL QUESTIONS (Knowledge, Math, Trivia, Jokes)
+    // ─────────────────────────────────────────────────────────
+    if (category === "GENERAL") {
+      if (lower.includes("2 + 2") || lower.includes("2+2") || lower.includes("two plus two")) {
+        return { content: "2 + 2 = 4! 🔢✨" };
+      }
+      if (lower.includes("capital of france")) {
+        return { content: "The capital of France is Paris. 🇫🇷" };
+      }
+      if (lower.includes("joke")) {
+        return { content: "Why don't scientists trust atoms? Because they make up everything! 😄" };
+      }
+      if (lower.includes("speed of light")) {
+        return {
+          content:
+            "The speed of light in a vacuum is approximately 299,792 kilometers per second (about 186,282 miles per second). 🌟⚡",
+        };
+      }
+      if (lower.includes("why is the sky blue")) {
+        return {
+          content:
+            "The sky appears blue because gases in Earth's atmosphere scatter sunlight in all directions. Blue light has shorter, smaller waves and is scattered much more than other colors (Rayleigh scattering). ☀️🌍",
+        };
+      }
+      if (lower.includes("who invented the telephone")) {
+        return {
+          content:
+            "Alexander Graham Bell is widely recognized for inventing and patenting the first practical telephone in 1876. ☎️",
+        };
+      }
+
+      return {
+        content: `Here is the answer to your question about "${lastUserMsg}": it's a great topic! Let me know if you'd like more details. ✨`,
       };
     }
 
-    if (lower.includes("chilla") || lower.includes("cheela")) {
-      return {
-        content: `🥞 **Chilla Nutrition Breakdown (1 Piece)** 🥗✨
+    // ─────────────────────────────────────────────────────────
+    // B. HEALTH_GENERAL (Evidence-Based Physiology & Nutrition)
+    // ─────────────────────────────────────────────────────────
+    if (category === "HEALTH_GENERAL") {
+      if (lower.includes("post-workout") || lower.includes("post workout") || lower.includes("muscle breakdown")) {
+        return {
+          content: `To stop muscle protein breakdown and accelerate muscle protein synthesis (MPS) post-workout, consume 25–40g of complete high-leucine protein paired with 40–60g of moderate-glycemic carbs within 45–60 minutes! 🍗🌾
+
+• 🍳 **Ideal Post-Workout Fuel**:
+  - 3 Whole Eggs / 150g Grilled Chicken or Paneer + 1 large Banana or 1 cup Steamed Rice 🍚
+  - Whey / Plant Protein Shake blended with 1 cup Rolled Oats & Blueberries 🥤
+  - 1 bowl Greek Yogurt or Curd with Honey & 10 Almonds 🥣✨
+• 💧 **Hydration**: Rehydrate with 500ml water + a pinch of salt to replenish electrolytes lost in sweat!`,
+        };
+      }
+
+      if (lower.includes("coffee") || lower.includes("caffeine")) {
+        return {
+          content:
+            "Black coffee itself does not directly burn a large amount of fat, but caffeine may slightly increase alertness, metabolic expenditure, and exercise performance. The most important factor for fat loss is still maintaining an appropriate calorie deficit.\n\nFor your training routine, black coffee can be used as an effective pre-workout drink if you tolerate caffeine well—but it should not replace balanced meals or adequate sleep! ☕⚡",
+        };
+      }
+
+      if (lower.includes("hydration") || lower.includes("water")) {
+        return {
+          content: `Hydration is essential for sustained energy, joint lubrication, nutrient absorption, and athletic performance! 💧🏃‍♂️
+
+• 💧 **Daily Baseline**: Aim for 30–40 ml of fluid per kg of body weight (approx. 2.5–3.5 Liters daily).
+• ⚡ **Electrolyte Balance**: For endurance runs or workouts over 45 minutes, ensure adequate sodium, potassium, and magnesium to prevent cramping and central fatigue.
+• 🫖 **Hydration Timing**: Sip room-temperature water steadily throughout the day rather than chugging large amounts during meals.`,
+        };
+      }
+
+      if (lower.includes("creatine")) {
+        return {
+          content:
+            "Yes, creatine monohydrate is one of the most thoroughly researched, safe, and effective sports supplements available. It replenishes cellular phosphocreatine stores to regenerate ATP during intense muscular contractions, enhancing strength, power output, and lean mass gains. Standard dosage is 3–5g daily taken consistently with adequate water. 💪🔬",
+        };
+      }
+
+      if (lower.includes("running every day") || lower.includes("run every day")) {
+        return {
+          content:
+            "Running every day can be beneficial if the distance and intensity are very low, but for most runners it significantly increases the risk of overuse injuries (like shin splints or tendonitis) and central nervous system fatigue. Incorporating 1–2 rest days or low-impact cross-training days per week is ideal for long-term progression and recovery! 🏃‍♂️👟",
+        };
+      }
+
+      if (lower.includes("sleep")) {
+        return {
+          content:
+            "Most active adults need 7 to 9 hours of quality sleep each night. During deep slow-wave sleep, human growth hormone (HGH) release peaks, driving muscular repair, glycogen replenishment, and cognitive restoration. 💤🛌",
+        };
+      }
+
+      if (lower.includes("how to burn calorie") || lower.includes("burn calories") || lower.includes("fat loss") || lower.includes("lose weight")) {
+        return {
+          content: `Here is the optimal evidence-based strategy to maximize calorie burning and metabolic health! 🔥🏃‍♂️
+
+• 🏃‍♂️ **Zone 2 Aerobic Running & Cardio**: Sustained moderate running (60–70% max HR) builds mitochondrial density and oxidizes fat efficiently.
+• 🏋️‍♂️ **Resistance Training**: Builds lean muscle tissue, raising your Basal Metabolic Rate (BMR) at rest.
+• 🚶‍♂️ **High NEAT (Non-Exercise Activity)**: 8,000–10,000 daily steps burns 300–450 kcal passively without excessive fatigue. 👟`,
+        };
+      }
+
+      if (lower.includes("chilla") || lower.includes("cheela")) {
+        return {
+          content: `🥞 **Chilla Nutrition Breakdown (1 Piece)** 🥗✨
 
 • **Energy**: ~145–160 kcal
-• **Protein**: 7.5g (Rich in plant-based amino acids) 💪
+• **Protein**: 7.5g (Plant-based amino acids) 💪
 • **Carbohydrates**: 21g (Complex slow-digesting carbs) 🌾
 • **Fat**: 4.5g (Healthy cooking fats) 🥑
-• **Fiber & Micronutrients**: 3.2g dietary fiber, Iron, Magnesium, and Zinc! 🌿
-
-*Pro Tip: Pair with mint-coriander chutney or 2 tbsp Greek yogurt for enhanced protein absorption and probiotic gut health!* 🥣✨`,
-      };
+• **Fiber & Micronutrients**: 3.2g dietary fiber, Iron, Magnesium, and Zinc! 🌿`,
+        };
+      }
     }
 
-    if (lower.includes("estimate") || (lower.includes("calories") && lower.includes("run") && !lower.includes("how to"))) {
+    // ─────────────────────────────────────────────────────────
+    // C. HEALTH_PERSONALIZED
+    // ─────────────────────────────────────────────────────────
+    if (category === "HEALTH_PERSONALIZED") {
+      if (lower.includes("how much protein") || lower.includes("eating enough protein") || lower.includes("protein should i")) {
+        return {
+          content:
+            "For your active lifestyle and body composition goals, evidence-based recommendations suggest consuming 1.6–2.2 grams of protein per kilogram of body weight daily (approx. 110–150g depending on body weight). Spreading this into 3–4 meals containing 25–35g protein each optimizes muscle protein synthesis! 💪🍗",
+        };
+      }
+
       return {
-        content: "",
-        tool_calls: [
-          {
-            id: "call_est_cal_1",
-            type: "function",
-            function: {
-              name: "estimate_exercise_calories",
-              arguments: JSON.stringify({ exerciseType: "RUNNING", durationMinutes: 45, intensity: "MODERATE" }),
-            },
-          },
-        ],
+        content: `Based on your personalized health profile and active goals, focusing on consistent daily nutrition targets, progressive workout volume, and adequate hydration will keep you on track! 🌟💪`,
       };
     }
 
+    // ─────────────────────────────────────────────────────────
+    // D. CASUAL_CHAT (Conversational, Empathetic, Humorous)
+    // ─────────────────────────────────────────────────────────
+    if (category === "CASUAL_CHAT") {
+      if (lower.includes("lazy") || lower.includes("tired") || lower.includes("exhausted")) {
+        return {
+          content:
+            "Arre 😭 I totally get it! Some days your body just needs a breather. If a full workout feels overwhelming, even a light 15-minute walk or a gentle stretch will keep your momentum going without draining you. Let's take it easy and recharge today! 🛋️✨",
+        };
+      }
+
+      if (lower.includes("demotivated") || lower.includes("failed")) {
+        return {
+          content:
+            "Don't be hard on yourself! Every athlete and fitness enthusiast has off days. Progress isn't linear—what matters is showing up again tomorrow. Get some good rest, hydrate, and we'll crush the next session! 💪🔥",
+        };
+      }
+
+      if (lower.includes("how are you") || lower === "hi" || lower === "hello" || lower === "hey") {
+        return {
+          content:
+            "Hello! 🌟 I'm feeling energized and ready to help you with your training, meals, or any questions you have today. What's on your mind? 💪✨",
+        };
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // E. ACTION_COMMAND & NUTRI_TRACK_DATA (Tool Execution Fallbacks)
+    // ─────────────────────────────────────────────────────────
     if (lower.includes("set my protein") || lower.includes("update protein goal") || lower.includes("change my protein")) {
       const match = lower.match(/\b(\d+)\s*g\b/);
-      const targetVal = match ? parseInt(match[1]) : 160;
+      const targetVal = match ? parseInt(match[1], 10) : 130;
       return {
         content: "",
         tool_calls: [
@@ -443,7 +576,7 @@ export class AIClient {
               arguments: JSON.stringify({
                 targetKey: "protein",
                 newValue: targetVal,
-                reason: "Optimizing protein target for muscular recovery and training volume.",
+                reason: "Updating daily protein target as requested.",
               }),
             },
           },
@@ -453,11 +586,11 @@ export class AIClient {
 
     if (
       lower.includes("how much protein have i eaten") ||
+      lower.includes("how much protein did i eat") ||
       lower.includes("what did i eat today") ||
       lower.includes("my nutrition today") ||
       lower.includes("my macros today") ||
-      lower.includes("today's nutrition") ||
-      lower.includes("how many calories do i have remaining")
+      lower.includes("today's nutrition")
     ) {
       return {
         content: "",
@@ -471,43 +604,6 @@ export class AIClient {
             },
           },
         ],
-      };
-    }
-
-    if (lower.includes("plan my week") || lower.includes("weekly plan") || lower.includes("weekly blueprint")) {
-      return {
-        content: `Here is your high-performance 7-Day Nutrition & Training Blueprint! 📅🥗⚡
-
-• 🏃‍♂️ **Monday (Aerobic Base + High Protein)**:
-  - 5k Easy Pace Run (Zone 2) | Target: 2,100 kcal, 140g Protein, 2,800ml Water.
-• 🏋️‍♂️ **Tuesday (Upper Body Strength + Recovery Fuel)**:
-  - Upper Body Hypertrophy | Target: 2,200 kcal, 150g Protein (Paneer/Tofu/Lentils).
-• 🏃‍♂️ **Wednesday (Interval Tempo Intervals)**:
-  - 6 x 400m Tempo Repeats | Hydrate with coconut water + pink Himalayan salt! 🥥💧
-• 🧘 **Thursday (Active Recovery & Mobility)**:
-  - 30-min Vinyasa Flow & Deep Hip Openers | Warm Turmeric Golden Milk before bed. 🫖
-• 🏋️‍♂️ **Friday (Lower Body & Core Stability)**:
-  - Squats & Posterior Chain | Target: 2,150 kcal, 145g Protein.
-• 🏃‍♂️ **Saturday (Weekend Long Run)**:
-  - 10k Progressive Endurance Run | Oatmeal with banana & peanut butter 90m prior. 🍌🥜
-• 🌿 **Sunday (Ayurvedic Gut Rest & Meal Prep)**:
-  - Light Moong Dal Khichdi with Ghee (easy digestion) + hydration replenishment. 🍲✨`,
-      };
-    }
-
-    if (lower === "calorie" || lower.includes("what is calorie") || lower.includes("calorie intake")) {
-      return {
-        content: `Here is your quick metabolic overview of Calories and Energy Balance! ⚡🔥
-
-• 🔬 **Energy In vs. Energy Out**:
-  - Calories represent the units of chemical energy your body derives from food (Proteins = 4 kcal/g, Carbs = 4 kcal/g, Fats = 9 kcal/g).
-• 🏃‍♂️ **Daily Expenditure Breakdown**:
-  - **BMR (60–70%)**: Basal metabolic energy required to maintain organs, breathing, and heartbeat.
-  - **NEAT (15–20%)**: Daily walking, movement, and posture adjustments.
-  - **TEF (8–10%)**: Thermic effect of food (Protein burns ~20–30% of its calories just during digestion!).
-  - **EAT (10–15%)**: Intentional exercise, runs, and resistance workouts. 👟
-• 🌿 **Ayurvedic Prana Principle**:
-  - Consume freshly prepared, warm Sattvic foods rich in natural life energy (*Prana*) rather than empty ultra-processed calories! 🥗✨`,
       };
     }
 
@@ -527,16 +623,36 @@ export class AIClient {
       };
     }
 
-    const userQuerySnippet = lastUserMsg.length > 50 ? lastUserMsg.substring(0, 47) + "..." : lastUserMsg;
-    return {
-      content: `I've analyzed your question regarding "${userQuerySnippet || "your health goal"}"! 🥗✨
+    if (lower.includes("plan my week") || lower.includes("weekly plan")) {
+      return {
+        content: `Here is your high-performance 7-Day Nutrition & Training Blueprint! 📅🥗⚡
 
-• 🔬 **Evidence-Based Nutrition & Training**:
-  - Maintain balanced daily macronutrient proportions with sufficient protein (1.6–2.2g/kg), complex low-glycemic carbohydrates, and essential omega fatty acids.
-• 🌿 **Ayurvedic Lifestyle Synergy**:
-  - Align your largest meals with your peak digestive fire (*Agni*) around mid-day (12–2 PM) and stay consistently hydrated with warm or room-temperature fluids. 💧
-• 🎯 **Next Steps**:
-  - Would you like me to log a meal for you, adjust your daily macro targets, or calculate calories burned for a workout? 🚀💪`,
+• 🏃‍♂️ **Monday**: 5k Easy Pace Run (Zone 2) | Target: 2,100 kcal, 140g Protein
+• 🏋️‍♂️ **Tuesday**: Upper Body Strength | Target: 2,200 kcal, 150g Protein
+• 🏃‍♂️ **Wednesday**: Interval Tempo Repeats | Hydrate with electrolyte water! 💧
+• 🧘 **Thursday**: Active Mobility & Recovery Walk 🌿
+• 🏋️‍♂️ **Friday**: Lower Body & Core | Target: 2,150 kcal, 145g Protein
+• 🏃‍♂️ **Saturday**: 10k Progressive Long Run 👟
+• 🌿 **Sunday**: Rest & Weekly Meal Prep 🍲✨`,
+      };
+    }
+
+    if (lower === "calorie" || lower.includes("what is calorie")) {
+      return {
+        content: `Here is your quick overview of Calories and Energy Balance! ⚡🔥
+
+• 🔬 **Energy In vs. Energy Out**: Calories represent chemical energy from food (Protein = 4 kcal/g, Carbs = 4 kcal/g, Fat = 9 kcal/g).
+• 🏃‍♂️ **Daily Expenditure (TDEE)**:
+  - **BMR (60–70%)**: Baseline energy to sustain life at rest.
+  - **NEAT (15–20%)**: Daily non-exercise movement and walking.
+  - **TEF (8–10%)**: Thermic effect of digesting food.
+  - **EAT (10–15%)**: Intentional workouts and running. 👟`,
+      };
+    }
+
+    // Default intelligent conversational answer
+    return {
+      content: `I've noted your question: "${lastUserMsg}". How would you like to proceed? 🌟💪`,
     };
   }
 }

@@ -46,6 +46,7 @@ model User {
   workoutTemplates       WorkoutTemplate[]
   aiConversations        AIConversation[]
   aiMemories             AIMemory[]
+  aiActionLogs           AIActionLog[]
   sentFriendships        Friendship[]           @relation("SentFriendships")
   receivedFriendships    Friendship[]           @relation("ReceivedFriendships")
   sentRecommendations    FriendRecommendation[] @relation("SentRecommendations")
@@ -541,6 +542,29 @@ model AIMemory {
 
   @@index([userId])
   @@map("ai_memories")
+}
+
+/// Audit trail for AI and ChatGPT-derived structured actions
+model AIActionLog {
+  id                   String    @id @default(cuid())
+  userId               String    @map("user_id")
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  actionType           String    @map("action_type") // e.g. "UPDATE_GOALS", "LOG_MEAL", "LOG_HYDRATION", "LOG_WEIGHT", "LOG_ACTIVITY", "LOG_WORKOUT"
+  source               String    @default("CHATGPT_ACTION") @map("source") // "CHATGPT_ACTION" | "MANUAL_AI" | "SYSTEM" | "QUICK_COMMAND"
+  payload              String    // JSON string of input action data
+  previousState        String?   @map("previous_state") // JSON string of snapshot before action
+  newState             String?   @map("new_state") // JSON string of snapshot after action
+  status               String    @default("SUCCESS") // "SUCCESS" | "FAILED" | "REJECTED" | "PENDING_CONFIRMATION" | "REVERTED"
+  errorMessage         String?   @map("error_message")
+  requiresConfirmation Boolean   @default(false) @map("requires_confirmation")
+  confirmedAt          DateTime? @map("confirmed_at")
+  revertedAt           DateTime? @map("reverted_at")
+  createdAt            DateTime  @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([actionType])
+  @@index([status])
+  @@map("ai_action_logs")
 }
 
 enum FriendshipStatus {

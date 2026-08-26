@@ -19,7 +19,9 @@ import {
   Database,
   Radio,
   Trash2,
+  Activity,
 } from "lucide-react";
+import { useEffect } from "react";
 
 interface AdminSystemSettingsClientProps {
   initialSettings: SystemSettingItem[];
@@ -48,6 +50,32 @@ export function AdminSystemSettingsClient({ initialSettings }: AdminSystemSettin
     message: string;
     model?: string;
   } | null>(null);
+
+  // AI Diagnostics State
+  const [diagnostics, setDiagnostics] = useState<any[]>([]);
+  const [metrics, setMetrics] = useState<any>(null);
+  const [isLoadingDiagnostics, setIsLoadingDiagnostics] = useState(false);
+
+  const fetchDiagnostics = async () => {
+    try {
+      setIsLoadingDiagnostics(true);
+      const res = await fetch("/api/admin/settings");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.diagnostics) setDiagnostics(data.diagnostics);
+        if (data.metrics) setMetrics(data.metrics);
+      }
+    } catch {}
+    finally {
+      setIsLoadingDiagnostics(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "AI") {
+      fetchDiagnostics();
+    }
+  }, [activeTab]);
 
   // Food Database Wipe State
   const [isWipingFoodDb, setIsWipingFoodDb] = useState(false);
@@ -279,6 +307,118 @@ export function AdminSystemSettingsClient({ initialSettings }: AdminSystemSettin
                 )}
               </div>
             )}
+          </div>
+
+          {/* AI Query Routing & Request Diagnostics */}
+          <div className="p-6 rounded-2xl bg-background-surface border border-border-subtle space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-bold uppercase tracking-wider text-foreground-secondary flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-brand-400" />
+                  AI Query Routing & Diagnostics Telemetry
+                </h2>
+                <p className="text-xs text-foreground-muted mt-0.5">
+                  Real-time query classification, latency tracking, selective context routing, and reliability telemetry.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={fetchDiagnostics}
+                disabled={isLoadingDiagnostics}
+                className="px-2.5 py-1 rounded-lg border border-border-subtle bg-background-elevated hover:bg-background-surface text-foreground-secondary text-xs font-semibold flex items-center gap-1.5 transition-all"
+              >
+                <RefreshCw className={`w-3 h-3 ${isLoadingDiagnostics ? "animate-spin text-brand-400" : ""}`} />
+                <span>Refresh Logs</span>
+              </button>
+            </div>
+
+            {/* Metrics Pills */}
+            {metrics && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+                <div className="p-2.5 rounded-xl bg-background-elevated border border-border-subtle/60">
+                  <span className="text-[10px] font-semibold text-foreground-muted uppercase tracking-wider block">Total Logged</span>
+                  <span className="text-sm font-black text-foreground-primary">{metrics.totalRequests}</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-background-elevated border border-border-subtle/60">
+                  <span className="text-[10px] font-semibold text-foreground-muted uppercase tracking-wider block">Success Rate</span>
+                  <span className="text-sm font-black text-emerald-400">{metrics.successRate}%</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-background-elevated border border-border-subtle/60">
+                  <span className="text-[10px] font-semibold text-foreground-muted uppercase tracking-wider block">Avg Latency</span>
+                  <span className="text-sm font-black text-brand-400">{metrics.avgLatencyMs} ms</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-background-elevated border border-border-subtle/60">
+                  <span className="text-[10px] font-semibold text-foreground-muted uppercase tracking-wider block">Classification</span>
+                  <span className="text-xs font-bold text-foreground-secondary">6 Active Categories</span>
+                </div>
+              </div>
+            )}
+
+            {/* Recent Request Stream */}
+            <div className="space-y-2">
+              <span className="text-xs font-bold text-foreground-secondary block">Recent AI Requests</span>
+              {diagnostics.length === 0 ? (
+                <div className="p-4 rounded-xl border border-dashed border-border-subtle text-center text-xs text-foreground-muted">
+                  No AI request telemetry logged in current memory buffer yet.
+                </div>
+              ) : (
+                <div className="max-h-60 overflow-y-auto space-y-2 pr-1 divide-y divide-border-subtle/40">
+                  {diagnostics.map((d: any) => (
+                    <div key={d.id} className="pt-2.5 first:pt-0 pb-2 space-y-1.5 text-xs">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
+                              d.queryCategory === "GENERAL"
+                                ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                                : d.queryCategory === "HEALTH_GENERAL"
+                                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                                : d.queryCategory === "HEALTH_PERSONALIZED"
+                                ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
+                                : d.queryCategory === "NUTRI_TRACK_DATA"
+                                ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                                : d.queryCategory === "ACTION_COMMAND"
+                                ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                                : "bg-teal-500/20 text-teal-300 border border-teal-500/30"
+                            }`}
+                          >
+                            {d.queryCategory}
+                          </span>
+                          <span className="font-mono text-[10px] text-foreground-muted truncate">{d.requestId}</span>
+                          {d.validationStatus === "RETRY_CORRECTED" && (
+                            <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                              Retry Corrected
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-right shrink-0 text-[11px] flex items-center gap-2">
+                          <span className="font-mono font-bold text-foreground-primary">{d.latencyMs} ms</span>
+                          <span className="text-[10px] text-foreground-muted">({d.model})</span>
+                        </div>
+                      </div>
+                      <p className="text-foreground-secondary truncate italic">&ldquo;{d.promptSnippet}&rdquo;</p>
+                      <div className="flex flex-wrap items-center gap-2 text-[10px] text-foreground-muted font-mono pt-0.5">
+                        <span className="bg-background-elevated px-1.5 py-0.5 rounded border border-border-subtle/50">
+                          Msg Recv: {d.trace?.userMessageReceived !== false ? "YES" : "NO"}
+                        </span>
+                        <span className="bg-background-elevated px-1.5 py-0.5 rounded border border-border-subtle/50">
+                          History: {d.trace?.historyMessagesCount ?? 0}
+                        </span>
+                        <span className="bg-background-elevated px-1.5 py-0.5 rounded border border-border-subtle/50">
+                          Context: {d.trace?.personalizedContextLoaded !== false ? "YES" : "NO"}
+                        </span>
+                        <span className="bg-background-elevated px-1.5 py-0.5 rounded border border-border-subtle/50">
+                          Duplicate Guard: {d.trace?.duplicateDetected ? "DETECTED" : "PASSED"}
+                        </span>
+                        <span className="bg-background-elevated px-1.5 py-0.5 rounded border border-border-subtle/50">
+                          Fallback: {d.fallbackUsed ? "YES" : "NO"}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Top 3 OpenAI ChatGPT Models Recommendation */}
