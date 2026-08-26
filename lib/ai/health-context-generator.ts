@@ -1,11 +1,14 @@
 import { HealthContextService, HealthContextSnapshot } from "@/lib/services/health-context.service";
+import { DataProvenanceService } from "@/lib/ai/provenance";
 
 /**
- * Generates a clean, human-readable Markdown Health Context Summary
- * for the user to copy into their ChatGPT Project to refresh their health snapshot.
+ * Generates a clean, provenance-tagged Markdown Health Context Summary
+ * for the user to share with their ChatGPT Health Coach.
  *
- * Strict Rule: Never converts missing data into fake zeros.
- * Explicitly marks data as CONFIRMED DATA, NOT CONFIGURED, or NO RECENT DATA.
+ * Strict Rules:
+ * 1. Never converts missing data into fake zeros.
+ * 2. Explicitly tags provenance: [CONFIRMED], [USER_ENTERED], [UNVERIFIED / PRE-FILLED], [MISSING], [NOT CONFIGURED YET].
+ * 3. Distinguishes 'No meals logged yet today' from '0 kcal intake'.
  */
 export class HealthContextGenerator {
   static async generateMarkdownSummary(userId: string): Promise<string> {
@@ -18,82 +21,92 @@ export class HealthContextGenerator {
 
     const sections: string[] = [];
 
-    // Header
-    sections.push(`# NUTRI-TRACK CURRENT HEALTH SNAPSHOT`);
-    sections.push(`*Generated on ${snapshot.date} (${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})*\n`);
+    // Header & Instructions for ChatGPT Coach
+    sections.push(`# NUTRI-TRACK HEALTH SNAPSHOT & DATA PROVENANCE`);
+    sections.push(`*Generated on ${snapshot.date} (${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})*\n`);
+    sections.push(`> [!IMPORTANT]\n> **DATA PROVENANCE GUIDE FOR COACH**:\n> - \`[CONFIRMED]\` / \`[USER_ENTERED]\`: Verified by user. Acknowledge and do not ask again.\n> - \`[UNVERIFIED / PRE-FILLED]\`: Pre-filled default or estimate. Ask the user for confirmation.\n> - \`[MISSING]\` / \`[NOT CONFIGURED YET]\`: Information is unknown. Collect naturally during assessment.`);
 
     // 1. Physical Profile & Core Goal
-    sections.push(`## 1. USER PROFILE & PHYSICAL ATTRIBUTES`);
+    sections.push(`\n## 1. USER PROFILE & PHYSICAL ATTRIBUTES`);
     sections.push(`- **Name**: ${profile.name || "Member"}`);
-    sections.push(`- **Biological Sex**: ${profile.biologicalSex || "Not configured"}`);
-    sections.push(`- **Height**: ${profile.heightCm !== null ? `${profile.heightCm} cm` : "Not configured"}`);
-    sections.push(`- **Latest Weight**: ${profile.weightKg !== null ? `${profile.weightKg} kg` : "Not configured"}`);
-    sections.push(`- **Primary Goal**: ${profile.primaryGoal || "Not configured"}`);
+
+    const sexTag = profile.biologicalSex ? "[CONFIRMED]" : "[MISSING]";
+    sections.push(`- **Biological Sex**: ${profile.biologicalSex || "Missing"} ${sexTag}`);
+
+    const heightTag = profile.heightCm !== null ? "[CONFIRMED]" : "[MISSING]";
+    sections.push(`- **Height**: ${profile.heightCm !== null ? `${profile.heightCm} cm` : "Missing"} ${heightTag}`);
+
+    const weightTag = profile.weightKg !== null ? "[CONFIRMED]" : "[MISSING]";
+    sections.push(`- **Latest Weight**: ${profile.weightKg !== null ? `${profile.weightKg} kg` : "Missing"} ${weightTag}`);
+
+    const goalTag = profile.primaryGoal ? "[USER_ENTERED]" : "[MISSING]";
+    sections.push(`- **Primary Goal**: ${profile.primaryGoal || "Missing"} ${goalTag}`);
+
     if (profile.bmr && profile.tdee) {
-      sections.push(`- **Estimated BMR**: ${Math.round(profile.bmr)} kcal`);
-      sections.push(`- **Estimated TDEE**: ${Math.round(profile.tdee)} kcal`);
+      sections.push(`- **Estimated BMR**: ${Math.round(profile.bmr)} kcal [ESTIMATED]`);
+      sections.push(`- **Estimated TDEE**: ${Math.round(profile.tdee)} kcal [ESTIMATED]`);
     }
 
     // 2. Configured Daily Targets
     sections.push(`\n## 2. CONFIGURED DAILY TARGETS`);
-    if (nutrition.isTargetsConfigured) {
-      sections.push(`- **Calories Target**: ${nutrition.calorieTarget !== null ? `${nutrition.calorieTarget} kcal [CONFIRMED DATA]` : "Not configured"}`);
-      sections.push(`- **Protein Target**: ${nutrition.proteinTarget !== null ? `${nutrition.proteinTarget} g [CONFIRMED DATA]` : "Not configured"}`);
-      sections.push(`- **Carbohydrates Target**: ${nutrition.carbsTarget !== null ? `${nutrition.carbsTarget} g [CONFIRMED DATA]` : "Not configured"}`);
-      sections.push(`- **Fat Target**: ${nutrition.fatsTarget !== null ? `${nutrition.fatsTarget} g [CONFIRMED DATA]` : "Not configured"}`);
-      sections.push(`- **Hydration Target**: ${hydration.targetMl ? `${hydration.targetMl} ml [CONFIRMED DATA]` : "Not configured"}`);
-      sections.push(`- **Daily Step Target**: ${movement.dailyStepTarget ? `${movement.dailyStepTarget.toLocaleString()} steps [CONFIRMED DATA]` : "Not configured"}`);
-      sections.push(`- **Weekly Running Target**: ${movement.weeklyRunningTargetKm ? `${movement.weeklyRunningTargetKm} km [CONFIRMED DATA]` : "Not configured"}`);
-      sections.push(`- **Weekly Workout Target**: ${workouts.weeklyWorkoutTarget ? `${workouts.weeklyWorkoutTarget} sessions [CONFIRMED DATA]` : "Not configured"}`);
+    if (nutrition.isTargetsConfigured && nutrition.calorieTarget && nutrition.proteinTarget) {
+      sections.push(`- **Calories Target**: ${nutrition.calorieTarget} kcal [CONFIRMED]`);
+      sections.push(`- **Protein Target**: ${nutrition.proteinTarget} g [CONFIRMED]`);
+      sections.push(`- **Carbohydrates Target**: ${nutrition.carbsTarget !== null ? `${nutrition.carbsTarget} g [CONFIRMED]` : "Not configured [NOT CONFIGURED]"}`);
+      sections.push(`- **Fat Target**: ${nutrition.fatsTarget !== null ? `${nutrition.fatsTarget} g [CONFIRMED]` : "Not configured [NOT CONFIGURED]"}`);
+      sections.push(`- **Hydration Target**: ${hydration.targetMl ? `${hydration.targetMl} ml [CONFIRMED]` : "Not configured [NOT CONFIGURED]"}`);
+      sections.push(`- **Daily Step Target**: ${movement.dailyStepTarget ? `${movement.dailyStepTarget.toLocaleString()} steps [CONFIRMED]` : "Not configured [NOT CONFIGURED]"}`);
+      sections.push(`- **Weekly Running Target**: ${movement.weeklyRunningTargetKm ? `${movement.weeklyRunningTargetKm} km [CONFIRMED]` : "Not configured [NOT CONFIGURED]"}`);
+      sections.push(`- **Weekly Workout Target**: ${workouts.weeklyWorkoutTarget ? `${workouts.weeklyWorkoutTarget} sessions [CONFIRMED]` : "Not configured [NOT CONFIGURED]"}`);
     } else {
-      sections.push(`> [!NOTE]\n> **Target Status**: **NOT CONFIGURED YET**\n> Complete your Initial Health Assessment to personalize your calories, macros, hydration, and exercise targets.`);
-      sections.push(`- **Calories**: Not configured`);
-      sections.push(`- **Protein**: Not configured`);
-      sections.push(`- **Carbohydrates**: Not configured`);
-      sections.push(`- **Fat**: Not configured`);
-      sections.push(`- **Hydration**: ${hydration.targetMl ? `${hydration.targetMl} ml` : "Not configured"}`);
-      sections.push(`- **Daily Steps**: ${movement.dailyStepTarget ? `${movement.dailyStepTarget.toLocaleString()} steps` : "Not configured"}`);
-      sections.push(`- **Weekly Running**: ${movement.weeklyRunningTargetKm ? `${movement.weeklyRunningTargetKm} km` : "Not configured"}`);
+      sections.push(`> [!NOTE]\n> **Target Status**: **NOT CONFIGURED YET**\n> Complete your Initial Health Assessment with your Coach to establish personalized targets.`);
+      sections.push(`- **Calories**: Not configured [NOT CONFIGURED]`);
+      sections.push(`- **Protein**: Not configured [NOT CONFIGURED]`);
+      sections.push(`- **Carbohydrates**: Not configured [NOT CONFIGURED]`);
+      sections.push(`- **Fat**: Not configured [NOT CONFIGURED]`);
+      sections.push(`- **Hydration**: ${hydration.targetMl ? `${hydration.targetMl} ml [UNVERIFIED]` : "Not configured [NOT CONFIGURED]"}`);
+      sections.push(`- **Daily Steps**: ${movement.dailyStepTarget ? `${movement.dailyStepTarget.toLocaleString()} steps [UNVERIFIED]` : "Not configured [NOT CONFIGURED]"}`);
+      sections.push(`- **Weekly Running**: ${movement.weeklyRunningTargetKm ? `${movement.weeklyRunningTargetKm} km [UNVERIFIED]` : "Not configured [NOT CONFIGURED]"}`);
     }
 
     // 3. Today's Logged Nutrition
     sections.push(`\n## 3. TODAY'S LOGGED NUTRITION`);
     if (nutrition.hasLoggedMeals) {
-      sections.push(`- **Calories Consumed**: ${nutrition.caloriesConsumed} kcal`);
-      sections.push(`- **Protein Consumed**: ${nutrition.proteinConsumed} g`);
-      sections.push(`- **Carbs Consumed**: ${nutrition.carbsConsumed} g`);
-      sections.push(`- **Fat Consumed**: ${nutrition.fatsConsumed} g`);
-      sections.push(`- **Fiber Consumed**: ${nutrition.fiberConsumed} g`);
+      sections.push(`- **Calories Consumed**: ${nutrition.caloriesConsumed} kcal [LOGGED DATA]`);
+      sections.push(`- **Protein Consumed**: ${nutrition.proteinConsumed} g [LOGGED DATA]`);
+      sections.push(`- **Carbs Consumed**: ${nutrition.carbsConsumed} g [LOGGED DATA]`);
+      sections.push(`- **Fat Consumed**: ${nutrition.fatsConsumed} g [LOGGED DATA]`);
+      sections.push(`- **Fiber Consumed**: ${nutrition.fiberConsumed} g [LOGGED DATA]`);
       sections.push(`- **Meals Logged Today**: ${nutrition.mealCount} meal(s)`);
       if (nutrition.calorieTarget) {
         sections.push(`- **Calories Remaining**: ${nutrition.caloriesRemaining} kcal`);
       }
     } else {
-      sections.push(`- **Status**: [NO RECENT DATA] No meals logged yet today.`);
+      sections.push(`- **Status**: [NO LOGGED DATA] No meals logged yet today (Intake is not 0 kcal, just unrecorded).`);
     }
 
     // 4. Hydration Status
     sections.push(`\n## 4. TODAY'S HYDRATION STATUS`);
     if (hydration.hasLoggedHydration) {
-      sections.push(`- **Water Consumed**: ${hydration.consumedMl} ml (${hydration.percentage}% of goal)`);
+      sections.push(`- **Water Consumed**: ${hydration.consumedMl} ml [LOGGED DATA] (${hydration.percentage}% of goal)`);
       sections.push(`- **Water Remaining**: ${hydration.remainingMl} ml`);
       sections.push(`- **Hydration Streak**: ${hydration.streakDays} day(s) 🔥`);
     } else {
-      sections.push(`- **Status**: [NO RECENT DATA] 0 ml logged today.`);
+      sections.push(`- **Status**: [NO LOGGED DATA] No water logged yet today.`);
       sections.push(`- **Current Streak**: ${hydration.streakDays} day(s)`);
     }
 
     // 5. Activity & Running Summary
     sections.push(`\n## 5. MOVEMENT & RUNNING`);
-    sections.push(`- **Today's Steps**: ${movement.todaySteps.toLocaleString()} / ${movement.dailyStepTarget ? movement.dailyStepTarget.toLocaleString() : "Not set"} steps`);
+    sections.push(`- **Today's Steps**: ${movement.todaySteps.toLocaleString()} steps [LOGGED DATA]`);
     sections.push(`- **Today's Active Distance**: ${movement.todayDistanceKm} km`);
     sections.push(`- **Total Active Calories Burned**: ${movement.totalActiveCalories} kcal`);
-    sections.push(`- **Weekly Running Volume**: ${movement.weeklyRunningDistanceKm} km / ${movement.weeklyRunningTargetKm} km target`);
+    sections.push(`- **Weekly Running Volume**: ${movement.weeklyRunningDistanceKm} km (${movement.weeklyRunningTargetKm ? `${movement.weeklyRunningTargetKm} km target` : "Target not set"})`);
 
     // 6. Resistance Training / Workouts
     sections.push(`\n## 6. WORKOUTS & STRENGTH`);
-    sections.push(`- **Today's Sessions**: ${workouts.todayWorkoutSessions}`);
-    sections.push(`- **Weekly Sessions Completed**: ${workouts.weeklyWorkoutSessions} / ${workouts.weeklyWorkoutTarget} target`);
+    sections.push(`- **Today's Sessions**: ${workouts.todayWorkoutSessions > 0 ? `${workouts.todayWorkoutSessions} session(s) [LOGGED DATA]` : "No workout logged today [NO LOGGED DATA]"}`);
+    sections.push(`- **Weekly Sessions Completed**: ${workouts.weeklyWorkoutSessions} (${workouts.weeklyWorkoutTarget ? `${workouts.weeklyWorkoutTarget} target` : "Target not set"})`);
     if (workouts.weeklyWorkoutVolumeKg > 0) {
       sections.push(`- **Weekly Tonnage Lifted**: ${workouts.weeklyWorkoutVolumeKg.toLocaleString()} kg`);
     }
@@ -111,12 +124,12 @@ export class HealthContextGenerator {
     if (memories && memories.length > 0) {
       sections.push(`\n## 8. SAVED HEALTH PREFERENCES & CONSTRAINTS`);
       memories.forEach((mem) => {
-        sections.push(`- **[${mem.category}]**: ${mem.content}`);
+        sections.push(`- **[${mem.category}]**: ${mem.content} [CONFIRMED MEMORY]`);
       });
     }
 
     sections.push(`\n---`);
-    sections.push(`*To apply any new nutrition, fitness, or goal updates from ChatGPT into Nutri-Track, copy the structured \`NUTRI-TRACK ACTION\` JSON block and paste it into the Nutri-Track Action Bridge.*`);
+    sections.push(`*Nutri-Track Action Rule: When agreeing to new targets or logs, output a structured \`NUTRI-TRACK ACTION\` block.*`);
 
     return sections.join("\n");
   }

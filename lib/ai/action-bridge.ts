@@ -17,8 +17,36 @@ export type NutriTrackActionType =
   | "LOG_WORKOUT"
   | "UPDATE_PROFILE"
   | "SAVE_MEMORY"
-  | "DELETE_MEMORY"
-  | "DELETE_RECORD";
+  | "DELETE_MEMORY";
+
+export const ALLOWED_AI_ACTIONS: ReadonlySet<string> = new Set([
+  "UPDATE_GOALS",
+  "UPDATE_TARGETS",
+  "LOG_MEAL",
+  "LOG_HYDRATION",
+  "LOG_WEIGHT",
+  "LOG_ACTIVITY",
+  "LOG_WORKOUT",
+  "UPDATE_PROFILE",
+  "SAVE_MEMORY",
+  "DELETE_MEMORY",
+]);
+
+export const BANNED_DESTRUCTIVE_ACTIONS: ReadonlySet<string> = new Set([
+  "DELETE",
+  "RESET",
+  "WIPE",
+  "TRUNCATE",
+  "DROP",
+  "RECREATE",
+  "CLEAR",
+  "DELETE_ALL",
+  "RESET_DATABASE",
+  "CLEAR_DATABASE",
+  "DELETE_USER",
+  "BULK_REPLACE",
+  "DELETE_RECORD",
+]);
 
 export interface NutriTrackActionSchema {
   version?: number;
@@ -193,6 +221,55 @@ export class NutriTrackActionBridge {
     const errors: string[] = [];
     const warnings: string[] = [];
     const diffs: ActionDiffItem[] = [];
+
+    // 1. Anti-Wipe Security Guard: Reject any destructive or unpermitted action
+    if (
+      BANNED_DESTRUCTIVE_ACTIONS.has(actionType) ||
+      actionType.includes("DELETE_ALL") ||
+      actionType.includes("RESET_") ||
+      actionType.includes("WIPE_")
+    ) {
+      return {
+        isValid: false,
+        actionType,
+        parsedAction: parsed,
+        rawInput,
+        diffs: [],
+        reason,
+        requiresConfirmation: false,
+        warnings: [],
+        errors: ["Destructive database operation is strictly forbidden through the AI action bridge."],
+      };
+    }
+
+    if (!ALLOWED_AI_ACTIONS.has(actionType)) {
+      return {
+        isValid: false,
+        actionType,
+        parsedAction: parsed,
+        rawInput,
+        diffs: [],
+        reason,
+        requiresConfirmation: false,
+        warnings: [],
+        errors: [`Action type '${actionType}' is not permitted. Only safe target updates, logging, and memories are allowed.`],
+      };
+    }
+
+    // 2. Empty Payload Guard: Prevent empty updates that could wipe fields
+    if (!data || typeof data !== "object" || Object.keys(data).length === 0) {
+      return {
+        isValid: false,
+        actionType,
+        parsedAction: parsed,
+        rawInput,
+        diffs: [],
+        reason,
+        requiresConfirmation: false,
+        warnings: [],
+        errors: ["Empty or missing action data payload. Action rejected to protect database integrity."],
+      };
+    }
 
     // Fetch current user settings & targets for diff calculation
     const settings = await UserSettingsService.getUserSettings(userId).catch(() => null);
@@ -414,8 +491,26 @@ export class NutriTrackActionBridge {
       }
 
       case "UPDATE_PROFILE": {
+        const permittedProfileFields = new Set([
+          "heightCm",
+          "weightKg",
+          "primaryGoal",
+          "biologicalSex",
+          "dateOfBirth",
+          "activityLevel",
+          "livingSituation",
+          "dietaryPattern",
+        ]);
+        const submittedFields = Object.keys(data);
+        const unauthorized = submittedFields.filter((f) => !permittedProfileFields.has(f));
+        if (unauthorized.length > 0) {
+          errors.push(
+            `Unauthorized profile field(s): ${unauthorized.join(", ")}. Profile updates are strictly limited to personal biometrics.`
+          );
+        }
+
         if (data.heightCm !== undefined) {
-          if (data.heightCm < 50 || data.heightCm > 260) errors.push("Height must be between 50cm and 260cm.");
+          if (typeof data.heightCm !== "number" || data.heightCm < 50 || data.heightCm > 260) errors.push("Height must be between 50cm and 260cm.");
           diffs.push({
             key: "heightCm",
             label: "Height",
