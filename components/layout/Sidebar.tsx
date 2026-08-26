@@ -128,6 +128,7 @@ export function Sidebar({ onOpenQuickLog, onCloseMobile }: SidebarProps) {
       name: "AI Coach",
       href: "/ai-coach",
       icon: Bot,
+      badge: isAdmin ? "Admin" : "Soon",
       active: pathname.startsWith("/ai-coach"),
     },
   ];

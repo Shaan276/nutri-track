@@ -13,8 +13,6 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const pathname = usePathname();
-  const isAICoach = pathname === "/ai-coach";
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isQuickLogOpen, setIsQuickLogOpen] = useState(false);
 
@@ -57,13 +55,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           onOpenQuickLog={() => setIsQuickLogOpen(true)}
         />
 
-        <main
-          className={`flex-1 w-full ${
-            isAICoach
-              ? "p-0 pb-16 lg:pb-0 h-[calc(100vh-4rem)] max-w-full overflow-hidden"
-              : "overflow-y-auto p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8 max-w-[1600px] mx-auto"
-          } transform-gpu`}
-        >
+        <main className="flex-1 w-full overflow-y-auto p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8 max-w-[1600px] mx-auto transform-gpu">
           {children}
         </main>
       </div>

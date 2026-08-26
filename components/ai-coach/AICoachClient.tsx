@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
   Bot,
@@ -109,7 +110,113 @@ const DYNAMIC_PROMPT_POOL = [
   "How much hydration do I have left to drink?",
 ];
 
-export function AICoachClient() {
+export interface AICoachClientProps {
+  isAdmin?: boolean;
+}
+
+export function AICoachComingSoon() {
+  const [hasRequested, setHasRequested] = useState(false);
+
+  return (
+    <div className="w-full max-w-4xl mx-auto px-4 py-8 sm:py-12 space-y-8 animate-fade-in text-center">
+      {/* Hero Badge & Header */}
+      <div className="space-y-4">
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-500/15 border border-brand-500/30 text-brand-400 text-xs font-black uppercase tracking-wider shadow-sm">
+          <Sparkles className="h-4 w-4 text-brand-400 animate-pulse" />
+          <span>Private Preview &bull; Coming Soon</span>
+        </div>
+
+        <h1 className="text-3xl sm:text-5xl font-black text-foreground-primary tracking-tight leading-tight">
+          AI Health Coach &amp; Integrator
+        </h1>
+
+        <p className="text-base sm:text-lg text-foreground-secondary max-w-2xl mx-auto leading-relaxed">
+          We&apos;re crafting a groundbreaking, zero-subscription AI health coaching experience. Connect your personal ChatGPT with Nutri-Track&apos;s biometric intelligence engine.
+        </p>
+      </div>
+
+      {/* Feature Teasers Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+        <div className="bg-background-surface border border-border-default hover:border-brand-500/30 transition-all rounded-3xl p-6 shadow-surface-card space-y-3 group">
+          <div className="h-12 w-12 rounded-2xl bg-brand-500/15 border border-brand-500/30 flex items-center justify-center text-brand-400 group-hover:scale-105 transition-transform">
+            <Bot className="h-6 w-6" />
+          </div>
+          <h3 className="text-base font-extrabold text-foreground-primary">
+            1. Free ChatGPT Coach
+          </h3>
+          <p className="text-xs text-foreground-secondary leading-relaxed">
+            Personalized daily nutrition, running advice, workout planning, and empathetic motivation in your private ChatGPT with zero subscription cost.
+          </p>
+        </div>
+
+        <div className="bg-background-surface border border-border-default hover:border-emerald-500/30 transition-all rounded-3xl p-6 shadow-surface-card space-y-3 group">
+          <div className="h-12 w-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 group-hover:scale-105 transition-transform">
+            <Zap className="h-6 w-6" />
+          </div>
+          <h3 className="text-base font-extrabold text-foreground-primary">
+            2. Deterministic Action Bridge
+          </h3>
+          <p className="text-xs text-foreground-secondary leading-relaxed">
+            Apply meal logs, target adjustments, and workouts proposed by your coach with single-click safety bounds, visual diffs, and rollback.
+          </p>
+        </div>
+
+        <div className="bg-background-surface border border-border-default hover:border-blue-500/30 transition-all rounded-3xl p-6 shadow-surface-card space-y-3 group">
+          <div className="h-12 w-12 rounded-2xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400 group-hover:scale-105 transition-transform">
+            <Activity className="h-6 w-6" />
+          </div>
+          <h3 className="text-base font-extrabold text-foreground-primary">
+            3. Deep Biometric Intelligence
+          </h3>
+          <p className="text-xs text-foreground-secondary leading-relaxed">
+            Real-time micronutrient tracking, food vision scanning, running pace metrics, and automated weekly volume analytics.
+          </p>
+        </div>
+      </div>
+
+      {/* Early Access Notification Card */}
+      <div className="bg-background-surface border border-border-default rounded-3xl p-6 sm:p-8 shadow-surface-card max-w-xl mx-auto space-y-4">
+        <div className="flex items-center justify-center gap-2 text-xs font-bold text-amber-400 uppercase tracking-wider">
+          <ShieldCheck className="h-4 w-4" />
+          <span>Admin &amp; Beta Preview Only</span>
+        </div>
+        <p className="text-xs sm:text-sm text-foreground-secondary leading-relaxed">
+          The AI Health Coach is currently active for administrators and internal beta testers during final evaluation. Want early access when it unlocks for all members?
+        </p>
+
+        <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+          {hasRequested ? (
+            <div className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-extrabold">
+              <CheckCircle2 className="h-4 w-4" />
+              <span>You&apos;re on the Early Access VIP list! We&apos;ll notify you.</span>
+            </div>
+          ) : (
+            <button
+              onClick={() => setHasRequested(true)}
+              className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-brand-500 hover:bg-brand-400 text-neutral-950 font-extrabold text-xs transition-all shadow-brand-glow flex items-center justify-center gap-2"
+            >
+              <Sparkles className="h-4 w-4" />
+              Notify Me for Early Access
+            </button>
+          )}
+
+          <Link
+            href="/app"
+            className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-background-elevated hover:bg-background-surface border border-border-subtle text-foreground-secondary hover:text-foreground-primary font-bold text-xs transition-colors flex items-center justify-center gap-1.5"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Back to Dashboard
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function AICoachClient({ isAdmin: propIsAdmin }: AICoachClientProps = {}) {
+  const { data: session, status } = useSession();
+  const isAdmin = propIsAdmin ?? ((session?.user as any)?.role === "ADMIN");
+
   // Navigation & View Mode
   const [activeTab, setActiveTab] = useState<"hub" | "chat">("hub");
 
@@ -155,10 +262,12 @@ export function AICoachClient() {
 
   // Fetch initial state & history
   useEffect(() => {
-    loadActionHistory();
-    loadConversations();
-    checkAssessmentStatus();
-  }, []);
+    if (isAdmin) {
+      loadActionHistory();
+      loadConversations();
+      checkAssessmentStatus();
+    }
+  }, [isAdmin]);
 
   const loadActionHistory = async () => {
     setIsLoadingHistory(true);
@@ -371,8 +480,34 @@ export function AICoachClient() {
     }
   };
 
+  if (status === "loading" && propIsAdmin === undefined) {
+    return (
+      <div className="flex h-[80vh] items-center justify-center text-neutral-500 gap-3">
+        <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
+        <span className="text-xs">Loading AI Coach & Biometric Data...</span>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return <AICoachComingSoon />;
+  }
+
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8 animate-fade-in">
+      {/* Admin Notice Banner */}
+      <div className="flex items-center justify-between p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-medium">
+        <div className="flex items-center gap-2.5">
+          <ShieldCheck className="h-5 w-5 text-amber-400 shrink-0" />
+          <span>
+            <strong className="text-amber-400">Admin Early Access Mode Active:</strong> You have full administrative access to the Two-Layer AI Health Coach &amp; Integrator Hub. Standard users see a Coming Soon preview.
+          </span>
+        </div>
+        <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-mono font-black tracking-wider uppercase border border-amber-500/30">
+          ADMIN ONLY
+        </span>
+      </div>
+
       {/* Top Architecture Banner */}
       <div className="bg-background-surface border border-border-default rounded-3xl p-6 sm:p-8 shadow-surface-card text-left space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">

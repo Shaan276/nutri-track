@@ -18,6 +18,8 @@ export default async function AICoachPage() {
     redirect("/login");
   }
 
+  const isAdmin = (session.user as any)?.role === "ADMIN";
+
   return (
     <Suspense
       fallback={
@@ -27,7 +29,7 @@ export default async function AICoachPage() {
         </div>
       }
     >
-      <AICoachClient />
+      <AICoachClient isAdmin={isAdmin} />
     </Suspense>
   );
 }
