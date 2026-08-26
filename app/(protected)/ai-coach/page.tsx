@@ -3,8 +3,11 @@ import { Metadata } from "next";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
-import { AICoachClient } from "@/components/ai-coach/AICoachClient";
+import { AICoachClient, AICoachComingSoon } from "@/components/ai-coach/AICoachClient";
+import { FeatureAccessService } from "@/lib/services/admin/feature-access.service";
 import { Loader2 } from "lucide-react";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "AI Coach | Nutri-Track",
@@ -18,7 +21,11 @@ export default async function AICoachPage() {
     redirect("/login");
   }
 
-  const isAdmin = (session.user as any)?.role === "ADMIN";
+  const userRole = (session.user as any)?.role || "USER";
+  const isAdmin = userRole === "ADMIN";
+  const userId = session.user?.id;
+
+  const access = await FeatureAccessService.canUserAccess("/ai-coach", userRole, userId);
 
   return (
     <Suspense
@@ -29,7 +36,11 @@ export default async function AICoachPage() {
         </div>
       }
     >
-      <AICoachClient isAdmin={isAdmin} />
+      {access.allowed || isAdmin ? (
+        <AICoachClient isAdmin={isAdmin} />
+      ) : (
+        <AICoachComingSoon />
+      )}
     </Suspense>
   );
 }

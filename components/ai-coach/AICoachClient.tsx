@@ -36,10 +36,13 @@ import {
   Flame,
   Dna,
   Wheat,
+  User,
+  Link2,
 } from "lucide-react";
 import { AIMemoryModal } from "./AIMemoryModal";
 import { WeeklyPlanModal } from "./WeeklyPlanModal";
 import { FoodScannerModal } from "./FoodScannerModal";
+import { LiveHealthSnapshotDrawer } from "./LiveHealthSnapshotDrawer";
 
 export interface AICoachClientProps {
   isAdmin?: boolean;
@@ -82,7 +85,7 @@ export function AICoachComingSoon() {
           </div>
           <h3 className="text-base font-extrabold text-foreground-primary">2. Fast Logging (Log Mode)</h3>
           <p className="text-xs text-foreground-secondary leading-relaxed">
-            Instantly deconstruct meals, hydration, and workouts into exact macros and micronutrients with 1-click confirmation.
+            Instantly deconstruct meals, hydration, and workouts into exact macros and micronutrients with in-chat confirmation.
           </p>
         </div>
 
@@ -103,14 +106,14 @@ export function AICoachComingSoon() {
           <span>Admin &amp; Beta Preview Only</span>
         </div>
         <p className="text-xs sm:text-sm text-foreground-secondary leading-relaxed">
-          The AI Health Coach is currently active for administrators and internal beta testers during final evaluation. Want early access when it unlocks for all members?
+          The AI Health Coach is currently active for administrators and internal beta testers during final evaluation.
         </p>
 
         <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
           {hasRequested ? (
             <div className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-extrabold">
               <CheckCircle2 className="h-4 w-4" />
-              <span>You&apos;re on the Early Access VIP list! We&apos;ll notify you.</span>
+              <span>You&apos;re on the Early Access VIP list!</span>
             </div>
           ) : (
             <button
@@ -135,16 +138,27 @@ export function AICoachComingSoon() {
   );
 }
 
+interface ChatMessage {
+  id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  metadata?: any;
+  createdAt: string;
+  parsedLog?: any;
+  confirmed?: boolean;
+}
+
 export function AICoachClient({ isAdmin: propIsAdmin }: AICoachClientProps = {}) {
   const { data: session, status } = useSession();
   const isAdmin = propIsAdmin ?? ((session?.user as any)?.role === "ADMIN");
   const searchParams = useSearchParams();
 
-  // TWO AI MODES: "ask" (ChatGPT Coach) vs "log" (Nutri-Track AI Integrator)
-  const [activeMode, setActiveMode] = useState<"ask" | "log">("ask");
+  // TWO AI MODES: "ask" (ChatGPT Coach) vs "log" (Nutri-Track AI Chat)
+  const [activeMode, setActiveMode] = useState<"log" | "ask">("log");
 
   // Mode A (Ask / Discuss) State
-  const [askInput, setAskInput] = useState("");
+  const [chatgptUrl, setChatgptUrl] = useState<string>("https://chatgpt.com");
+  const [isEditingUrl, setIsEditingUrl] = useState(false);
   const [copiedType, setCopiedType] = useState<string | null>(null);
   const [assessmentStatus, setAssessmentStatus] = useState<string>("NOT_STARTED");
 
@@ -153,18 +167,17 @@ export function AICoachClient({ isAdmin: propIsAdmin }: AICoachClientProps = {})
   const [actionInputText, setActionInputText] = useState("");
   const [isParsingAction, setIsParsingAction] = useState(false);
   const [isExecutingAction, setIsExecutingAction] = useState(false);
-  const [isEditingAction, setIsEditingAction] = useState(false);
   const [actionSuccessMessage, setActionSuccessMessage] = useState<string | null>(null);
   const [actionErrorMessage, setActionErrorMessage] = useState<string | null>(null);
   const [actionHistory, setActionHistory] = useState<any[]>([]);
 
-  // Mode B (Log Something) State
-  const [logInput, setLogInput] = useState("");
-  const [isParsingLog, setIsParsingLog] = useState(false);
-  const [isExecutingLog, setIsExecutingLog] = useState(false);
-  const [logPreview, setLogPreview] = useState<any | null>(null);
-  const [logSuccessMessage, setLogSuccessMessage] = useState<string | null>(null);
-  const [logErrorMessage, setLogErrorMessage] = useState<string | null>(null);
+  // Mode B (Log Something - Conversational AI Chat) State
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [activeConvId, setActiveConvId] = useState<string | null>(null);
+  const [inputMessage, setInputMessage] = useState("");
+  const [isChatLoading, setIsChatLoading] = useState(false);
+  const [chatErrorMessage, setChatErrorMessage] = useState<string | null>(null);
 
   // Voice Recording State
   const [isRecording, setIsRecording] = useState(false);
@@ -174,17 +187,18 @@ export function AICoachClient({ isAdmin: propIsAdmin }: AICoachClientProps = {})
   const [isMemoryModalOpen, setIsMemoryModalOpen] = useState(false);
   const [isWeeklyPlanModalOpen, setIsWeeklyPlanModalOpen] = useState(false);
   const [isFoodScannerOpen, setIsFoodScannerOpen] = useState(false);
+  const [isSnapshotDrawerOpen, setIsSnapshotDrawerOpen] = useState(false);
 
-  // Quick Prompt Pool for Log Mode
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
   const QUICK_LOG_PROMPTS = [
     "I ate 4 rotis, 100g paneer bhurji, and drank 500ml water",
     "Log 500ml of water",
     "My weight is 56 kg",
     "I ran 5 km in 28 minutes",
-    "I completed my workout: 3 sets bench press, 3 sets pullups",
+    "Completed workout: 3 sets bench press, 3 sets pullups",
   ];
 
-  // Quick Prompt Pool for Ask Mode
   const QUICK_ASK_PROMPTS = [
     "What should I eat after running?",
     "Why am I feeling tired today?",
@@ -193,7 +207,16 @@ export function AICoachClient({ isAdmin: propIsAdmin }: AICoachClientProps = {})
     "How can I improve my 5K running pace?",
   ];
 
-  // Initialize Voice Recognition
+  // Auto-scroll chat to bottom
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isChatLoading]);
+
+  // Initialize Speech Recognition
   useEffect(() => {
     if (typeof window !== "undefined") {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -206,12 +229,7 @@ export function AICoachClient({ isAdmin: propIsAdmin }: AICoachClientProps = {})
         recognition.onresult = (event: any) => {
           const transcript = event.results[0][0].transcript;
           if (transcript && transcript.trim()) {
-            if (activeMode === "ask") {
-              setAskInput(transcript.trim());
-            } else {
-              setLogInput(transcript.trim());
-              handleParseLog(transcript.trim());
-            }
+            setInputMessage(transcript.trim());
           }
           setIsRecording(false);
         };
@@ -221,14 +239,16 @@ export function AICoachClient({ isAdmin: propIsAdmin }: AICoachClientProps = {})
         recognitionRef.current = recognition;
       }
     }
-  }, [activeMode]);
+  }, []);
 
-  // Check URL params for action handoff or initial assessment
+  // Load chat conversations & actions
   useEffect(() => {
     if (isAdmin) {
+      loadConversations();
       loadActionHistory();
       checkAssessmentStatus();
 
+      // Check URL params for action handoff
       const actionParam = searchParams.get("action");
       if (actionParam) {
         try {
@@ -236,6 +256,10 @@ export function AICoachClient({ isAdmin: propIsAdmin }: AICoachClientProps = {})
           handleParseAction(decoded);
         } catch {}
       }
+
+      // Check saved user ChatGPT URL from localStorage
+      const savedUrl = localStorage.getItem("nutritrack_chatgpt_url");
+      if (savedUrl) setChatgptUrl(savedUrl);
     }
   }, [isAdmin, searchParams]);
 
@@ -256,6 +280,48 @@ export function AICoachClient({ isAdmin: propIsAdmin }: AICoachClientProps = {})
         console.error("Speech recognition start failed:", err);
       }
     }
+  };
+
+  const loadConversations = async () => {
+    try {
+      const res = await fetch("/api/ai/conversations");
+      const data = await res.json();
+      if (data.conversations && data.conversations.length > 0) {
+        setConversations(data.conversations);
+        const targetId = data.conversations[0].id;
+        setActiveConvId(targetId);
+        loadMessages(targetId);
+      } else {
+        // Start a welcoming conversation
+        handleNewChat();
+      }
+    } catch {
+      handleNewChat();
+    }
+  };
+
+  const loadMessages = async (convId: string) => {
+    try {
+      const res = await fetch(`/api/ai/conversations/${convId}`);
+      const data = await res.json();
+      if (data.messages) {
+        setMessages(data.messages);
+      }
+    } catch (err) {
+      console.error("Failed to load messages:", err);
+    }
+  };
+
+  const handleNewChat = () => {
+    const welcomeMsg: ChatMessage = {
+      id: `welcome_${Date.now()}`,
+      role: "assistant",
+      content:
+        "Hello! I am your Nutri-Track AI Integrator — your conversational partner for lightning-fast logging, macro calculations, and tracking! 🌟💪\n\nTell me what you ate, drank, or exercised today (e.g. *'I had 4 rotis and 100g paneer bhurji, and drank 500ml water'*), or speak into the mic!",
+      createdAt: new Date().toISOString(),
+    };
+    setMessages([welcomeMsg]);
+    setActiveConvId(null);
   };
 
   const loadActionHistory = async () => {
@@ -298,7 +364,13 @@ export function AICoachClient({ isAdmin: propIsAdmin }: AICoachClientProps = {})
     }
   };
 
-  // Automatic / Fast Action Bridge Parsing
+  const handleSaveChatGPTUrl = (url: string) => {
+    setChatgptUrl(url);
+    localStorage.setItem("nutritrack_chatgpt_url", url);
+    setIsEditingUrl(false);
+  };
+
+  // Automatic Action Bridge Parsing
   const handleParseAction = async (rawString?: string) => {
     const textToParse = rawString || actionInputText;
     if (!textToParse.trim()) return;
@@ -350,7 +422,6 @@ export function AICoachClient({ isAdmin: propIsAdmin }: AICoachClientProps = {})
         setActionSuccessMessage(data.message || "Action successfully applied to your database!");
         setDetectedAction(null);
         setActionInputText("");
-        setIsEditingAction(false);
         loadActionHistory();
         checkAssessmentStatus();
       } else {
@@ -377,144 +448,179 @@ export function AICoachClient({ isAdmin: propIsAdmin }: AICoachClientProps = {})
     }
   };
 
-  // Log Mode: Fast Deconstruction & Macro/Micronutrient Calculation
-  const handleParseLog = async (presetText?: string) => {
-    const text = presetText || logInput;
-    if (!text.trim()) return;
+  // Send Message in Conversational AI Chat
+  const handleSendChatMessage = async (textOverride?: string) => {
+    const textToSend = (textOverride || inputMessage).trim();
+    if (!textToSend || isChatLoading) return;
 
-    setIsParsingLog(true);
-    setLogErrorMessage(null);
-    setLogSuccessMessage(null);
+    setInputMessage("");
+    setChatErrorMessage(null);
+
+    const userMessageId = `usr_${Date.now()}`;
+    const newMsg: ChatMessage = {
+      id: userMessageId,
+      role: "user",
+      content: textToSend,
+      createdAt: new Date().toISOString(),
+    };
+
+    setMessages((prev) => [...prev, newMsg]);
+    setIsChatLoading(true);
 
     try {
-      const res = await fetch("/api/ai/quick-log/parse", {
+      // 1. First run quick parser for structured nutrition deconstruction if logging
+      let parsedLogData: any = null;
+      try {
+        const parseRes = await fetch("/api/ai/quick-log/parse", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ input: textToSend }),
+        });
+        const parseJson = await parseRes.json();
+        if (parseJson.success && parseJson.data) {
+          parsedLogData = parseJson.data;
+        }
+      } catch {}
+
+      // 2. Send to AI Chat endpoint
+      const chatRes = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: text }),
+        body: JSON.stringify({
+          conversationId: activeConvId,
+          message: textToSend,
+        }),
       });
-      const data = await res.json();
 
-      if (data.success && data.data) {
-        setLogPreview(data.data);
-      } else {
-        setLogErrorMessage(data.error || "Could not parse entry.");
+      const chatData = await chatRes.json();
+
+      if (!chatRes.ok) {
+        throw new Error(chatData.error || "Failed to process AI response");
       }
+
+      if (chatData.conversationId && !activeConvId) {
+        setActiveConvId(chatData.conversationId);
+      }
+
+      const assistantReply =
+        chatData.assistantMessage?.content ||
+        chatData.reply ||
+        "I have parsed your health details!";
+
+      const assistantMessageId = `asst_${Date.now()}`;
+      const asstMsg: ChatMessage = {
+        id: assistantMessageId,
+        role: "assistant",
+        content: assistantReply,
+        parsedLog: parsedLogData,
+        createdAt: new Date().toISOString(),
+      };
+
+      setMessages((prev) => [...prev, asstMsg]);
     } catch (err: any) {
-      setLogErrorMessage(err.message || "Failed to process log entry.");
+      console.error("Chat error:", err);
+      setChatErrorMessage(err.message || "Failed to get AI response");
+
+      // Append error message to chat
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `err_${Date.now()}`,
+          role: "assistant",
+          content: `⚠️ Note: ${err.message || "I encountered an error processing that request. Please try again."}`,
+          createdAt: new Date().toISOString(),
+        },
+      ]);
     } finally {
-      setIsParsingLog(false);
+      setIsChatLoading(false);
     }
   };
 
-  // Confirm Log and Apply to DB
-  const handleConfirmLog = async () => {
-    if (!logPreview) return;
-
-    setIsExecutingLog(true);
-    setLogErrorMessage(null);
-    setLogSuccessMessage(null);
-
+  // Confirm in-chat log item
+  const handleConfirmInChatLog = async (msgId: string, logData: any) => {
     try {
       let actionPayload: any = null;
 
-      if (logPreview.meal?.detected) {
+      if (logData.meal?.detected) {
         actionPayload = {
           version: 1,
           action: "LOG_MEAL",
           data: {
-            name: logPreview.meal.name,
-            mealType: logPreview.meal.mealType || "SNACK",
-            calories: logPreview.meal.totals?.calories || 0,
-            protein: logPreview.meal.totals?.protein || 0,
-            carbohydrates: logPreview.meal.totals?.carbohydrates || 0,
-            fat: logPreview.meal.totals?.fat || 0,
-            fiber: logPreview.meal.totals?.fiber || 0,
+            name: logData.meal.name,
+            mealType: logData.meal.mealType || "SNACK",
+            calories: logData.meal.totals?.calories || 0,
+            protein: logData.meal.totals?.protein || 0,
+            carbohydrates: logData.meal.totals?.carbohydrates || 0,
+            fat: logData.meal.totals?.fat || 0,
+            fiber: logData.meal.totals?.fiber || 0,
           },
         };
-      } else if (logPreview.hydration?.detected) {
+      } else if (logData.hydration?.detected) {
         actionPayload = {
           version: 1,
           action: "LOG_HYDRATION",
           data: {
-            amountMl: logPreview.hydration.amountMl,
-            beverageType: logPreview.hydration.beverageType || "WATER",
+            amountMl: logData.hydration.amountMl,
+            beverageType: logData.hydration.beverageType || "WATER",
           },
         };
-      } else if (logPreview.weight?.detected) {
+      } else if (logData.weight?.detected) {
         actionPayload = {
           version: 1,
           action: "LOG_WEIGHT",
           data: {
-            weightKg: logPreview.weight.weightKg,
+            weightKg: logData.weight.weightKg,
           },
         };
-      } else if (logPreview.activity?.detected) {
+      } else if (logData.activity?.detected) {
         actionPayload = {
           version: 1,
           action: "LOG_ACTIVITY",
           data: {
-            type: logPreview.activity.type || "RUNNING",
-            durationMinutes: logPreview.activity.durationMinutes || 30,
-            distanceKm: logPreview.activity.distanceKm || 0,
-            caloriesBurned: logPreview.activity.caloriesBurned || 0,
-          },
-        };
-      } else if (logPreview.targets?.detected) {
-        actionPayload = {
-          version: 1,
-          action: "UPDATE_GOALS",
-          data: {
-            ...(logPreview.targets.caloriesKcal && { caloriesKcal: logPreview.targets.caloriesKcal }),
-            ...(logPreview.targets.proteinG && { proteinG: logPreview.targets.proteinG }),
-            ...(logPreview.targets.carbsG && { carbsG: logPreview.targets.carbsG }),
-            ...(logPreview.targets.fatG && { fatG: logPreview.targets.fatG }),
+            type: logData.activity.type || "RUNNING",
+            durationMinutes: logData.activity.durationMinutes || 30,
+            distanceKm: logData.activity.distanceKm || 0,
+            caloriesBurned: logData.activity.caloriesBurned || 0,
           },
         };
       }
 
-      if (!actionPayload) {
-        throw new Error("No actionable log detected.");
-      }
+      if (actionPayload) {
+        const res = await fetch("/api/ai/actions/execute", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: actionPayload, confirmed: true }),
+        });
 
-      // Execute via safe action bridge
-      const res = await fetch("/api/ai/actions/execute", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: actionPayload, confirmed: true }),
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        // Also log hydration if meal and water were combined in one input!
-        if (logPreview.meal?.detected && logPreview.hydration?.detected && logPreview.hydration.amountMl > 0) {
-          await fetch("/api/ai/actions/execute", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              action: {
-                version: 1,
-                action: "LOG_HYDRATION",
-                data: {
-                  amountMl: logPreview.hydration.amountMl,
-                  beverageType: logPreview.hydration.beverageType || "WATER",
+        if (res.ok) {
+          // If both meal and hydration were detected
+          if (logData.meal?.detected && logData.hydration?.detected && logData.hydration.amountMl > 0) {
+            await fetch("/api/ai/actions/execute", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action: {
+                  version: 1,
+                  action: "LOG_HYDRATION",
+                  data: {
+                    amountMl: logData.hydration.amountMl,
+                    beverageType: logData.hydration.beverageType || "WATER",
+                  },
                 },
-              },
-              confirmed: true,
-            }),
-          });
-        }
+                confirmed: true,
+              }),
+            });
+          }
 
-        setLogSuccessMessage(data.message || "Entry successfully logged to your tracker!");
-        setLogPreview(null);
-        setLogInput("");
-        loadActionHistory();
-      } else {
-        setLogErrorMessage(data.error || "Failed to log entry.");
+          // Mark message as confirmed
+          setMessages((prev) =>
+            prev.map((m) => (m.id === msgId ? { ...m, confirmed: true } : m))
+          );
+          loadActionHistory();
+        }
       }
-    } catch (err: any) {
-      setLogErrorMessage(err.message || "Error logging entry.");
-    } finally {
-      setIsExecutingLog(false);
+    } catch (err) {
+      console.error("Confirm log failed:", err);
     }
   };
 
@@ -532,104 +638,116 @@ export function AICoachClient({ isAdmin: propIsAdmin }: AICoachClientProps = {})
   }
 
   return (
-    <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-6 animate-fade-in text-left">
-      {/* Admin Early Preview Badge */}
+    <div className="w-full max-w-5xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-5 animate-fade-in text-left">
+      {/* Admin Mode Badge */}
       <div className="flex items-center justify-between p-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs font-medium">
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-4 w-4 text-amber-400 shrink-0" />
           <span>
-            <strong className="text-amber-400">Admin Mode Active:</strong> You are testing the Simplified Two-Mode AI Coach. Standard users see the Coming Soon preview.
+            <strong className="text-amber-400">Admin Mode Active:</strong> You have full access to the Conversational AI Chat and ChatGPT Coach.
           </span>
         </div>
-        <span className="hidden sm:inline-block px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-mono font-black uppercase">
-          Admin
-        </span>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin/features"
+            className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-[10px] font-bold uppercase transition-colors"
+          >
+            <Sliders className="h-3 w-3" />
+            <span>Page Control</span>
+          </Link>
+        </div>
       </div>
 
-      {/* Clean Mode Switcher */}
-      <div className="bg-background-surface border border-border-default rounded-3xl p-5 sm:p-6 shadow-surface-card space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <h1 className="text-xl sm:text-2xl font-black text-foreground-primary tracking-tight">
-              AI Coach
+      {/* Two-Mode Switcher Header */}
+      <div className="bg-background-surface border border-border-default rounded-3xl p-4 sm:p-5 shadow-surface-card space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h1 className="text-lg sm:text-xl font-black text-foreground-primary tracking-tight">
+              AI Coach &amp; Integrator
             </h1>
             <p className="text-xs text-foreground-secondary">
-              What would you like to do? Switch anytime between long-form coaching and fast logging.
+              Seamlessly switch between ChatGPT long-form coaching and Nutri-Track AI conversational logging.
             </p>
           </div>
 
-          {/* Primary Two-Mode Switcher Controls */}
-          <div className="inline-flex p-1.5 bg-background-elevated rounded-2xl border border-border-subtle shrink-0">
+          {/* Primary Two-Mode Switcher */}
+          <div className="inline-flex p-1.5 bg-background-elevated rounded-2xl border border-border-subtle shrink-0 self-start sm:self-auto">
             <button
-              onClick={() => {
-                setActiveMode("ask");
-                setActionSuccessMessage(null);
-                setLogSuccessMessage(null);
-              }}
-              className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 ${
-                activeMode === "ask"
-                  ? "bg-brand-500 text-neutral-950 shadow-brand-glow"
-                  : "text-foreground-secondary hover:text-foreground-primary opacity-70 hover:opacity-100"
-              }`}
-            >
-              <Bot className="h-4 w-4" />
-              <span>💬 Ask / Discuss</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveMode("log");
-                setActionSuccessMessage(null);
-                setLogSuccessMessage(null);
-              }}
-              className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 ${
+              onClick={() => setActiveMode("log")}
+              className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 ${
                 activeMode === "log"
                   ? "bg-brand-500 text-neutral-950 shadow-brand-glow"
                   : "text-foreground-secondary hover:text-foreground-primary opacity-70 hover:opacity-100"
               }`}
             >
               <Zap className="h-4 w-4" />
-              <span>📝 Log Something</span>
+              <span>📝 Nutri-Track Chat</span>
+            </button>
+
+            <button
+              onClick={() => setActiveMode("ask")}
+              className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 ${
+                activeMode === "ask"
+                  ? "bg-brand-500 text-neutral-950 shadow-brand-glow"
+                  : "text-foreground-secondary hover:text-foreground-primary opacity-70 hover:opacity-100"
+              }`}
+            >
+              <Bot className="h-4 w-4" />
+              <span>💬 ChatGPT Coach</span>
             </button>
           </div>
         </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* MODE A: 💬 ASK / DISCUSS (ChatGPT Coach Active, Integrator Inactive)     */}
+      {/* MODE A: 💬 ASK / DISCUSS (Connected ChatGPT Coach)                       */}
       {/* ========================================================================= */}
       {activeMode === "ask" && (
-        <div className="space-y-6 animate-fade-in">
-          {/* Active Mode Status Card */}
-          <div className="bg-background-surface border border-brand-500/30 rounded-3xl p-6 shadow-surface-card space-y-5">
+        <div className="space-y-5 animate-fade-in">
+          <div className="bg-background-surface border border-brand-500/30 rounded-3xl p-5 sm:p-6 shadow-surface-card space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border-subtle pb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="h-9 w-9 rounded-2xl bg-brand-500/15 border border-brand-500/30 flex items-center justify-center text-brand-400">
-                  <Bot className="h-5 w-5" />
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-brand-500/15 border border-brand-500/30 flex items-center justify-center text-brand-400 shrink-0">
+                  <Bot className="h-6 w-6" />
                 </div>
                 <div>
-                  <h2 className="text-base font-extrabold text-foreground-primary">
-                    ChatGPT Health Coach
-                  </h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-base font-extrabold text-foreground-primary">
+                      ChatGPT Health Coach
+                    </h2>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 text-[10px] font-mono font-bold">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      Connected
+                    </span>
+                  </div>
                   <p className="text-xs text-foreground-muted">
-                    Active &bull; Nutrition planning, running advice, workout strategy &amp; lifestyle
+                    Nutrition strategy, workout planning, running pacing &amp; empathetic motivation
                   </p>
                 </div>
               </div>
 
               {/* 1-Click Launch & Context Tools */}
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <a
-                  href="https://chatgpt.com"
+                  href={chatgptUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-3.5 py-1.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-neutral-950 text-xs font-extrabold transition-all shadow-brand-glow flex items-center gap-1.5"
+                  className="px-4 py-2 rounded-xl bg-brand-500 hover:bg-brand-400 text-neutral-950 text-xs font-extrabold transition-all shadow-brand-glow flex items-center gap-1.5"
                 >
                   Open in ChatGPT <ExternalLink className="h-3.5 w-3.5" />
                 </a>
+
+                <button
+                  onClick={() => setIsEditingUrl(!isEditingUrl)}
+                  className="p-2 rounded-xl bg-background-elevated hover:bg-background-surface border border-border-subtle text-foreground-secondary hover:text-foreground-primary transition-colors"
+                  title="Configure personal ChatGPT Project URL"
+                >
+                  <Link2 className="h-4 w-4" />
+                </button>
+
                 <button
                   onClick={() => handleCopy("context")}
-                  className="px-3 py-1.5 rounded-xl bg-background-elevated hover:bg-background-surface border border-border-subtle text-xs font-bold text-foreground-secondary hover:text-foreground-primary transition-colors flex items-center gap-1.5"
+                  className="px-3 py-2 rounded-xl bg-background-elevated hover:bg-background-surface border border-border-subtle text-xs font-bold text-foreground-secondary hover:text-foreground-primary transition-colors flex items-center gap-1.5"
                 >
                   {copiedType === "context" ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
                   Copy Health Context
@@ -637,13 +755,37 @@ export function AICoachClient({ isAdmin: propIsAdmin }: AICoachClientProps = {})
               </div>
             </div>
 
+            {/* Custom Link Editor */}
+            {isEditingUrl && (
+              <div className="p-4 rounded-2xl bg-background-elevated border border-border-default space-y-2 animate-fade-in">
+                <label className="text-xs font-bold text-foreground-secondary block">
+                  Your Personal ChatGPT Project or GPT Link:
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="url"
+                    value={chatgptUrl}
+                    onChange={(e) => setChatgptUrl(e.target.value)}
+                    placeholder="https://chatgpt.com/g/g-..."
+                    className="flex-1 bg-background-surface border border-border-subtle focus:border-brand-500/50 rounded-xl px-3.5 py-2 text-xs font-mono text-foreground-primary focus:outline-none"
+                  />
+                  <button
+                    onClick={() => handleSaveChatGPTUrl(chatgptUrl)}
+                    className="px-4 py-2 rounded-xl bg-brand-500 hover:bg-brand-400 text-neutral-950 text-xs font-extrabold transition-all"
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Assessment Helper Banner if Not Completed */}
             {assessmentStatus !== "COMPLETED" && (
               <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                 <div className="space-y-0.5">
-                  <span className="font-extrabold text-amber-400">Initial Assessment Ready</span>
+                  <span className="font-extrabold text-amber-400">7-Part Health Assessment Ready</span>
                   <p className="text-amber-300/80">
-                    Conduct your 7-part intake with your coach to establish personalized calorie and macro targets.
+                    Conduct your personalized intake with your coach to establish tailored calorie and macro targets without repeating known biometrics.
                   </p>
                 </div>
                 <button
@@ -657,7 +799,7 @@ export function AICoachClient({ isAdmin: propIsAdmin }: AICoachClientProps = {})
             )}
 
             {/* 🟢 AUTOMATIC ACTION HANDOFF BAR / DETECTOR */}
-            <div className="p-5 rounded-2xl bg-background-elevated/70 border border-border-default space-y-4">
+            <div className="p-4 sm:p-5 rounded-2xl bg-background-elevated/70 border border-border-default space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -678,11 +820,9 @@ export function AICoachClient({ isAdmin: propIsAdmin }: AICoachClientProps = {})
               {detectedAction && detectedAction.isValid ? (
                 <div className="p-4 rounded-2xl bg-background-surface border border-emerald-500/40 space-y-3 animate-fade-in">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-mono text-xs font-black">
-                        🟢 Action Ready: {detectedAction.actionType}
-                      </span>
-                    </div>
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-mono text-xs font-black">
+                      🟢 Action Ready: {detectedAction.actionType}
+                    </span>
                     {detectedAction.reason && (
                       <span className="text-xs text-foreground-muted italic">
                         &quot;{detectedAction.reason}&quot;
@@ -707,7 +847,6 @@ export function AICoachClient({ isAdmin: propIsAdmin }: AICoachClientProps = {})
                     ))}
                   </div>
 
-                  {/* Actions: Apply / Edit / Cancel */}
                   <div className="flex items-center justify-end gap-2.5 pt-2">
                     <button
                       onClick={() => setDetectedAction(null)}
@@ -728,7 +867,7 @@ export function AICoachClient({ isAdmin: propIsAdmin }: AICoachClientProps = {})
               ) : (
                 <div className="space-y-2">
                   <p className="text-xs text-foreground-secondary">
-                    When your ChatGPT Coach proposes new targets (e.g. 140g protein) or logs, paste the structured block below or click &quot;Sync from Clipboard&quot; to apply it safely:
+                    When your coach outputs a structured target update (e.g. 140g protein) or workout, paste it below or click &quot;Sync from Clipboard&quot; to apply it safely:
                   </p>
                   <div className="flex items-center gap-2">
                     <input
@@ -772,7 +911,6 @@ export function AICoachClient({ isAdmin: propIsAdmin }: AICoachClientProps = {})
                   <button
                     key={idx}
                     onClick={() => {
-                      setAskInput(prompt);
                       navigator.clipboard.writeText(prompt);
                       setCopiedType(`prompt_${idx}`);
                       setTimeout(() => setCopiedType(null), 2000);
@@ -790,286 +928,257 @@ export function AICoachClient({ isAdmin: propIsAdmin }: AICoachClientProps = {})
       )}
 
       {/* ========================================================================= */}
-      {/* MODE B: 📝 LOG SOMETHING (Integrator Active, ChatGPT Coach Inactive)      */}
+      {/* MODE B: 📝 LOG SOMETHING — CONVERSATIONAL AI CHAT INTERFACE                */}
       {/* ========================================================================= */}
       {activeMode === "log" && (
-        <div className="space-y-6 animate-fade-in">
-          {/* Active Mode Status Card */}
-          <div className="bg-background-surface border border-emerald-500/30 rounded-3xl p-6 shadow-surface-card space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border-subtle pb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="h-9 w-9 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                  <Zap className="h-5 w-5" />
-                </div>
-                <div>
-                  <h2 className="text-base font-extrabold text-foreground-primary">
+        <div className="bg-background-surface border border-border-default rounded-3xl shadow-surface-card flex flex-col h-[74vh] overflow-hidden animate-fade-in">
+          {/* Chat Header */}
+          <div className="p-4 border-b border-border-subtle flex items-center justify-between bg-background-surface/80 backdrop-blur-md shrink-0">
+            <div className="flex items-center gap-2.5">
+              <div className="h-8 w-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                <Zap className="h-4 w-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xs font-extrabold text-foreground-primary">
                     Nutri-Track AI Integrator
                   </h2>
-                  <p className="text-xs text-foreground-muted">
-                    Active &bull; Fast logging with macro &amp; micronutrient breakdown
-                  </p>
-                </div>
-              </div>
-
-              {/* Tool Drawers */}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setIsFoodScannerOpen(true)}
-                  className="px-3 py-1.5 rounded-xl bg-background-elevated hover:bg-brand-500/10 border border-border-subtle text-xs font-bold text-foreground-secondary hover:text-brand-400 transition-colors flex items-center gap-1.5"
-                >
-                  <Camera className="h-3.5 w-3.5 text-brand-400" />
-                  Scan Food Photo
-                </button>
-                <button
-                  onClick={() => setIsMemoryModalOpen(true)}
-                  className="px-3 py-1.5 rounded-xl bg-background-elevated hover:bg-blue-500/10 border border-border-subtle text-xs font-bold text-foreground-secondary hover:text-blue-400 transition-colors flex items-center gap-1.5"
-                >
-                  <Brain className="h-3.5 w-3.5 text-blue-400" />
-                  Health Memories
-                </button>
-              </div>
-            </div>
-
-            {/* Quick Logging Chips */}
-            <div className="space-y-2">
-              <span className="text-xs font-bold text-foreground-muted">Quick Log Examples:</span>
-              <div className="flex flex-wrap items-center gap-2">
-                {QUICK_LOG_PROMPTS.map((prompt, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      setLogInput(prompt);
-                      handleParseLog(prompt);
-                    }}
-                    className="px-3 py-1.5 rounded-full bg-background-elevated hover:bg-emerald-500/15 border border-border-subtle hover:border-emerald-500/30 text-xs text-foreground-secondary hover:text-emerald-300 font-medium transition-colors"
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Fast Input Box */}
-            <div className="space-y-3">
-              <div className="relative">
-                <input
-                  type="text"
-                  value={logInput}
-                  onChange={(e) => setLogInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleParseLog();
-                    }
-                  }}
-                  placeholder="e.g. 'I ate 4 rotis, 100g paneer bhurji, and drank 500ml water' or 'Ran 5km in 28 mins'..."
-                  className="w-full bg-background-elevated border border-border-subtle focus:border-emerald-500/50 rounded-2xl pl-4 pr-24 py-3.5 text-xs text-foreground-primary focus:outline-none transition-colors"
-                />
-
-                <div className="absolute right-2 top-2 flex items-center gap-1.5">
-                  <button
-                    onClick={toggleVoiceRecording}
-                    className={`p-2 rounded-xl transition-all ${
-                      isRecording
-                        ? "bg-rose-500 text-white animate-pulse"
-                        : "hover:bg-background-surface text-foreground-muted hover:text-foreground-primary"
-                    }`}
-                    title={isRecording ? "Stop voice recording" : "Speak to log"}
-                  >
-                    {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                  </button>
-                  <button
-                    onClick={() => handleParseLog()}
-                    disabled={isParsingLog || !logInput.trim()}
-                    className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-extrabold text-xs transition-all disabled:opacity-50 shadow-md flex items-center gap-1.5"
-                  >
-                    {isParsingLog ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
-                    Log
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Log Success Alert */}
-            {logSuccessMessage && (
-              <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2.5 animate-fade-in">
-                <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                <span>{logSuccessMessage}</span>
-              </div>
-            )}
-
-            {/* Log Error Alert */}
-            {logErrorMessage && (
-              <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2.5 animate-fade-in">
-                <AlertCircle className="h-4 w-4 text-rose-400 shrink-0" />
-                <span>{logErrorMessage}</span>
-              </div>
-            )}
-
-            {/* 📝 INTERACTIVE LOGGING PREVIEW CARD */}
-            {logPreview && (
-              <div className="p-5 rounded-2xl bg-background-elevated border border-emerald-500/30 space-y-4 animate-fade-in">
-                <div className="flex items-center justify-between border-b border-border-subtle pb-3">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-emerald-400" />
-                    <span className="text-xs font-extrabold text-foreground-primary uppercase tracking-wider">
-                      Nutritional Extraction Preview
-                    </span>
-                  </div>
-                  <span className="text-[11px] font-bold text-foreground-muted">
-                    {logPreview.summary || "Parsed Entry"}
+                  <span className="px-2 py-0.2 rounded-full bg-emerald-500/15 text-emerald-400 text-[10px] font-extrabold">
+                    Live Chat
                   </span>
                 </div>
+                <p className="text-[10px] text-foreground-muted">
+                  Conversational food deconstruction, hydration, workouts &amp; macros
+                </p>
+              </div>
+            </div>
 
-                {/* Meal Items & Macros */}
-                {logPreview.meal?.detected && (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-foreground-primary">
-                        {logPreview.meal.name}
-                      </span>
-                      <span className="px-2 py-0.5 rounded-full bg-brand-500/15 text-brand-400 text-[10px] font-extrabold uppercase">
-                        {logPreview.meal.mealType || "MEAL"}
-                      </span>
+            {/* Quick Modals */}
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setIsFoodScannerOpen(true)}
+                className="p-2 rounded-xl bg-background-elevated hover:bg-brand-500/15 text-foreground-secondary hover:text-brand-400 border border-border-subtle text-xs transition-colors"
+                title="Scan Food Photo"
+              >
+                <Camera className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setIsMemoryModalOpen(true)}
+                className="p-2 rounded-xl bg-background-elevated hover:bg-blue-500/15 text-foreground-secondary hover:text-blue-400 border border-border-subtle text-xs transition-colors"
+                title="Health Memories"
+              >
+                <Brain className="h-4 w-4" />
+              </button>
+              <button
+                onClick={handleNewChat}
+                className="p-2 rounded-xl bg-background-elevated hover:bg-background-surface text-foreground-secondary hover:text-foreground-primary border border-border-subtle text-xs transition-colors"
+                title="New Chat"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Chat Messages Feed */}
+          <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+            {messages.map((msg) => {
+              const isUser = msg.role === "user";
+              const logData = msg.parsedLog;
+
+              return (
+                <div
+                  key={msg.id}
+                  className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"} animate-fade-in`}
+                >
+                  {!isUser && (
+                    <div className="h-8 w-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5">
+                      <Bot className="h-4 w-4" />
+                    </div>
+                  )}
+
+                  <div
+                    className={`max-w-[85%] sm:max-w-[75%] rounded-3xl p-4 text-xs space-y-3 shadow-sm ${
+                      isUser
+                        ? "bg-brand-500 text-neutral-950 font-medium rounded-tr-sm"
+                        : "bg-background-elevated border border-border-subtle text-foreground-primary rounded-tl-sm"
+                    }`}
+                  >
+                    {/* Message Body */}
+                    <div className="whitespace-pre-wrap leading-relaxed">
+                      {msg.content}
                     </div>
 
-                    {/* Macro Pillars */}
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center">
-                      <div className="p-2 rounded-xl bg-background-surface border border-border-subtle">
-                        <span className="text-[10px] text-foreground-muted uppercase font-bold block">Calories</span>
-                        <span className="text-sm font-black text-amber-400">{logPreview.meal.totals?.calories || 0} kcal</span>
-                      </div>
-                      <div className="p-2 rounded-xl bg-background-surface border border-border-subtle">
-                        <span className="text-[10px] text-foreground-muted uppercase font-bold block">Protein</span>
-                        <span className="text-sm font-black text-emerald-400">{logPreview.meal.totals?.protein || 0} g</span>
-                      </div>
-                      <div className="p-2 rounded-xl bg-background-surface border border-border-subtle">
-                        <span className="text-[10px] text-foreground-muted uppercase font-bold block">Carbs</span>
-                        <span className="text-sm font-black text-blue-400">{logPreview.meal.totals?.carbohydrates || 0} g</span>
-                      </div>
-                      <div className="p-2 rounded-xl bg-background-surface border border-border-subtle">
-                        <span className="text-[10px] text-foreground-muted uppercase font-bold block">Fat</span>
-                        <span className="text-sm font-black text-purple-400">{logPreview.meal.totals?.fat || 0} g</span>
-                      </div>
-                      <div className="p-2 rounded-xl bg-background-surface border border-border-subtle">
-                        <span className="text-[10px] text-foreground-muted uppercase font-bold block">Fiber</span>
-                        <span className="text-sm font-black text-lime-400">{logPreview.meal.totals?.fiber || 0} g</span>
-                      </div>
-                    </div>
+                    {/* Interactive In-Chat Nutrition / Logging Card */}
+                    {logData && !isUser && (
+                      <div className="p-3.5 rounded-2xl bg-background-surface border border-emerald-500/30 text-foreground-primary space-y-3 mt-2">
+                        {logData.meal?.detected && (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="font-extrabold text-foreground-primary text-xs">
+                                {logData.meal.name}
+                              </span>
+                              <span className="px-2 py-0.5 rounded-full bg-brand-500/15 text-brand-400 text-[10px] font-extrabold uppercase">
+                                {logData.meal.mealType || "MEAL"}
+                              </span>
+                            </div>
 
-                    {/* Available Micronutrients */}
-                    {logPreview.meal.micronutrients && Object.keys(logPreview.meal.micronutrients).length > 0 && (
-                      <div className="p-3 rounded-xl bg-background-surface border border-border-subtle space-y-1.5">
-                        <span className="text-[11px] font-bold text-foreground-muted uppercase tracking-wider block">
-                          Micronutrient Density:
-                        </span>
-                        <div className="flex flex-wrap gap-2 text-[11px] text-foreground-secondary">
-                          {logPreview.meal.micronutrients.iron > 0 && <span className="px-2 py-0.5 rounded-lg bg-background-elevated">Iron: {logPreview.meal.micronutrients.iron}mg</span>}
-                          {logPreview.meal.micronutrients.calcium > 0 && <span className="px-2 py-0.5 rounded-lg bg-background-elevated">Calcium: {logPreview.meal.micronutrients.calcium}mg</span>}
-                          {logPreview.meal.micronutrients.potassium > 0 && <span className="px-2 py-0.5 rounded-lg bg-background-elevated">Potassium: {logPreview.meal.micronutrients.potassium}mg</span>}
-                          {logPreview.meal.micronutrients.magnesium > 0 && <span className="px-2 py-0.5 rounded-lg bg-background-elevated">Magnesium: {logPreview.meal.micronutrients.magnesium}mg</span>}
-                          {logPreview.meal.micronutrients.vitaminC > 0 && <span className="px-2 py-0.5 rounded-lg bg-background-elevated">Vit C: {logPreview.meal.micronutrients.vitaminC}mg</span>}
-                          {logPreview.meal.micronutrients.zinc > 0 && <span className="px-2 py-0.5 rounded-lg bg-background-elevated">Zinc: {logPreview.meal.micronutrients.zinc}mg</span>}
+                            {/* Macro Grid */}
+                            <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 text-center">
+                              <div className="p-1.5 rounded-lg bg-background-elevated border border-border-subtle">
+                                <span className="text-[9px] text-foreground-muted uppercase font-bold block">Calories</span>
+                                <span className="text-xs font-black text-amber-400">{logData.meal.totals?.calories || 0} kcal</span>
+                              </div>
+                              <div className="p-1.5 rounded-lg bg-background-elevated border border-border-subtle">
+                                <span className="text-[9px] text-foreground-muted uppercase font-bold block">Protein</span>
+                                <span className="text-xs font-black text-emerald-400">{logData.meal.totals?.protein || 0} g</span>
+                              </div>
+                              <div className="p-1.5 rounded-lg bg-background-elevated border border-border-subtle">
+                                <span className="text-[9px] text-foreground-muted uppercase font-bold block">Carbs</span>
+                                <span className="text-xs font-black text-blue-400">{logData.meal.totals?.carbohydrates || 0} g</span>
+                              </div>
+                              <div className="p-1.5 rounded-lg bg-background-elevated border border-border-subtle">
+                                <span className="text-[9px] text-foreground-muted uppercase font-bold block">Fat</span>
+                                <span className="text-xs font-black text-purple-400">{logData.meal.totals?.fat || 0} g</span>
+                              </div>
+                              <div className="p-1.5 rounded-lg bg-background-elevated border border-border-subtle">
+                                <span className="text-[9px] text-foreground-muted uppercase font-bold block">Fiber</span>
+                                <span className="text-xs font-black text-lime-400">{logData.meal.totals?.fiber || 0} g</span>
+                              </div>
+                            </div>
+
+                            {/* Micronutrients if present */}
+                            {logData.meal.micronutrients && Object.keys(logData.meal.micronutrients).length > 0 && (
+                              <div className="flex flex-wrap gap-1.5 text-[10px] text-foreground-secondary pt-1">
+                                {logData.meal.micronutrients.calcium > 0 && <span className="px-1.5 py-0.5 rounded bg-background-elevated">Calcium: {logData.meal.micronutrients.calcium}mg</span>}
+                                {logData.meal.micronutrients.iron > 0 && <span className="px-1.5 py-0.5 rounded bg-background-elevated">Iron: {logData.meal.micronutrients.iron}mg</span>}
+                                {logData.meal.micronutrients.potassium > 0 && <span className="px-1.5 py-0.5 rounded bg-background-elevated">Potassium: {logData.meal.micronutrients.potassium}mg</span>}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Hydration */}
+                        {logData.hydration?.detected && (
+                          <div className="flex items-center justify-between p-2 rounded-lg bg-blue-500/10 border border-blue-500/30 text-xs">
+                            <span className="text-blue-400 font-bold flex items-center gap-1.5">
+                              <Droplet className="h-3.5 w-3.5" /> Hydration:
+                            </span>
+                            <span className="font-extrabold text-blue-400 font-mono">
+                              +{logData.hydration.amountMl} ml ({logData.hydration.beverageType || "WATER"})
+                            </span>
+                          </div>
+                        )}
+
+                        {/* In-Chat Confirm Button */}
+                        <div className="flex items-center justify-end gap-2 pt-1">
+                          {msg.confirmed ? (
+                            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-extrabold">
+                              <Check className="h-3.5 w-3.5" /> Confirmed &amp; Logged
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => handleConfirmInChatLog(msg.id, logData)}
+                              className="px-4 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-extrabold text-xs flex items-center gap-1.5 transition-all shadow-sm"
+                            >
+                              <Check className="h-3.5 w-3.5" /> Confirm &amp; Log
+                            </button>
+                          )}
                         </div>
                       </div>
                     )}
-                  </div>
-                )}
 
-                {/* Hydration Extraction */}
-                {logPreview.hydration?.detected && (
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-background-surface border border-blue-500/30 text-xs">
-                    <div className="flex items-center gap-2 text-blue-400 font-bold">
-                      <Droplet className="h-4 w-4" />
-                      <span>Hydration Intake:</span>
+                    <div
+                      className={`text-[9px] ${
+                        isUser ? "text-neutral-800 text-right" : "text-foreground-muted"
+                      }`}
+                    >
+                      {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </div>
-                    <span className="font-extrabold text-blue-400 font-mono">
-                      +{logPreview.hydration.amountMl} ml ({logPreview.hydration.beverageType || "WATER"})
-                    </span>
                   </div>
-                )}
 
-                {/* Weight Extraction */}
-                {logPreview.weight?.detected && (
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-background-surface border border-purple-500/30 text-xs">
-                    <span className="text-purple-400 font-bold">Body Weight Record:</span>
-                    <span className="font-extrabold text-purple-400 font-mono">
-                      {logPreview.weight.weightKg} kg
-                    </span>
-                  </div>
-                )}
-
-                {/* Activity / Running Extraction */}
-                {logPreview.activity?.detected && (
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-background-surface border border-emerald-500/30 text-xs">
-                    <span className="text-emerald-400 font-bold">Activity: {logPreview.activity.type}</span>
-                    <span className="font-extrabold text-emerald-400 font-mono">
-                      {logPreview.activity.durationMinutes} mins &bull; {logPreview.activity.distanceKm} km
-                    </span>
-                  </div>
-                )}
-
-                {/* Confirmation Controls */}
-                <div className="flex items-center justify-end gap-3 pt-2">
-                  <button
-                    onClick={() => setLogPreview(null)}
-                    className="px-4 py-2 rounded-xl text-xs font-bold text-foreground-muted hover:text-foreground-primary transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleConfirmLog}
-                    disabled={isExecutingLog}
-                    className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-extrabold text-xs flex items-center gap-2 transition-all shadow-md"
-                  >
-                    {isExecutingLog ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                    Confirm &amp; Log to Database
-                  </button>
+                  {isUser && (
+                    <div className="h-8 w-8 rounded-xl bg-brand-500/15 border border-brand-500/30 flex items-center justify-center text-brand-400 shrink-0 mt-0.5">
+                      <User className="h-4 w-4" />
+                    </div>
+                  )}
                 </div>
+              );
+            })}
+
+            {isChatLoading && (
+              <div className="flex items-center gap-2.5 text-xs text-foreground-muted animate-pulse">
+                <div className="h-8 w-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                </div>
+                <span>Nutri-Track AI is analyzing and estimating...</span>
               </div>
             )}
+
+            <div ref={messagesEndRef} />
           </div>
 
-          {/* Recent Action History Audit */}
-          {actionHistory.length > 0 && (
-            <div className="bg-background-surface border border-border-default rounded-3xl p-6 shadow-surface-card space-y-4">
-              <div className="flex items-center justify-between border-b border-border-subtle pb-3">
-                <div className="flex items-center gap-2">
-                  <History className="h-4 w-4 text-blue-400" />
-                  <h3 className="text-sm font-extrabold text-foreground-primary">
-                    Recent AI Logs &amp; Adjustments
-                  </h3>
-                </div>
+          {/* Quick Prompts Carousel */}
+          <div className="px-4 py-2 bg-background-surface/90 border-t border-border-subtle shrink-0">
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+              {QUICK_LOG_PROMPTS.map((prompt, idx) => (
                 <button
-                  onClick={loadActionHistory}
-                  className="p-1 rounded-lg hover:bg-background-elevated text-foreground-muted hover:text-foreground-primary transition-colors"
+                  key={idx}
+                  onClick={() => handleSendChatMessage(prompt)}
+                  className="px-2.5 py-1 rounded-full bg-background-elevated hover:bg-emerald-500/15 border border-border-subtle hover:border-emerald-500/30 text-[11px] text-foreground-secondary hover:text-emerald-300 font-medium whitespace-nowrap transition-colors"
                 >
-                  <RefreshCw className="h-3.5 w-3.5" />
+                  {prompt}
                 </button>
-              </div>
-
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {actionHistory.slice(0, 5).map((item: any) => (
-                  <div
-                    key={item.id}
-                    className="p-2.5 rounded-xl bg-background-elevated/70 border border-border-subtle flex items-center justify-between text-xs"
-                  >
-                    <div className="space-y-0.5">
-                      <div className="flex items-center gap-2 font-mono font-bold">
-                        <span>{item.actionType}</span>
-                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-400 font-sans">
-                          {item.status}
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-foreground-muted">
-                        {new Date(item.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} &bull; {item.source}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              ))}
             </div>
-          )}
+          </div>
+
+          {/* Chat Composer Bar */}
+          <div className="p-3 sm:p-4 bg-background-surface border-t border-border-subtle shrink-0">
+            <div className="relative flex items-center gap-2">
+              <button
+                onClick={() => setIsFoodScannerOpen(true)}
+                className="p-2.5 rounded-2xl bg-background-elevated hover:bg-brand-500/15 text-foreground-secondary hover:text-brand-400 border border-border-subtle transition-colors shrink-0"
+                title="Scan food photo"
+              >
+                <Camera className="h-4 w-4" />
+              </button>
+
+              <button
+                onClick={toggleVoiceRecording}
+                className={`p-2.5 rounded-2xl border transition-all shrink-0 ${
+                  isRecording
+                    ? "bg-rose-500 text-white border-rose-500 animate-pulse"
+                    : "bg-background-elevated hover:bg-background-surface text-foreground-secondary hover:text-foreground-primary border-border-subtle"
+                }`}
+                title={isRecording ? "Stop recording" : "Speak into mic"}
+              >
+                {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              </button>
+
+              <input
+                type="text"
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendChatMessage();
+                  }
+                }}
+                placeholder="Type or speak what you ate, drank, or exercised..."
+                className="flex-1 bg-background-elevated border border-border-subtle focus:border-brand-500/50 rounded-2xl px-4 py-3 text-xs text-foreground-primary focus:outline-none transition-colors"
+              />
+
+              <button
+                onClick={() => handleSendChatMessage()}
+                disabled={isChatLoading || !inputMessage.trim()}
+                className="px-4 py-3 rounded-2xl bg-brand-500 hover:bg-brand-400 text-neutral-950 font-extrabold text-xs transition-all disabled:opacity-50 shadow-brand-glow shrink-0 flex items-center gap-1.5"
+              >
+                {isChatLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                <span className="hidden sm:inline">Send</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -1095,6 +1204,14 @@ export function AICoachClient({ isAdmin: propIsAdmin }: AICoachClientProps = {})
           onMealLogged={() => {
             loadActionHistory();
           }}
+        />
+      )}
+
+      {isSnapshotDrawerOpen && (
+        <LiveHealthSnapshotDrawer
+          isOpen={isSnapshotDrawerOpen}
+          onToggleOpen={() => setIsSnapshotDrawerOpen(false)}
+          onCloseMobile={() => setIsSnapshotDrawerOpen(false)}
         />
       )}
     </div>

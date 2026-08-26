@@ -123,7 +123,38 @@ export class AIQueryClassifier {
       };
     }
 
-    // Log meal / food patterns
+    // Hydration logging patterns (e.g. "I drank 500ml water", "drank 1L water")
+    const hydrationMatch = lower.match(/\b(drank|drink|had|logged|consumed)\s+(\d+)\s*(ml|litres?|l)\s*(of\s*)?(water|pani)?\b/i) ||
+      lower.match(/\b(\d+)\s*(ml|litres?|l)\s*(of\s*)?(water|pani)\b/i);
+    if (hydrationMatch) {
+      let val = parseInt(hydrationMatch[2] || hydrationMatch[1], 10);
+      const unit = (hydrationMatch[3] || hydrationMatch[2] || "").toLowerCase();
+      if (unit.startsWith("l")) val = val * 1000;
+      return {
+        actionType: "LOG_HYDRATION",
+        targetValue: val,
+      };
+    }
+
+    // Running / Activity logging patterns (e.g. "I ran 5km in 28 mins", "walked 3 km")
+    const runMatch = lower.match(/\b(i\s+)?(ran|walked|jogged|cycled|swam|run|running)\s+(\d+(\.\d+)?)\s*(km|miles?|k)\b/i);
+    if (runMatch) {
+      return {
+        actionType: "LOG_ACTIVITY",
+        targetValue: parseFloat(runMatch[3]),
+      };
+    }
+
+    // Meal / Food logging statements (e.g. "I ate 4 rotis", "I had 2 boiled eggs and 1 slice toast")
+    const mealMatch = lower.match(/\b(i\s+)?(ate|had|consumed|eating|eaten)\s+(.+)\b/i);
+    if (mealMatch && !lower.includes("should i") && !lower.includes("can i") && !lower.includes("what if i ate")) {
+      return {
+        actionType: "LOG_MEAL",
+        foodName: mealMatch[3],
+      };
+    }
+
+    // Explicit command logging patterns
     if (
       (lower.startsWith("log ") ||
         lower.startsWith("add ") ||
@@ -139,12 +170,14 @@ export class AIQueryClassifier {
       };
     }
 
-    // Weight update patterns
-    const weightMatch = lower.match(/\b(update|set|change)\s+(my\s+)?weight\s+(to|=|\:)?\s*(\d+(\.\d+)?)\s*(kg|lbs)?\b/i);
+    // Weight update patterns (e.g. "update weight to 56kg", "my weight is 56 kg")
+    const weightMatch = lower.match(/\b(update|set|change|my)\s+(weight\s+is|weight)\s+(to|=|\:)?\s*(\d+(\.\d+)?)\s*(kg|lbs)?\b/i) ||
+      lower.match(/\b(weigh|weighed)\s+(\d+(\.\d+)?)\s*(kg|lbs)?\b/i);
     if (weightMatch) {
+      const val = parseFloat(weightMatch[4] || weightMatch[2]);
       return {
         actionType: "UPDATE_WEIGHT",
-        targetValue: parseFloat(weightMatch[4]),
+        targetValue: val,
       };
     }
 

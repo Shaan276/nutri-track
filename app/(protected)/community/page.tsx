@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth";
 import { CommunityService } from "@/lib/services/community.service";
 import { NotificationService } from "@/lib/services/notification.service";
 import { CommunityHubClient } from "@/components/community/CommunityHubClient";
+import { FeatureAccessGuard } from "@/components/auth/FeatureAccessGuard";
 
 export const dynamic = "force-dynamic";
 
@@ -26,12 +27,14 @@ export default async function CommunityPage() {
   const notifData = await NotificationService.getNotifications(session.user.id, { limit: 10 });
 
   return (
-    <CommunityHubClient
-      initialFriends={friends}
-      initialIncoming={requests.incoming}
-      initialOutgoing={requests.outgoing}
-      initialNotifications={notifData.notifications}
-      initialUnreadCount={notifData.unreadCount}
-    />
+    <FeatureAccessGuard featureKey="community" featureName="Community & Social Feed">
+      <CommunityHubClient
+        initialFriends={friends}
+        initialIncoming={requests.incoming}
+        initialOutgoing={requests.outgoing}
+        initialNotifications={notifData.notifications}
+        initialUnreadCount={notifData.unreadCount}
+      />
+    </FeatureAccessGuard>
   );
 }

@@ -45,7 +45,29 @@ export function Sidebar({ onOpenQuickLog, onCloseMobile }: SidebarProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [isFeatureModalOpen, setIsFeatureModalOpen] = useState(false);
+  const [featureMap, setFeatureMap] = useState<Record<string, { status: string; allowed: boolean }>>({});
   const isAdmin = (session?.user as any)?.role === "ADMIN";
+
+  React.useEffect(() => {
+    fetch("/api/features/status")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.features) {
+          setFeatureMap(data.features);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const getBadgeFor = (key: string, defaultBadge?: string) => {
+    if (isAdmin) return defaultBadge;
+    const feat = featureMap[key];
+    if (feat) {
+      if (feat.status === "COMING_SOON") return "Soon";
+      if (feat.status === "BETA") return "Beta";
+    }
+    return defaultBadge;
+  };
 
   const coreNavItems: NavItem[] = [
     {
@@ -128,7 +150,7 @@ export function Sidebar({ onOpenQuickLog, onCloseMobile }: SidebarProps) {
       name: "AI Coach",
       href: "/ai-coach",
       icon: Bot,
-      badge: isAdmin ? "Admin" : "Soon",
+      badge: getBadgeFor("ai_coach", isAdmin ? "Admin" : "Soon"),
       active: pathname.startsWith("/ai-coach"),
     },
   ];
@@ -138,6 +160,7 @@ export function Sidebar({ onOpenQuickLog, onCloseMobile }: SidebarProps) {
       name: "Community",
       href: "/community",
       icon: Users,
+      badge: getBadgeFor("community", undefined),
       active: pathname.startsWith("/community"),
     },
     {
