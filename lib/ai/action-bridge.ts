@@ -292,118 +292,156 @@ export class NutriTrackActionBridge {
         const runKm = data.weeklyRunningDistanceKm ?? data.weeklyRunningKm ?? data.runningTargetKm;
         const workouts = data.weeklyWorkoutSessions ?? data.workoutTargetSessions;
 
+        const op = (data.operation || "SET").toUpperCase();
+
         if (cal !== undefined) {
-          if (typeof cal !== "number" || cal < 500 || cal > 10000) errors.push(`Calories (${cal}) must be between 500 and 10,000 kcal.`);
-          const curCal = settings?.nutritionGoals?.calories;
+          let finalCal = cal;
+          const curCal = settings?.nutritionGoals?.calories || 2000;
+          if (op === "INCREASE") finalCal = curCal + cal;
+          else if (op === "DECREASE") finalCal = Math.max(500, curCal - cal);
+
+          if (typeof finalCal !== "number" || finalCal < 500 || finalCal > 10000) errors.push(`Calories (${finalCal}) must be between 500 and 10,000 kcal.`);
           diffs.push({
             key: "calories",
-            label: "Daily Calories Target",
+            label: `Daily Calories Target (${op === "SET" ? "Set" : op === "INCREASE" ? "+" + cal : "-" + cal})`,
             previousValue: curCal ? `${curCal} kcal` : "Not configured",
-            proposedValue: `${cal} kcal`,
+            proposedValue: `${finalCal} kcal`,
             unit: "kcal",
             isNewConfig: !curCal,
           });
         }
 
         if (pro !== undefined) {
-          if (typeof pro !== "number" || pro < 10 || pro > 500) errors.push(`Protein (${pro}g) must be between 10g and 500g.`);
-          const curPro = settings?.nutritionGoals?.protein;
+          let finalPro = pro;
+          const curPro = settings?.nutritionGoals?.protein || 100;
+          if (op === "INCREASE") finalPro = curPro + pro;
+          else if (op === "DECREASE") finalPro = Math.max(10, curPro - pro);
+
+          if (typeof finalPro !== "number" || finalPro < 10 || finalPro > 500) errors.push(`Protein (${finalPro}g) must be between 10g and 500g.`);
           diffs.push({
             key: "protein",
-            label: "Daily Protein Target",
+            label: `Daily Protein Target (${op === "SET" ? "Set" : op === "INCREASE" ? "+" + pro + "g" : "-" + pro + "g"})`,
             previousValue: curPro ? `${curPro} g` : "Not configured",
-            proposedValue: `${pro} g`,
+            proposedValue: `${finalPro} g`,
             unit: "g",
             isNewConfig: !curPro,
           });
         }
 
         if (carbs !== undefined) {
-          if (typeof carbs !== "number" || carbs < 10 || carbs > 1000) errors.push(`Carbohydrates (${carbs}g) must be between 10g and 1,000g.`);
-          const curCarbs = settings?.nutritionGoals?.carbohydrates;
+          let finalCarbs = carbs;
+          const curCarbs = settings?.nutritionGoals?.carbohydrates || 200;
+          if (op === "INCREASE") finalCarbs = curCarbs + carbs;
+          else if (op === "DECREASE") finalCarbs = Math.max(10, curCarbs - carbs);
+
+          if (typeof finalCarbs !== "number" || finalCarbs < 10 || finalCarbs > 1000) errors.push(`Carbohydrates (${finalCarbs}g) must be between 10g and 1,000g.`);
           diffs.push({
             key: "carbohydrates",
             label: "Daily Carbs Target",
             previousValue: curCarbs ? `${curCarbs} g` : "Not configured",
-            proposedValue: `${carbs} g`,
+            proposedValue: `${finalCarbs} g`,
             unit: "g",
             isNewConfig: !curCarbs,
           });
         }
 
         if (fat !== undefined) {
-          if (typeof fat !== "number" || fat < 5 || fat > 400) errors.push(`Fat (${fat}g) must be between 5g and 400g.`);
-          const curFat = settings?.nutritionGoals?.fat;
+          let finalFat = fat;
+          const curFat = settings?.nutritionGoals?.fat || 60;
+          if (op === "INCREASE") finalFat = curFat + fat;
+          else if (op === "DECREASE") finalFat = Math.max(5, curFat - fat);
+
+          if (typeof finalFat !== "number" || finalFat < 5 || finalFat > 400) errors.push(`Fat (${finalFat}g) must be between 5g and 400g.`);
           diffs.push({
             key: "fat",
             label: "Daily Fat Target",
             previousValue: curFat ? `${curFat} g` : "Not configured",
-            proposedValue: `${fat} g`,
+            proposedValue: `${finalFat} g`,
             unit: "g",
             isNewConfig: !curFat,
           });
         }
 
         if (fib !== undefined) {
-          if (typeof fib !== "number" || fib < 0 || fib > 150) errors.push(`Fiber (${fib}g) must be between 0g and 150g.`);
-          const curFib = settings?.nutritionGoals?.fiber;
+          let finalFib = fib;
+          const curFib = settings?.nutritionGoals?.fiber || 25;
+          if (op === "INCREASE") finalFib = curFib + fib;
+          else if (op === "DECREASE") finalFib = Math.max(0, curFib - fib);
+
+          if (typeof finalFib !== "number" || finalFib < 0 || finalFib > 150) errors.push(`Fiber (${finalFib}g) must be between 0g and 150g.`);
           diffs.push({
             key: "fiber",
             label: "Daily Fiber Target",
             previousValue: curFib ? `${curFib} g` : "Not configured",
-            proposedValue: `${fib} g`,
+            proposedValue: `${finalFib} g`,
             unit: "g",
             isNewConfig: !curFib,
           });
         }
 
         if (hyd !== undefined) {
-          if (typeof hyd !== "number" || hyd < 100 || hyd > 15000) errors.push(`Hydration (${hyd}ml) must be between 100ml and 15,000ml.`);
-          const curHyd = settings?.profile?.dailyHydrationTargetMl;
+          let finalHyd = hyd;
+          const curHyd = settings?.profile?.dailyHydrationTargetMl || 2500;
+          if (op === "INCREASE") finalHyd = curHyd + hyd;
+          else if (op === "DECREASE") finalHyd = Math.max(100, curHyd - hyd);
+
+          if (typeof finalHyd !== "number" || finalHyd < 100 || finalHyd > 15000) errors.push(`Hydration (${finalHyd}ml) must be between 100ml and 15,000ml.`);
           diffs.push({
             key: "hydration",
-            label: "Daily Water Target",
+            label: `Daily Water Target (${op === "SET" ? "Set" : op === "INCREASE" ? "+" + hyd + "ml" : "-" + hyd + "ml"})`,
             previousValue: curHyd ? `${curHyd} ml` : "Not configured",
-            proposedValue: `${hyd} ml`,
+            proposedValue: `${finalHyd} ml`,
             unit: "ml",
             isNewConfig: !curHyd,
           });
         }
 
         if (steps !== undefined) {
-          if (typeof steps !== "number" || steps < 500 || steps > 100000) errors.push(`Step Target (${steps}) must be between 500 and 100,000 steps.`);
-          const curSteps = settings?.profile?.dailyStepTarget;
+          let finalSteps = steps;
+          const curSteps = settings?.profile?.dailyStepTarget || 8000;
+          if (op === "INCREASE") finalSteps = curSteps + steps;
+          else if (op === "DECREASE") finalSteps = Math.max(500, curSteps - steps);
+
+          if (typeof finalSteps !== "number" || finalSteps < 500 || finalSteps > 100000) errors.push(`Step Target (${finalSteps}) must be between 500 and 100,000 steps.`);
           diffs.push({
             key: "dailyStepTarget",
             label: "Daily Step Target",
             previousValue: curSteps ? `${curSteps.toLocaleString()} steps` : "Not configured",
-            proposedValue: `${steps.toLocaleString()} steps`,
+            proposedValue: `${finalSteps.toLocaleString()} steps`,
             unit: "steps",
             isNewConfig: !curSteps,
           });
         }
 
         if (runKm !== undefined) {
-          if (typeof runKm !== "number" || runKm < 0 || runKm > 300) errors.push(`Weekly Running (${runKm}km) must be between 0 and 300km.`);
-          const curRun = settings?.profile?.weeklyRunningDistanceKm;
+          let finalRun = runKm;
+          const curRun = settings?.profile?.weeklyRunningDistanceKm || 10;
+          if (op === "INCREASE") finalRun = curRun + runKm;
+          else if (op === "DECREASE") finalRun = Math.max(0, curRun - runKm);
+
+          if (typeof finalRun !== "number" || finalRun < 0 || finalRun > 300) errors.push(`Weekly Running (${finalRun}km) must be between 0 and 300km.`);
           diffs.push({
             key: "weeklyRunningDistanceKm",
             label: "Weekly Running Target",
             previousValue: curRun ? `${curRun} km` : "Not configured",
-            proposedValue: `${runKm} km`,
+            proposedValue: `${finalRun} km`,
             unit: "km",
             isNewConfig: !curRun,
           });
         }
 
         if (workouts !== undefined) {
-          if (typeof workouts !== "number" || workouts < 0 || workouts > 14) errors.push(`Weekly Workouts (${workouts}) must be between 0 and 14 sessions.`);
-          const curWorkouts = settings?.profile?.weeklyWorkoutSessions;
+          let finalWorkouts = workouts;
+          const curWorkouts = settings?.profile?.weeklyWorkoutSessions || 3;
+          if (op === "INCREASE") finalWorkouts = curWorkouts + workouts;
+          else if (op === "DECREASE") finalWorkouts = Math.max(0, curWorkouts - workouts);
+
+          if (typeof finalWorkouts !== "number" || finalWorkouts < 0 || finalWorkouts > 14) errors.push(`Weekly Workouts (${finalWorkouts}) must be between 0 and 14 sessions.`);
           diffs.push({
             key: "weeklyWorkoutSessions",
             label: "Weekly Workout Target",
             previousValue: curWorkouts ? `${curWorkouts} sessions` : "Not configured",
-            proposedValue: `${workouts} sessions`,
+            proposedValue: `${finalWorkouts} sessions`,
             unit: "sessions",
             isNewConfig: !curWorkouts,
           });
@@ -692,15 +730,44 @@ export class NutriTrackActionBridge {
       switch (actionType) {
         case "UPDATE_GOALS":
         case "UPDATE_TARGETS": {
-          const cal = data.caloriesKcal ?? data.calories ?? data.dailyCalories;
-          const pro = data.proteinG ?? data.protein ?? data.dailyProteinG;
-          const carbs = data.carbsG ?? data.carbohydratesG ?? data.carbs ?? data.carbohydrates;
-          const fat = data.fatG ?? data.fatsG ?? data.fat ?? data.fats;
-          const fib = data.fiberG ?? data.fiber;
-          const hyd = data.hydrationMl ?? data.dailyHydrationTargetMl ?? data.hydrationTargetMl;
-          const steps = data.dailyStepTarget ?? data.stepTarget ?? data.dailySteps;
-          const runKm = data.weeklyRunningDistanceKm ?? data.weeklyRunningKm ?? data.runningTargetKm;
-          const workouts = data.weeklyWorkoutSessions ?? data.workoutTargetSessions;
+          const op = (data.operation || "SET").toUpperCase();
+          const currentSettings = await UserSettingsService.getUserSettings(userId).catch(() => null);
+
+          let cal = data.caloriesKcal ?? data.calories ?? data.dailyCalories;
+          if (cal !== undefined && op === "INCREASE") cal = (currentSettings?.nutritionGoals?.calories || 2000) + Number(cal);
+          else if (cal !== undefined && op === "DECREASE") cal = Math.max(500, (currentSettings?.nutritionGoals?.calories || 2000) - Number(cal));
+
+          let pro = data.proteinG ?? data.protein ?? data.dailyProteinG;
+          if (pro !== undefined && op === "INCREASE") pro = (currentSettings?.nutritionGoals?.protein || 100) + Number(pro);
+          else if (pro !== undefined && op === "DECREASE") pro = Math.max(10, (currentSettings?.nutritionGoals?.protein || 100) - Number(pro));
+
+          let carbs = data.carbsG ?? data.carbohydratesG ?? data.carbs ?? data.carbohydrates;
+          if (carbs !== undefined && op === "INCREASE") carbs = (currentSettings?.nutritionGoals?.carbohydrates || 200) + Number(carbs);
+          else if (carbs !== undefined && op === "DECREASE") carbs = Math.max(10, (currentSettings?.nutritionGoals?.carbohydrates || 200) - Number(carbs));
+
+          let fat = data.fatG ?? data.fatsG ?? data.fat ?? data.fats;
+          if (fat !== undefined && op === "INCREASE") fat = (currentSettings?.nutritionGoals?.fat || 60) + Number(fat);
+          else if (fat !== undefined && op === "DECREASE") fat = Math.max(5, (currentSettings?.nutritionGoals?.fat || 60) - Number(fat));
+
+          let fib = data.fiberG ?? data.fiber;
+          if (fib !== undefined && op === "INCREASE") fib = (currentSettings?.nutritionGoals?.fiber || 25) + Number(fib);
+          else if (fib !== undefined && op === "DECREASE") fib = Math.max(0, (currentSettings?.nutritionGoals?.fiber || 25) - Number(fib));
+
+          let hyd = data.hydrationMl ?? data.dailyHydrationTargetMl ?? data.hydrationTargetMl;
+          if (hyd !== undefined && op === "INCREASE") hyd = (currentSettings?.profile?.dailyHydrationTargetMl || 2500) + Number(hyd);
+          else if (hyd !== undefined && op === "DECREASE") hyd = Math.max(100, (currentSettings?.profile?.dailyHydrationTargetMl || 2500) - Number(hyd));
+
+          let steps = data.dailyStepTarget ?? data.stepTarget ?? data.dailySteps;
+          if (steps !== undefined && op === "INCREASE") steps = (currentSettings?.profile?.dailyStepTarget || 8000) + Number(steps);
+          else if (steps !== undefined && op === "DECREASE") steps = Math.max(500, (currentSettings?.profile?.dailyStepTarget || 8000) - Number(steps));
+
+          let runKm = data.weeklyRunningDistanceKm ?? data.weeklyRunningKm ?? data.runningTargetKm;
+          if (runKm !== undefined && op === "INCREASE") runKm = (currentSettings?.profile?.weeklyRunningDistanceKm || 10) + Number(runKm);
+          else if (runKm !== undefined && op === "DECREASE") runKm = Math.max(0, (currentSettings?.profile?.weeklyRunningDistanceKm || 10) - Number(runKm));
+
+          let workouts = data.weeklyWorkoutSessions ?? data.workoutTargetSessions;
+          if (workouts !== undefined && op === "INCREASE") workouts = (currentSettings?.profile?.weeklyWorkoutSessions || 3) + Number(workouts);
+          else if (workouts !== undefined && op === "DECREASE") workouts = Math.max(0, (currentSettings?.profile?.weeklyWorkoutSessions || 3) - Number(workouts));
 
           await UserSettingsService.updateUserSettings(userId, {
             profile: {

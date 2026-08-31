@@ -101,18 +101,21 @@ export class AIQueryClassifier {
   }
 
   private static detectActionCommand(lower: string): Record<string, any> | null {
-    // Target change patterns
-    const targetChangeRegex =
-      /\b(change|set|update|modify|increase|decrease|switch)\s+(my\s+)?(daily\s+)?(protein|calorie|calories|carb|carbs|fat|fats|water|hydration|step|steps|running|workout)\s+(target|goal|limit)?\s*(to|=|\:)?\s*(\d+)\s*(g|kcal|cal|ml|l|steps|km)?\b/i;
-    const matchTarget = lower.match(targetChangeRegex);
-    if (matchTarget) {
-      const metric = matchTarget[4].toLowerCase();
-      const val = parseInt(matchTarget[7], 10);
+    // Relative target increase / decrease / reduce patterns (e.g. "Increase my daily water target by 500 ml", "Reduce my protein target by 20g", "Decrease my daily calorie target by 100 kcal")
+    const relativeTargetMatch = lower.match(/\b(increase|decrease|reduce|raise|lower|boost|cut)\s+(my\s+)?(daily\s+)?(protein|calorie|calories|carbohydrate|carbohydrates|carb|carbs|fat|fats|fiber|fibers|water|hydration|step|steps|running|workout)\s+(target|goal|limit)?\s+(by\s+)?(\d[\d,]*)\s*(g|kcal|cal|ml|l|steps|km)?\b/i);
+    if (relativeTargetMatch) {
+      const isInc = ["increase", "raise", "boost"].includes(relativeTargetMatch[1].toLowerCase());
+      const metric = relativeTargetMatch[4].toLowerCase();
+      let val = parseInt(relativeTargetMatch[7].replace(/,/g, ""), 10);
+      const unit = (relativeTargetMatch[8] || "").toLowerCase();
+      if (unit.startsWith("l") && !unit.startsWith("lbs")) val = val * 1000;
+
       let targetKey = "calories";
       if (metric.includes("protein")) targetKey = "protein";
       else if (metric.includes("water") || metric.includes("hydration")) targetKey = "water";
       else if (metric.includes("carb")) targetKey = "carbs";
       else if (metric.includes("fat")) targetKey = "fat";
+      else if (metric.includes("fiber")) targetKey = "fiber";
       else if (metric.includes("step")) targetKey = "steps";
       else if (metric.includes("run")) targetKey = "running";
       else if (metric.includes("workout")) targetKey = "workouts";
@@ -120,6 +123,35 @@ export class AIQueryClassifier {
       return {
         actionType: "UPDATE_TARGET",
         targetKey,
+        operation: isInc ? "INCREASE" : "DECREASE",
+        targetValue: val,
+      };
+    }
+
+    // Absolute Target change patterns (e.g. "Set my protein target to 140 g per day", "Change my carbohydrate target to 280 g per day", "Change my fiber target to 30 g per day")
+    const targetChangeRegex =
+      /\b(change|set|update|modify|switch)\s+(my\s+)?(daily\s+|weekly\s+)?(protein|calorie|calories|carbohydrate|carbohydrates|carb|carbs|fat|fats|fiber|fibers|water|hydration|step|steps|running|workout)\s+(target|goal|limit)?\s*(from\s+\d+\s*(?:sessions?|g|kcal|km|steps)?\s+to|to|=|\:)?\s*(\d[\d,]*)\s*(g|kcal|cal|ml|l|steps|km|sessions?)?\b/i;
+    const matchTarget = lower.match(targetChangeRegex);
+    if (matchTarget) {
+      const metric = matchTarget[4].toLowerCase();
+      let val = parseInt(matchTarget[7].replace(/,/g, ""), 10);
+      const unit = (matchTarget[8] || "").toLowerCase();
+      if (unit.startsWith("l") && !unit.startsWith("lbs")) val = val * 1000;
+
+      let targetKey = "calories";
+      if (metric.includes("protein")) targetKey = "protein";
+      else if (metric.includes("water") || metric.includes("hydration")) targetKey = "water";
+      else if (metric.includes("carb")) targetKey = "carbs";
+      else if (metric.includes("fat")) targetKey = "fat";
+      else if (metric.includes("fiber")) targetKey = "fiber";
+      else if (metric.includes("step")) targetKey = "steps";
+      else if (metric.includes("run")) targetKey = "running";
+      else if (metric.includes("workout")) targetKey = "workouts";
+
+      return {
+        actionType: "UPDATE_TARGET",
+        targetKey,
+        operation: "SET",
         targetValue: val,
       };
     }
@@ -193,12 +225,15 @@ export class AIQueryClassifier {
     }
 
     // Meal / Food logging statements (e.g. "I ate 4 rotis", "I had 2 boiled eggs and 1 slice toast")
-    const mealMatch = lower.match(/\b(i\s+)?(ate|had|consumed|eating|eaten)\s+(.+)\b/i);
-    if (mealMatch && !lower.includes("should i") && !lower.includes("can i") && !lower.includes("what if i ate")) {
-      return {
-        actionType: "LOG_MEAL",
-        foodName: mealMatch[3],
-      };
+    const isQuestionSentence = /^(why|how|what|is|does|can|am i|are|should|will|do)\b/i.test(lower) || lower.includes("?") || lower.includes("even when") || lower.includes("better to") || lower.includes("why might");
+    if (!isQuestionSentence) {
+      const mealMatch = lower.match(/\b(i\s+)?(ate|had|consumed|eaten)\s+(.+)\b/i);
+      if (mealMatch && !lower.includes("should i") && !lower.includes("can i") && !lower.includes("what if i ate")) {
+        return {
+          actionType: "LOG_MEAL",
+          foodName: mealMatch[3],
+        };
+      }
     }
 
     // Explicit command logging patterns
@@ -218,13 +253,41 @@ export class AIQueryClassifier {
     }
 
     // Weight update patterns (e.g. "update weight to 56kg", "my weight is 56 kg")
-    const weightMatch = lower.match(/\b(update|set|change|my)\s+(weight\s+is|weight)\s+(to|=|\:)?\s*(\d+(\.\d+)?)\s*(kg|lbs)?\b/i) ||
+    const weightMatch = lower.match(/\b(update|set|change|my)\s+(current\s+)?(weight\s+is|weight)\s+(to|=|\:)?\s*(\d+(\.\d+)?)\s*(kg|lbs)?\b/i) ||
       lower.match(/\b(weigh|weighed)\s+(\d+(\.\d+)?)\s*(kg|lbs)?\b/i);
     if (weightMatch) {
-      const val = parseFloat(weightMatch[4] || weightMatch[2]);
+      const val = parseFloat(weightMatch[5] || weightMatch[2]);
       return {
         actionType: "UPDATE_WEIGHT",
         targetValue: val,
+      };
+    }
+
+    // Height update patterns (e.g. "My height is 175 cm, not 164 cm. Update it.", "I'm 175 cm tall")
+    const heightMatch = lower.match(/\b(?:height\s+(?:is|to|=|\:)\s*|i'?m\s+)(\d+(\.\d+)?)\s*(?:cm|cms|meters?|m|feet|ft|inches|in)?/i) ||
+      lower.match(/\bheight\s+(\d+(\.\d+)?)\s*(?:cm|cms)?/i);
+    if (heightMatch && (lower.includes("height") || lower.includes("tall") || lower.includes("cm"))) {
+      const val = parseFloat(heightMatch[1]);
+      return {
+        actionType: "UPDATE_PROFILE",
+        targetKey: "heightCm",
+        targetValue: val,
+      };
+    }
+
+    // Primary Goal update patterns (e.g. "Change my primary goal from maintaining my weight to muscle gain", "my goal is muscle gain")
+    const goalMatch = lower.match(/\b(?:primary\s+)?goal\s+(?:from\s+[a-z\s]+\s+to|is|to|=|\:)\s*(muscle\s+gain|hypertrophy|weight\s+loss|fat\s+loss|maintenance|maintain|endurance|running|general\s+fitness)\b/i);
+    if (goalMatch) {
+      const rawGoal = goalMatch[1].toLowerCase();
+      let goalCode = "MAINTENANCE";
+      if (rawGoal.includes("muscle") || rawGoal.includes("hypertrophy")) goalCode = "MUSCLE_GAIN";
+      else if (rawGoal.includes("loss") || rawGoal.includes("fat")) goalCode = "WEIGHT_LOSS";
+      else if (rawGoal.includes("endurance") || rawGoal.includes("running")) goalCode = "ENDURANCE";
+
+      return {
+        actionType: "UPDATE_PROFILE",
+        targetKey: "primaryGoal",
+        targetValue: goalCode,
       };
     }
 
