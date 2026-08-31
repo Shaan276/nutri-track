@@ -468,19 +468,39 @@ export function AICoachClient({ isAdmin: propIsAdmin }: AICoachClientProps = {})
     setIsChatLoading(true);
 
     try {
-      // 1. First run quick parser for structured nutrition deconstruction if logging
+      // 1. Run quick parser ONLY for structured nutrition deconstruction when logging intent is present
+      const lower = textToSend.toLowerCase().trim();
+      const isGreetingOrQuestion =
+        /^(hello|hi|hey|good\s+(morning|afternoon|evening)|how\s+are\s+you|what|why|how|does|is|can)\b/i.test(lower) &&
+        !lower.includes("log ") &&
+        !lower.includes("add ") &&
+        !lower.includes("ate ") &&
+        !lower.includes("had ") &&
+        !lower.includes("drank ");
+
       let parsedLogData: any = null;
-      try {
-        const parseRes = await fetch("/api/ai/quick-log/parse", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ input: textToSend }),
-        });
-        const parseJson = await parseRes.json();
-        if (parseJson.success && parseJson.data) {
-          parsedLogData = parseJson.data;
-        }
-      } catch {}
+      if (!isGreetingOrQuestion) {
+        try {
+          const parseRes = await fetch("/api/ai/quick-log/parse", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ input: textToSend }),
+          });
+          const parseJson = await parseRes.json();
+          if (parseJson.success && parseJson.data) {
+            const d = parseJson.data;
+            const hasRealLog =
+              d.meal?.detected ||
+              d.hydration?.detected ||
+              d.weight?.detected ||
+              d.activity?.detected ||
+              d.workout?.detected;
+            if (hasRealLog) {
+              parsedLogData = d;
+            }
+          }
+        } catch {}
+      }
 
       // 2. Send to AI Chat endpoint
       const chatRes = await fetch("/api/ai/chat", {
@@ -505,7 +525,7 @@ export function AICoachClient({ isAdmin: propIsAdmin }: AICoachClientProps = {})
       const assistantReply =
         chatData.assistantMessage?.content ||
         chatData.reply ||
-        "I have parsed your health details!";
+        "I have processed your message! ✨";
 
       const assistantMessageId = `asst_${Date.now()}`;
       const asstMsg: ChatMessage = {

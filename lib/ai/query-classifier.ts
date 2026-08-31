@@ -11,7 +11,7 @@ export interface QueryClassificationResult {
   confidence: number;
   extractedEntities: {
     targetKey?: string;
-    targetValue?: number;
+    targetValue?: number | string;
     actionType?: string;
     operation?: string;
     foodName?: string;

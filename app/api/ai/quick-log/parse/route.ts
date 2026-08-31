@@ -203,27 +203,59 @@ function heuristicParse(text: string) {
     result.logType = "ACTIVITY";
   }
 
-  // Default meal detection if not exclusively activity or weight
-  if (!result.activity.detected && !result.weight.detected) {
+  // Food / Meal check: ONLY detect a meal if there are genuine food indicators or explicit eating action verbs
+  const foodKeywordsRegex = /\b(roti|rotis|rice|paneer|chicken|dal|curd|dahi|egg|eggs|toast|bread|apple|banana|oats|oatmeal|chilla|cheela|salad|pasta|fish|meat|milk|whey|shake|snack|breakfast|lunch|dinner|meal|pizza|burger|sandwich|chana|sattu|bhurji|sabzi|paratha|soya|tofu|nuts|almonds|fruit|soup|biryani|poha|idli|dosa|upma|khichdi|protein\s+bar|yogurt|curry)\b/i;
+  const foodLogActionRegex = /\b(i\s+)?(ate|had|consumed|eaten|log meal|logged meal|log breakfast|log lunch|log dinner|log snack)\b/i;
+  const isQuestionOrGreeting = /^(hello|hi|hey|good\s+(morning|afternoon|evening)|how\s+are\s+you|what|why|how|does|is|can)\b/i.test(lower);
+
+  if (!isQuestionOrGreeting && (foodKeywordsRegex.test(lower) || foodLogActionRegex.test(lower))) {
+    // Estimate reasonable macros based on food keywords or defaults
+    let calories = 350;
+    let protein = 15;
+    let carbs = 45;
+    let fat = 10;
+    let fiber = 4;
+
+    if (lower.includes("roti") && lower.includes("paneer")) {
+      calories = 620;
+      protein = 28;
+      carbs = 72;
+      fat = 24;
+      fiber = 8;
+    } else if (lower.includes("egg")) {
+      calories = 280;
+      protein = 18;
+      carbs = 20;
+      fat = 12;
+      fiber = 3;
+    } else if (lower.includes("chicken")) {
+      calories = 450;
+      protein = 42;
+      carbs = 35;
+      fat = 14;
+      fiber = 5;
+    }
+
     result.meal = {
       detected: true,
       name: text,
-      mealType: "SNACK",
+      mealType: lower.includes("breakfast") ? "BREAKFAST" : lower.includes("lunch") ? "LUNCH" : lower.includes("dinner") ? "DINNER" : "SNACK",
       items: [
         {
           name: text,
           quantity: 1,
           unit: "serving",
-          calories: 350,
-          protein: 15,
-          carbohydrates: 45,
-          fat: 10,
-          fiber: 4,
+          calories,
+          protein,
+          carbohydrates: carbs,
+          fat,
+          fiber,
         },
       ],
-      totals: { calories: 350, protein: 15, carbohydrates: 45, fat: 10, fiber: 4 },
+      totals: { calories, protein, carbohydrates: carbs, fat, fiber },
       micronutrients: { iron: 2.1, calcium: 80, potassium: 250, magnesium: 45, zinc: 1.2, vitaminC: 10, vitaminA: 50, vitaminB12: 0.2 },
     };
+    result.logType = "MEAL";
   }
 
   return result;

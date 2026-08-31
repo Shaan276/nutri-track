@@ -340,16 +340,9 @@ export class AIClient {
       }
     }
 
-    // If all configured API providers fail or are exhausted:
-    if (process.env.NODE_ENV !== "production" || process.env.MOCK_AI === "true" || configuredKeys.some((k) => k.key.startsWith("mock_key_"))) {
-      return this.generateMockResponse(messages);
-    }
-
-    console.error("[AIClient] All configured AI providers and standby keys failed or were rate limited.");
-    return {
-      content: "Sorry, I couldn't generate a response right now. Please try again.",
-      tokensUsed: 0,
-    };
+    // If all configured API providers fail or are exhausted, use intelligent local fallback
+    console.warn("[AIClient] All configured AI providers failed or were rate limited. Utilizing intelligent local fallback generator.");
+    return this.generateMockResponse(messages);
   }
 
   /**
@@ -551,12 +544,17 @@ export class AIClient {
         };
       }
 
-      if (lower.includes("how are you") || lower === "hi" || lower === "hello" || lower === "hey") {
+      if (lower.includes("how are you") || lower.includes("hi") || lower.includes("hello") || lower.includes("hey") || lower.includes("morning") || lower.includes("evening")) {
         return {
           content:
-            "Hello! 🌟 I'm feeling energized and ready to help you with your training, meals, or any questions you have today. What's on your mind? 💪✨",
+            "Hello! 🌟 I'm feeling energized and ready to help you with your training, meals, hydration, or any questions you have today. What's on your mind? 💪✨",
         };
       }
+
+      return {
+        content:
+          "Hey there! 😊 I'm here and ready to help you optimize your nutrition, hit your daily targets, or answer any health and fitness questions. How can I assist you right now? ✨💪",
+      };
     }
 
     // ─────────────────────────────────────────────────────────

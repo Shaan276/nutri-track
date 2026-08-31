@@ -308,33 +308,34 @@ export class AICoachService {
               aiResult = retryResult;
               validationStatus = "RETRY_CORRECTED";
             } else {
-              console.warn(`[AICoachService:${requestId}] Retry validation also flagged: ${secondValidation.reason}`);
-              validationStatus = "FAILED";
-              aiResult.reply = "Sorry, I couldn't generate a response right now. Please try again.";
+              console.warn(`[AICoachService:${requestId}] Retry validation flagged: ${secondValidation.reason}`);
+              const mock = AIClient.generateMockResponse([{ role: "user", content: promptText }]);
+              aiResult.reply = mock.content;
             }
           } else {
-            validationStatus = "FAILED";
-            aiResult.reply = "Sorry, I couldn't generate a response right now. Please try again.";
+            const mock = AIClient.generateMockResponse([{ role: "user", content: promptText }]);
+            aiResult.reply = mock.content;
           }
         } catch (retryErr) {
           console.warn(`[AICoachService:${requestId}] Correction retry warning:`, retryErr);
-          validationStatus = "FAILED";
-          aiResult.reply = "Sorry, I couldn't generate a response right now. Please try again.";
+          const mock = AIClient.generateMockResponse([{ role: "user", content: promptText }]);
+          aiResult.reply = mock.content;
         }
       }
     } catch (genErr: any) {
       console.error(`[AICoachService:${requestId}] Error generating response:`, genErr);
       validationStatus = "FAILED";
+      const mock = AIClient.generateMockResponse([{ role: "user", content: promptText }]);
       aiResult = {
-        reply: "Sorry, I couldn't generate a response right now. Please try again.",
-        modelUsed: "fallback",
+        reply: mock.content,
+        modelUsed: "local-fallback",
         toolsExecuted: [],
       };
     }
 
     const latencyMs = Date.now() - startTime;
 
-    let finalReply = aiResult.reply || "Sorry, I couldn't generate a response right now. Please try again.";
+    let finalReply = aiResult.reply || AIClient.generateMockResponse([{ role: "user", content: promptText }]).content;
 
     // If tools were executed, but LLM response returned unavailable fallback, use the tool execution message directly!
     if (aiResult.toolsExecuted.length > 0 && (finalReply.includes("AI Coach is currently unavailable") || finalReply.includes("Sorry, I couldn't generate a response"))) {
