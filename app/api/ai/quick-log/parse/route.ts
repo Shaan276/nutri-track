@@ -69,6 +69,7 @@ Return ONLY a valid JSON object matching this exact schema (no markdown wrap):
   },
   "hydration": {
     "detected": boolean,
+    "operation": "ADD" | "SUBTRACT" | "SET",
     "amountMl": number,
     "beverageType": "WATER" | "TEA" | "COFFEE" | "JUICE" | "ELECTROLYTE" | "OTHER"
   },
@@ -160,12 +161,22 @@ function heuristicParse(text: string) {
     targets: { detected: false },
   };
 
-  // Water check
-  const waterMatch = lower.match(/(\d+)\s*(ml|litres?|l)\s*(?:of\s*)?(?:water|pani)?/i);
+  // Water check with semantic operation detection (ADD, SUBTRACT, SET)
+  const waterMatch = lower.match(/(\d+)\s*(ml|litres?|l)\s*(?:of\s*)?(?:water|pani)?/i) ||
+    lower.match(/\b(?:water|hydration)\s+(?:to|=|\:)?\s*(\d+)\s*(ml|litres?|l)?/i);
   if (waterMatch) {
     let ml = parseInt(waterMatch[1], 10);
-    if (waterMatch[2].startsWith("l")) ml = ml * 1000;
-    result.hydration = { detected: true, amountMl: ml, beverageType: "WATER" };
+    const unit = (waterMatch[2] || "").toLowerCase();
+    if (unit.startsWith("l")) ml = ml * 1000;
+
+    let op: "ADD" | "SUBTRACT" | "SET" = "ADD";
+    if (/\b(remove|subtract|decrease|minus|deduct|cut)\b/i.test(lower)) {
+      op = "SUBTRACT";
+    } else if (/\b(set|replace|change|correct|actually)\b/i.test(lower)) {
+      op = "SET";
+    }
+
+    result.hydration = { detected: true, operation: op, amountMl: ml, beverageType: "WATER" };
     result.logType = "HYDRATION";
   }
 

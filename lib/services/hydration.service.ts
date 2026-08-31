@@ -43,10 +43,14 @@ export class HydrationService {
    * Retrieves the user's custom daily hydration goal (default: 2,500 ml)
    */
   static async getUserHydrationTarget(userId: string): Promise<number> {
-    const profile = await prisma.userProfile.findUnique({
-      where: { userId },
-    });
-    return profile?.dailyHydrationTargetMl || 2500;
+    try {
+      const profile = await prisma.userProfile.findUnique({
+        where: { userId },
+      });
+      return profile?.dailyHydrationTargetMl || 2500;
+    } catch {
+      return 2500;
+    }
   }
 
   /**
@@ -111,41 +115,54 @@ export class HydrationService {
    * Consolidated daily hydration metrics, target progress, streak, and timeline logs
    */
   static async getDailyHydration(userId: string, date: string): Promise<DailyHydrationSummary> {
-    const targetMl = await this.getUserHydrationTarget(userId);
+    try {
+      const targetMl = await this.getUserHydrationTarget(userId);
 
-    const logs = await prisma.hydrationLog.findMany({
-      where: {
-        userId,
+      const logs = await prisma.hydrationLog.findMany({
+        where: {
+          userId,
+          date,
+        },
+      });
+
+      const totalMl = logs.reduce((sum: number, log: any) => sum + Number(log.amountMl), 0);
+      const percentage = targetMl > 0 ? Math.round((totalMl * 100) / targetMl) : 0;
+      const remainingMl = Math.max(0, targetMl - totalMl);
+      const isGoalReached = totalMl >= targetMl;
+      const streakDays = await this.calculateStreak(userId, targetMl, date);
+
+      const entries: HydrationEntryDto[] = logs.map((log: any) => ({
+        id: log.id,
+        amountMl: Number(log.amountMl),
+        beverageType: log.beverageType as BeverageType,
+        date: log.date,
+        consumedAt: log.consumedAt.toISOString(),
+        notes: log.notes || null,
+        createdAt: log.createdAt.toISOString(),
+      }));
+
+      return {
         date,
-      },
-    });
-
-    const totalMl = logs.reduce((sum: number, log: any) => sum + Number(log.amountMl), 0);
-    const percentage = targetMl > 0 ? Math.round((totalMl * 100) / targetMl) : 0;
-    const remainingMl = Math.max(0, targetMl - totalMl);
-    const isGoalReached = totalMl >= targetMl;
-    const streakDays = await this.calculateStreak(userId, targetMl, date);
-
-    const entries: HydrationEntryDto[] = logs.map((log: any) => ({
-      id: log.id,
-      amountMl: Number(log.amountMl),
-      beverageType: log.beverageType as BeverageType,
-      date: log.date,
-      consumedAt: log.consumedAt.toISOString(),
-      notes: log.notes || null,
-      createdAt: log.createdAt.toISOString(),
-    }));
-
-    return {
-      date,
-      totalMl,
-      targetMl,
-      percentage,
-      remainingMl,
-      isGoalReached,
-      streakDays,
-      entries,
-    };
+        totalMl,
+        targetMl,
+        percentage,
+        remainingMl,
+        isGoalReached,
+        streakDays,
+        entries,
+      };
+    } catch {
+      return {
+        date,
+        totalMl: 0,
+        targetMl: 2500,
+        percentage: 0,
+        remainingMl: 2500,
+        isGoalReached: false,
+        streakDays: 0,
+        entries: [],
+      };
+    }
   }
 
   /**
@@ -257,5 +274,85 @@ export class HydrationService {
     return prisma.hydrationLog.delete({
       where: { id: logId },
     });
+  }
+
+  /**
+   * Semantically adjusts daily hydration (ADD, SUBTRACT, REMOVE, SET, REPLACE, INCREASE, DECREASE, CORRECT)
+   * Accurately subtracts or sets absolute values instead of blindly adding positive logs.
+   */
+  static async adjustDailyHydration(
+    userId: string,
+    operation: "ADD" | "SUBTRACT" | "REMOVE" | "SET" | "REPLACE" | "INCREASE" | "DECREASE" | "CORRECT" | string,
+    amountMl: number,
+    date?: string,
+    beverageType: BeverageType = "WATER"
+  ): Promise<{ previousTotalMl: number; newTotalMl: number; changeMl: number }> {
+    const targetDate = date || new Date().toISOString().split("T")[0];
+    const logs = await prisma.hydrationLog.findMany({
+      where: { userId, date: targetDate },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const previousTotalMl = logs.reduce((sum, l) => sum + Number(l.amountMl), 0);
+    const op = (operation || "ADD").toUpperCase();
+
+    if (op === "ADD" || op === "INCREASE") {
+      await this.logHydration(userId, { amountMl, beverageType, date: targetDate });
+      return {
+        previousTotalMl,
+        newTotalMl: previousTotalMl + amountMl,
+        changeMl: amountMl,
+      };
+    }
+
+    if (op === "SUBTRACT" || op === "REMOVE" || op === "DECREASE") {
+      let remainingToRemove = Math.max(0, amountMl);
+      let actualRemoved = 0;
+
+      for (const log of logs) {
+        if (remainingToRemove <= 0) break;
+        const currentLogAmount = Number(log.amountMl);
+
+        if (currentLogAmount <= remainingToRemove) {
+          await prisma.hydrationLog.delete({ where: { id: log.id } });
+          remainingToRemove -= currentLogAmount;
+          actualRemoved += currentLogAmount;
+        } else {
+          const newAmount = currentLogAmount - remainingToRemove;
+          await prisma.hydrationLog.update({
+            where: { id: log.id },
+            data: { amountMl: newAmount },
+          });
+          actualRemoved += remainingToRemove;
+          remainingToRemove = 0;
+        }
+      }
+
+      const newTotalMl = Math.max(0, previousTotalMl - actualRemoved);
+      return {
+        previousTotalMl,
+        newTotalMl,
+        changeMl: -actualRemoved,
+      };
+    }
+
+    if (op === "SET" || op === "REPLACE" || op === "CORRECT") {
+      const targetAmount = Math.max(0, amountMl);
+      if (logs.length > 0) {
+        await prisma.hydrationLog.deleteMany({
+          where: { userId, date: targetDate },
+        });
+      }
+      if (targetAmount > 0) {
+        await this.logHydration(userId, { amountMl: targetAmount, beverageType, date: targetDate });
+      }
+      return {
+        previousTotalMl,
+        newTotalMl: targetAmount,
+        changeMl: targetAmount - previousTotalMl,
+      };
+    }
+
+    throw new Error(`Unsupported hydration adjustment operation: ${operation}`);
   }
 }

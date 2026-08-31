@@ -13,6 +13,7 @@ export interface QueryClassificationResult {
     targetKey?: string;
     targetValue?: number;
     actionType?: string;
+    operation?: string;
     foodName?: string;
     exerciseType?: string;
     timeframe?: string;
@@ -123,8 +124,38 @@ export class AIQueryClassifier {
       };
     }
 
-    // Hydration logging patterns (e.g. "I drank 500ml water", "drank 1L water")
-    const hydrationMatch = lower.match(/\b(drank|drink|had|logged|consumed)\s+(\d+)\s*(ml|litres?|l)\s*(of\s*)?(water|pani)?\b/i) ||
+    // Hydration subtraction / removal patterns (e.g. "Remove 750 ml of water", "Subtract 500ml water", "Decrease water by 200ml")
+    const hydrationSubMatch = lower.match(/\b(remove|subtract|decrease|minus|deduct|cut)\s+(\d+)\s*(ml|litres?|l)\s*(of\s*)?(water|pani|hydration|fluid)?\b/i) ||
+      lower.match(/\b(remove|subtract|decrease|minus|deduct|cut)\s+(\d+)\s*(ml|litres?|l)\s*(from\s+)?(today'?s\s+)?(water|pani|hydration|intake)\b/i) ||
+      lower.match(/\b(decrease|reduce)\s+(my\s+)?(water|hydration)\s+(by\s+)?(\d+)\s*(ml|litres?|l)?\b/i);
+    if (hydrationSubMatch) {
+      let val = parseInt(hydrationSubMatch[2] || hydrationSubMatch[5], 10);
+      const unit = (hydrationSubMatch[3] || hydrationSubMatch[6] || "").toLowerCase();
+      if (unit.startsWith("l")) val = val * 1000;
+      return {
+        actionType: "ADJUST_HYDRATION",
+        operation: "SUBTRACT",
+        targetValue: val,
+      };
+    }
+
+    // Hydration absolute set / correction patterns (e.g. "Set today's water intake to 2000 ml", "Actually I drank 1800 ml, not 2300 ml", "Correct today's water to 1800ml")
+    const setPattern1 = lower.match(/\b(?:set|replace|change|correct)\s+(?:today'?s\s+)?(?:water|hydration|intake)\s+(?:intake\s+)?(?:to|=|\:)?\s*(\d+)\s*(ml|litres?|l)?\b/i);
+    const setPattern2 = lower.match(/\bactually\s+(?:i\s+)?(?:drank|had)\s+(\d+)\s*(ml|litres?|l)?(?:\s*,\s*not\s+\d+\s*(?:ml|litres?|l)?)?\b/i);
+    const setMatch = setPattern1 || setPattern2;
+    if (setMatch) {
+      let val = parseInt(setMatch[1], 10);
+      const unit = (setMatch[2] || "").toLowerCase();
+      if (unit.startsWith("l")) val = val * 1000;
+      return {
+        actionType: "ADJUST_HYDRATION",
+        operation: "SET",
+        targetValue: val,
+      };
+    }
+
+    // Hydration addition logging patterns (e.g. "I drank 500ml water", "Add 750ml water", "drank 1L water")
+    const hydrationMatch = lower.match(/\b(drank|drink|had|logged|consumed|add)\s+(\d+)\s*(ml|litres?|l)\s*(of\s*)?(water|pani)?\b/i) ||
       lower.match(/\b(\d+)\s*(ml|litres?|l)\s*(of\s*)?(water|pani)\b/i);
     if (hydrationMatch) {
       let val = parseInt(hydrationMatch[2] || hydrationMatch[1], 10);
@@ -132,6 +163,22 @@ export class AIQueryClassifier {
       if (unit.startsWith("l")) val = val * 1000;
       return {
         actionType: "LOG_HYDRATION",
+        operation: "ADD",
+        targetValue: val,
+      };
+    }
+
+    // Nutrition subtraction / correction patterns (e.g. "Remove 10g protein", "Correct today's calories to 1800")
+    const nutritionAdjustMatch = lower.match(/\b(remove|subtract|decrease|minus|deduct)\s+(\d+)\s*(g|kcal|cal)?\s*(of\s*)?(protein|calories|carbs|fat|fiber)\b/i) ||
+      lower.match(/\b(correct|set)\s+(today'?s\s+)?(calories|protein|carbs|fat|fiber)\s+(to|=|\:)?\s*(\d+)\s*(g|kcal|cal)?\b/i);
+    if (nutritionAdjustMatch) {
+      const isSub = ["remove", "subtract", "decrease", "minus", "deduct"].includes((nutritionAdjustMatch[1] || "").toLowerCase());
+      const metric = (nutritionAdjustMatch[5] || nutritionAdjustMatch[3] || "").toLowerCase();
+      const val = parseInt(nutritionAdjustMatch[2] || nutritionAdjustMatch[5], 10);
+      return {
+        actionType: "ADJUST_NUTRITION",
+        operation: isSub ? "SUBTRACT" : "SET",
+        targetKey: metric,
         targetValue: val,
       };
     }

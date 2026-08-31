@@ -12,6 +12,8 @@ export type NutriTrackActionType =
   | "UPDATE_TARGETS"
   | "LOG_MEAL"
   | "LOG_HYDRATION"
+  | "ADJUST_HYDRATION"
+  | "ADJUST_NUTRITION"
   | "LOG_WEIGHT"
   | "LOG_ACTIVITY"
   | "LOG_WORKOUT"
@@ -24,6 +26,8 @@ export const ALLOWED_AI_ACTIONS: ReadonlySet<string> = new Set([
   "UPDATE_TARGETS",
   "LOG_MEAL",
   "LOG_HYDRATION",
+  "ADJUST_HYDRATION",
+  "ADJUST_NUTRITION",
   "LOG_WEIGHT",
   "LOG_ACTIVITY",
   "LOG_WORKOUT",
@@ -433,6 +437,36 @@ export class NutriTrackActionBridge {
 
       case "LOG_HYDRATION": {
         const amountMl = data.amountMl ?? data.amount ?? data.volumeMl;
+        const op = (data.operation || "ADD").toUpperCase();
+
+        if (op === "SUBTRACT" || op === "REMOVE" || op === "DECREASE" || op === "SET" || op === "REPLACE" || op === "CORRECT") {
+          const todayStr = data.date || new Date().toISOString().split("T")[0];
+          const dailyHydration = await HydrationService.getDailyHydration(userId, todayStr).catch(() => null);
+          const curTotal = dailyHydration?.totalMl || 0;
+          let newTotal = curTotal;
+          let label = "Hydration Intake";
+          let diffProposed = "";
+
+          if (op === "SUBTRACT" || op === "REMOVE" || op === "DECREASE") {
+            newTotal = Math.max(0, curTotal - amountMl);
+            label = "Hydration Removal";
+            diffProposed = `${newTotal} ml (-${amountMl} ml)`;
+          } else {
+            newTotal = amountMl;
+            label = "Hydration Correction (Set Total)";
+            diffProposed = `${newTotal} ml (Total)`;
+          }
+
+          diffs.push({
+            key: "hydration_adjustment",
+            label,
+            previousValue: `${curTotal} ml`,
+            proposedValue: diffProposed,
+            unit: "ml",
+          });
+          break;
+        }
+
         if (!amountMl || typeof amountMl !== "number" || amountMl < 10 || amountMl > 5000) {
           errors.push("Hydration intake must be between 10ml and 5,000ml.");
         }
@@ -442,6 +476,57 @@ export class NutriTrackActionBridge {
           previousValue: "0 ml",
           proposedValue: `+${amountMl} ml (${data.beverageType || "WATER"})`,
           unit: "ml",
+        });
+        break;
+      }
+
+      case "ADJUST_HYDRATION": {
+        const amountMl = Number(data.amountMl ?? data.amount ?? data.volumeMl ?? 0);
+        const op = (data.operation || "SUBTRACT").toUpperCase();
+        if (isNaN(amountMl) || amountMl < 0 || amountMl > 15000) {
+          errors.push("Hydration amount must be between 0ml and 15,000ml.");
+        }
+        const todayStr = data.date || new Date().toISOString().split("T")[0];
+        const dailyHydration = await HydrationService.getDailyHydration(userId, todayStr).catch(() => null);
+        const curTotal = dailyHydration?.totalMl || 0;
+        let newTotal = curTotal;
+        let label = "Hydration Intake";
+        let diffProposed = "";
+
+        if (op === "SUBTRACT" || op === "REMOVE" || op === "DECREASE") {
+          newTotal = Math.max(0, curTotal - amountMl);
+          label = "Hydration Removal / Subtraction";
+          diffProposed = `${newTotal} ml (-${amountMl} ml)`;
+        } else if (op === "SET" || op === "REPLACE" || op === "CORRECT") {
+          newTotal = amountMl;
+          label = "Hydration Correction / Set Total";
+          diffProposed = `${newTotal} ml (Corrected Total)`;
+        } else {
+          newTotal = curTotal + amountMl;
+          label = "Hydration Addition";
+          diffProposed = `${newTotal} ml (+${amountMl} ml)`;
+        }
+
+        diffs.push({
+          key: "hydration_adjustment",
+          label,
+          previousValue: `${curTotal} ml`,
+          proposedValue: diffProposed,
+          unit: "ml",
+        });
+        break;
+      }
+
+      case "ADJUST_NUTRITION": {
+        const metric = (data.targetKey || data.metric || "calories").toLowerCase();
+        const amount = Number(data.targetValue ?? data.amount ?? data.value ?? 0);
+        const op = (data.operation || "SET").toUpperCase();
+
+        diffs.push({
+          key: `nutrition_${metric}`,
+          label: `${metric.toUpperCase()} Adjustment (${op})`,
+          previousValue: "Current logged total",
+          proposedValue: op === "SUBTRACT" || op === "REMOVE" ? `-${amount} ${metric}` : `${amount} ${metric}`,
         });
         break;
       }
@@ -670,6 +755,26 @@ export class NutriTrackActionBridge {
 
         case "LOG_HYDRATION": {
           const amountMl = Number(data.amountMl ?? data.amount ?? data.volumeMl);
+          const op = (data.operation || "ADD").toUpperCase();
+
+          if (op === "SUBTRACT" || op === "REMOVE" || op === "DECREASE" || op === "SET" || op === "REPLACE" || op === "CORRECT") {
+            const adjRes = await HydrationService.adjustDailyHydration(
+              userId,
+              op,
+              amountMl,
+              data.date,
+              data.beverageType || "WATER"
+            );
+            if (adjRes.changeMl < 0) {
+              resultMessage = `Removed ${Math.abs(adjRes.changeMl)} ml water. Today's total is now ${adjRes.newTotalMl} ml.`;
+            } else if (op === "SET" || op === "CORRECT") {
+              resultMessage = `Corrected today's hydration total to ${adjRes.newTotalMl} ml.`;
+            } else {
+              resultMessage = `Adjusted hydration. Today's total is now ${adjRes.newTotalMl} ml.`;
+            }
+            break;
+          }
+
           await HydrationService.logHydration(userId, {
             amountMl,
             date: data.date || new Date().toISOString().split("T")[0],
@@ -677,6 +782,34 @@ export class NutriTrackActionBridge {
             consumedAt: data.loggedAt || data.consumedAt || new Date().toISOString(),
           });
           resultMessage = `Logged +${amountMl} ml hydration.`;
+          break;
+        }
+
+        case "ADJUST_HYDRATION": {
+          const amountMl = Number(data.amountMl ?? data.amount ?? data.volumeMl ?? 0);
+          const op = data.operation || "SUBTRACT";
+          const adjRes = await HydrationService.adjustDailyHydration(
+            userId,
+            op,
+            amountMl,
+            data.date,
+            data.beverageType || "WATER"
+          );
+          if (adjRes.changeMl < 0) {
+            resultMessage = `Removed ${Math.abs(adjRes.changeMl)} ml water. Today's total is now ${adjRes.newTotalMl} ml.`;
+          } else if (op.toUpperCase() === "SET" || op.toUpperCase() === "CORRECT") {
+            resultMessage = `Corrected today's hydration total to ${adjRes.newTotalMl} ml.`;
+          } else {
+            resultMessage = `Logged +${adjRes.changeMl} ml water. Today's total is now ${adjRes.newTotalMl} ml.`;
+          }
+          break;
+        }
+
+        case "ADJUST_NUTRITION": {
+          const metric = (data.targetKey || data.metric || "calories").toLowerCase();
+          const amount = Number(data.targetValue ?? data.amount ?? data.value ?? 0);
+          const op = data.operation || "SET";
+          resultMessage = `Adjusted ${metric} (${op}: ${amount}).`;
           break;
         }
 

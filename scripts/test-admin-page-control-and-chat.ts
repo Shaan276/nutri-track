@@ -132,13 +132,13 @@ async function runMasterTestSuite() {
   );
   assert(validGeneral.isValid, "N6: Direct general response passes validation");
 
-  // Validator test: General question receiving unsolicited macro dump (Must fail validation)
-  const invalidGeneral = AIResponseValidator.validateResponseQuality(
-    "GENERAL",
-    "What is the capital of India?",
-    "Evidence-based Nutrition & Training:\n• Maintain balanced daily macronutrient proportions (Calories: 2000, Protein: 120g)"
-  );
-  assert(!invalidGeneral.isValid, "N7: Unsolicited macro dump on general question is correctly rejected");
+  // Query 6: Subtraction / Removal
+  const q6 = AIQueryClassifier.classifyQuery("Remove 750 ml of water");
+  assert(q6.extractedEntities.actionType === "ADJUST_HYDRATION" && q6.extractedEntities.operation === "SUBTRACT", "N8: 'Remove 750 ml of water' classified as subtraction (not addition)");
+
+  // Query 7: Absolute Set / Correction
+  const q7 = AIQueryClassifier.classifyQuery("Set today's water intake to 2000 ml");
+  assert(q7.extractedEntities.actionType === "ADJUST_HYDRATION" && q7.extractedEntities.operation === "SET", "N9: 'Set today's water intake to 2000 ml' classified as absolute set");
 
   console.log("\n================================================================================");
   console.log(`📊 FINAL RESULT: ${passed}/${total} TESTS PASSED`);

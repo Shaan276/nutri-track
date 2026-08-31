@@ -462,6 +462,32 @@ export const AI_COACH_TOOLS: ToolDefinition[] = [
   {
     type: "function",
     function: {
+      name: "adjust_hydration",
+      description: "Adjusts, removes, subtracts, or sets the user's daily water intake (e.g. 'remove 750ml water', 'subtract 500ml from water', 'set today's water to 2000ml', 'decrease water by 250ml', 'correct water intake to 1800ml').",
+      parameters: {
+        type: "object",
+        properties: {
+          operation: {
+            type: "string",
+            enum: ["SUBTRACT", "REMOVE", "SET", "REPLACE", "ADD", "INCREASE", "DECREASE", "CORRECT"],
+            description: "Operation type: 'SUBTRACT'/'REMOVE' to deduct water from today's total, 'SET'/'CORRECT' to set the absolute total today, 'ADD' to add water.",
+          },
+          amountMl: {
+            type: "number",
+            description: "Amount in milliliters to subtract, set, or adjust (e.g. 250, 500, 750, 2000).",
+          },
+          date: {
+            type: "string",
+            description: "Optional ISO date (YYYY-MM-DD). Defaults to today.",
+          },
+        },
+        required: ["operation", "amountMl"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "log_activity",
       description: "Logs a run, walk, workout, cycling, or fitness activity into the user's activity tracker.",
       parameters: {

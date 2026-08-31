@@ -469,6 +469,41 @@ export class AIToolRegistry {
         };
       }
 
+      case "adjust_hydration": {
+        const { operation = "SUBTRACT", amountMl, date } = args;
+        const dateStr = date || new Date().toISOString().split("T")[0];
+        const op = (operation || "SUBTRACT").toUpperCase();
+
+        const adj = await HydrationService.adjustDailyHydration(
+          userId,
+          op,
+          Number(amountMl),
+          dateStr
+        );
+
+        let msg = "";
+        if (adj.changeMl < 0) {
+          msg = `Removed ${Math.abs(adj.changeMl)}ml of water from ${dateStr}. 💧 Today's total is now ${adj.newTotalMl}ml.`;
+        } else if (op === "SET" || op === "CORRECT") {
+          msg = `Corrected today's hydration total to ${adj.newTotalMl}ml. 💧`;
+        } else {
+          msg = `Adjusted hydration to ${adj.newTotalMl}ml. 💧`;
+        }
+
+        const hydStatus = await HydrationService.getDailyHydration(userId, dateStr);
+
+        return {
+          success: true,
+          message: msg,
+          previousTotalMl: adj.previousTotalMl,
+          newTotalMl: adj.newTotalMl,
+          changeMl: adj.changeMl,
+          targetMl: hydStatus.targetMl,
+          remainingMl: hydStatus.remainingMl,
+          isGoalReached: hydStatus.isGoalReached,
+        };
+      }
+
       case "log_activity":
       case "create_activity": {
         const {
