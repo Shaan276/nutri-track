@@ -203,7 +203,7 @@ async function runSemanticUpdateTests() {
   const p19 = AIQueryClassifier.classifyQuery("Change my primary goal from maintaining my weight to muscle gain.");
   assert(
     p19.extractedEntities.actionType === "UPDATE_PROFILE" &&
-    p19.extractedEntities.targetValue === "MUSCLE_GAIN",
+    String(p19.extractedEntities.targetValue) === "MUSCLE_GAIN",
     "P19: 'Change primary goal to muscle gain' -> UPDATE_PROFILE MUSCLE_GAIN"
   );
 
