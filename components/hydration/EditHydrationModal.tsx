@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X, Droplets, Save, Loader2, AlertCircle } from "lucide-react";
 import { HydrationEntryDto } from "@/lib/services/hydration.service";
 import {
@@ -23,11 +24,16 @@ export function EditHydrationModal({
   entry,
   onSuccess,
 }: EditHydrationModalProps) {
+  const [mounted, setMounted] = useState(false);
   const [amountMl, setAmountMl] = useState<string>(entry ? String(entry.amountMl) : "250");
   const [beverageType, setBeverageType] = useState<BeverageType>(entry ? entry.beverageType : "WATER");
   const [notes, setNotes] = useState<string>(entry?.notes || "");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (entry) {
@@ -38,7 +44,7 @@ export function EditHydrationModal({
     }
   }, [entry]);
 
-  if (!isOpen || !entry) return null;
+  if (!isOpen || !entry || !mounted) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,9 +85,10 @@ export function EditHydrationModal({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="w-full max-w-lg bg-background-surface border border-border-default rounded-3xl p-6 shadow-2xl space-y-5 text-left">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+      <div className="fixed inset-0 bg-black/60 -z-10" onClick={onClose} />
+      <div className="w-full max-w-lg bg-background-surface border border-border-default rounded-3xl p-6 shadow-2xl space-y-5 text-left relative z-10 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border-subtle pb-4">
           <div className="flex items-center gap-3">
@@ -220,7 +227,8 @@ export function EditHydrationModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

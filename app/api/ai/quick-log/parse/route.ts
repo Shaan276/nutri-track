@@ -161,24 +161,86 @@ function heuristicParse(text: string) {
     targets: { detected: false },
   };
 
-  // Water check with semantic operation detection (ADD, SUBTRACT, SET)
-  const waterMatch = lower.match(/(\d+)\s*(ml|litres?|l)\s*(?:of\s*)?(?:water|pani)?/i) ||
-    lower.match(/\b(?:water|hydration)\s+(?:to|=|\:)?\s*(\d+)\s*(ml|litres?|l)?/i);
-  if (waterMatch) {
-    let ml = parseInt(waterMatch[1], 10);
-    const unit = (waterMatch[2] || "").toLowerCase();
-    if (unit.startsWith("l")) ml = ml * 1000;
+  // Enhanced Multi-entry water parsing
+  // Matches single or multiple entries like: "500 ml morning water(0540hrs), 1L water more(1100 hrs) and then 200ml more(1300hrs)"
+  const waterRegex = /(\d+(?:\.\d+)?)\s*(ml|litres?|l)\s*([^,;()]+)?(?:\((?:at\s*)?([^\)]+)\))?/gi;
+  const entries: Array<{
+    amountMl: number;
+    beverageType: string;
+    notes: string;
+    time?: string;
+    operation: "ADD" | "SUBTRACT" | "SET";
+  }> = [];
+
+  let totalMl = 0;
+  let match: RegExpExecArray | null = null;
+  while ((match = waterRegex.exec(text)) !== null) {
+    let num = parseFloat(match[1]);
+    const unit = (match[2] || "").toLowerCase();
+    if (unit.startsWith("l")) num = num * 1000;
+
+    const rawNote = (match[3] || "").trim();
+    const rawTimeOrTag = (match[4] || "").trim();
+
+    let note = rawNote || "Water";
+    if (rawTimeOrTag) {
+      note = `${note} (${rawTimeOrTag})`.trim();
+    }
+
+    let time = "";
+    if (rawTimeOrTag) {
+      const tMatch = rawTimeOrTag.match(/(\d{1,4})\s*(?:hrs?|am|pm)?/i);
+      if (tMatch) {
+        const rawNum = tMatch[1];
+        if (rawNum.length === 4) {
+          time = `${rawNum.substring(0, 2)}:${rawNum.substring(2, 4)}`;
+        } else if (rawNum.length === 3) {
+          time = `0${rawNum.substring(0, 1)}:${rawNum.substring(1, 3)}`;
+        } else if (rawNum.length <= 2) {
+          time = `${rawNum.padStart(2, "0")}:00`;
+        }
+      }
+    }
 
     let op: "ADD" | "SUBTRACT" | "SET" = "ADD";
-    if (/\b(remove|subtract|decrease|minus|deduct|cut)\b/i.test(lower)) {
+    if (/\b(remove|subtract|decrease|minus|deduct|cut)\b/i.test(match[0]) || /\b(remove|subtract|decrease|minus|deduct)\b/i.test(text)) {
       op = "SUBTRACT";
-    } else if (/\b(set|replace|change|correct|actually)\b/i.test(lower)) {
+    } else if (/\b(set|replace|change|correct)\b/i.test(match[0]) || /\b(set|replace|change|correct)\b/i.test(text)) {
       op = "SET";
     }
 
-    result.hydration = { detected: true, operation: op, amountMl: ml, beverageType: "WATER" };
-    result.logType = "HYDRATION";
+    entries.push({
+      amountMl: Math.round(num),
+      beverageType: "WATER",
+      notes: note,
+      time: time || undefined,
+      operation: op,
+    });
+    totalMl += Math.round(num);
   }
+
+    if (entries.length > 1) {
+      result.hydration = {
+        detected: true,
+        operation: "ADD",
+        isMultiEntry: true,
+        amountMl: totalMl,
+        entries: entries,
+        beverageType: "WATER",
+      };
+      result.logType = "HYDRATION";
+    } else if (entries.length === 1) {
+      result.hydration = {
+        detected: true,
+        operation: entries[0].operation,
+        amountMl: entries[0].amountMl,
+        beverageType: "WATER",
+        entries: entries,
+        notes: entries[0].notes,
+        time: entries[0].time,
+      };
+      result.logType = "HYDRATION";
+    }
 
   // Weight check
   const weightMatch = lower.match(/(\d+(?:\.\d+)?)\s*(?:kg|kilos|lbs?)/i);

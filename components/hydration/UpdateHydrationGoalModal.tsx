@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X, Target, Loader2, AlertCircle, Save, Droplets } from "lucide-react";
 
 interface UpdateHydrationGoalModalProps {
@@ -16,18 +17,23 @@ export function UpdateHydrationGoalModal({
   currentTargetMl,
   onSuccess,
 }: UpdateHydrationGoalModalProps) {
+  const [mounted, setMounted] = useState(false);
   const [targetMl, setTargetMl] = useState<string>(String(currentTargetMl || 2500));
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
     if (isOpen) {
       setTargetMl(String(currentTargetMl || 2500));
       setError(null);
     }
   }, [isOpen, currentTargetMl]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,9 +70,10 @@ export function UpdateHydrationGoalModal({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="w-full max-w-md bg-background-surface border border-border-default rounded-3xl p-6 shadow-2xl space-y-5 text-left">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+      <div className="fixed inset-0 bg-black/60 -z-10" onClick={onClose} />
+      <div className="w-full max-w-md bg-background-surface border border-border-default rounded-3xl p-6 shadow-2xl space-y-5 text-left relative z-10">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border-subtle pb-4">
           <div className="flex items-center gap-3">
@@ -168,7 +175,8 @@ export function UpdateHydrationGoalModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

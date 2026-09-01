@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -163,7 +164,13 @@ export function QuickLogModal({
     setActiveTab(tab);
   };
 
-  if (!isOpen) return null;
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!isOpen || !mounted) return null;
 
   // Invalidate all related queries
   const invalidateAllHealthQueries = () => {
@@ -415,9 +422,10 @@ export function QuickLogModal({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in text-left">
-      <div className="relative w-full max-w-xl max-h-[92vh] flex flex-col bg-[#0D1117] border border-[#21262D] rounded-3xl shadow-2xl overflow-hidden">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in text-left">
+      <div className="fixed inset-0 bg-black/60 -z-10" onClick={onClose} />
+      <div className="relative w-full max-w-xl max-h-[92vh] flex flex-col bg-[#0D1117] border border-[#21262D] rounded-3xl shadow-2xl overflow-hidden z-10">
         {/* Modal Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#21262D] bg-[#161B22]/50">
           <div className="flex items-center gap-2.5">
@@ -871,6 +879,7 @@ export function QuickLogModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

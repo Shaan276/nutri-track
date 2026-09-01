@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X, Trash2, AlertTriangle, Loader2 } from "lucide-react";
 import { UnifiedActivityItem } from "@/lib/services/unified-activity.service";
 
@@ -17,10 +18,15 @@ export function DeleteUnifiedActivityModal({
   item,
   onSuccess,
 }: DeleteUnifiedActivityModalProps) {
+  const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!isOpen || !item) return null;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!isOpen || !item || !mounted) return null;
 
   const isWorkout = item.kind === "WORKOUT";
 
@@ -52,9 +58,10 @@ export function DeleteUnifiedActivityModal({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 animate-fade-in">
-      <div className="relative w-full max-w-md bg-background-surface border border-border-default rounded-3xl p-6 sm:p-7 shadow-2xl space-y-5 text-left">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+      <div className="fixed inset-0 bg-black/60 -z-10" onClick={onClose} />
+      <div className="relative w-full max-w-md bg-background-surface border border-border-default rounded-3xl p-6 sm:p-7 shadow-2xl space-y-5 text-left z-10">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border-subtle pb-3.5">
           <div className="flex items-center gap-2.5">
@@ -131,7 +138,8 @@ export function DeleteUnifiedActivityModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

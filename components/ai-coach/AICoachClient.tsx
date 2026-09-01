@@ -576,6 +576,32 @@ export function AICoachClient({ isAdmin: propIsAdmin }: AICoachClientProps = {})
           },
         };
       } else if (logData.hydration?.detected) {
+        if (logData.hydration.entries && logData.hydration.entries.length > 1) {
+          // Log each individual hydration entry separately into the database
+          for (const entry of logData.hydration.entries) {
+            await fetch("/api/ai/actions/execute", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action: {
+                  version: 1,
+                  action: "LOG_HYDRATION",
+                  data: {
+                    amountMl: entry.amountMl,
+                    beverageType: entry.beverageType || "WATER",
+                    notes: entry.notes || null,
+                  },
+                },
+                confirmed: true,
+              }),
+            });
+          }
+          setMessages((prev) =>
+            prev.map((m) => (m.id === msgId ? { ...m, confirmed: true } : m))
+          );
+          return;
+        }
+
         const op = (logData.hydration.operation || "ADD").toUpperCase();
         if (op === "SUBTRACT" || op === "REMOVE" || op === "SET" || op === "CORRECT") {
           actionPayload = {
@@ -594,6 +620,7 @@ export function AICoachClient({ isAdmin: propIsAdmin }: AICoachClientProps = {})
             data: {
               amountMl: logData.hydration.amountMl,
               beverageType: logData.hydration.beverageType || "WATER",
+              notes: logData.hydration.notes || null,
             },
           };
         }
@@ -1092,40 +1119,79 @@ export function AICoachClient({ isAdmin: propIsAdmin }: AICoachClientProps = {})
 
                         {/* Hydration */}
                         {logData.hydration?.detected && (
-                          <div className={`flex items-center justify-between p-2 rounded-lg text-xs ${
-                            logData.hydration.operation === "SUBTRACT" || logData.hydration.operation === "REMOVE"
-                              ? "bg-rose-500/10 border border-rose-500/30"
-                              : logData.hydration.operation === "SET" || logData.hydration.operation === "CORRECT"
-                              ? "bg-amber-500/10 border border-amber-500/30"
-                              : "bg-blue-500/10 border border-blue-500/30"
-                          }`}>
-                            <span className={`font-bold flex items-center gap-1.5 ${
-                              logData.hydration.operation === "SUBTRACT" || logData.hydration.operation === "REMOVE"
-                                ? "text-rose-400"
-                                : logData.hydration.operation === "SET" || logData.hydration.operation === "CORRECT"
-                                ? "text-amber-400"
-                                : "text-blue-400"
-                            }`}>
-                              <Droplet className="h-3.5 w-3.5" />
-                              {logData.hydration.operation === "SUBTRACT" || logData.hydration.operation === "REMOVE"
-                                ? "Water Subtraction:"
-                                : logData.hydration.operation === "SET" || logData.hydration.operation === "CORRECT"
-                                ? "Water Correction (Set Total):"
-                                : "Hydration:"}
-                            </span>
-                            <span className={`font-extrabold font-mono ${
-                              logData.hydration.operation === "SUBTRACT" || logData.hydration.operation === "REMOVE"
-                                ? "text-rose-400"
-                                : logData.hydration.operation === "SET" || logData.hydration.operation === "CORRECT"
-                                ? "text-amber-400"
-                                : "text-blue-400"
-                            }`}>
-                              {logData.hydration.operation === "SUBTRACT" || logData.hydration.operation === "REMOVE"
-                                ? `-${logData.hydration.amountMl} ml`
-                                : logData.hydration.operation === "SET" || logData.hydration.operation === "CORRECT"
-                                ? `Set to ${logData.hydration.amountMl} ml`
-                                : `+${logData.hydration.amountMl} ml`} ({logData.hydration.beverageType || "WATER"})
-                            </span>
+                          <div className="space-y-1.5">
+                            {logData.hydration.entries && logData.hydration.entries.length > 1 ? (
+                              <div className="space-y-2 p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/30">
+                                <div className="flex items-center justify-between pb-1.5 border-b border-blue-500/20 text-xs font-bold text-blue-400">
+                                  <span className="flex items-center gap-1.5">
+                                    <Droplet className="h-3.5 w-3.5" />
+                                    Hydration Logs ({logData.hydration.entries.length} entries):
+                                  </span>
+                                  <span className="font-extrabold font-mono text-blue-300">
+                                    Total: +{logData.hydration.amountMl} ml
+                                  </span>
+                                </div>
+                                <div className="space-y-1">
+                                  {logData.hydration.entries.map((entry: any, eIdx: number) => (
+                                    <div
+                                      key={eIdx}
+                                      className="flex items-center justify-between px-2.5 py-1 rounded-lg bg-background-surface/80 border border-border-subtle/50 text-xs"
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                                        <span className="font-medium text-foreground-primary">
+                                          {entry.notes || "Water"}
+                                        </span>
+                                        {entry.time && (
+                                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300 font-mono font-semibold">
+                                            {entry.time}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <span className="font-bold text-blue-400 font-mono">
+                                        +{entry.amountMl} ml
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className={`flex items-center justify-between p-2 rounded-lg text-xs ${
+                                logData.hydration.operation === "SUBTRACT" || logData.hydration.operation === "REMOVE"
+                                  ? "bg-rose-500/10 border border-rose-500/30"
+                                  : logData.hydration.operation === "SET" || logData.hydration.operation === "CORRECT"
+                                  ? "bg-amber-500/10 border border-amber-500/30"
+                                  : "bg-blue-500/10 border border-blue-500/30"
+                              }`}>
+                                <span className={`font-bold flex items-center gap-1.5 ${
+                                  logData.hydration.operation === "SUBTRACT" || logData.hydration.operation === "REMOVE"
+                                    ? "text-rose-400"
+                                    : logData.hydration.operation === "SET" || logData.hydration.operation === "CORRECT"
+                                    ? "text-amber-400"
+                                    : "text-blue-400"
+                                }`}>
+                                  <Droplet className="h-3.5 w-3.5" />
+                                  {logData.hydration.operation === "SUBTRACT" || logData.hydration.operation === "REMOVE"
+                                    ? "Water Subtraction:"
+                                    : logData.hydration.operation === "SET" || logData.hydration.operation === "CORRECT"
+                                    ? "Water Correction (Set Total):"
+                                    : "Hydration:"}
+                                </span>
+                                <span className={`font-extrabold font-mono ${
+                                  logData.hydration.operation === "SUBTRACT" || logData.hydration.operation === "REMOVE"
+                                    ? "text-rose-400"
+                                    : logData.hydration.operation === "SET" || logData.hydration.operation === "CORRECT"
+                                    ? "text-amber-400"
+                                    : "text-blue-400"
+                                }`}>
+                                  {logData.hydration.operation === "SUBTRACT" || logData.hydration.operation === "REMOVE"
+                                    ? `-${logData.hydration.amountMl} ml`
+                                    : logData.hydration.operation === "SET" || logData.hydration.operation === "CORRECT"
+                                    ? `Set to ${logData.hydration.amountMl} ml`
+                                    : `+${logData.hydration.amountMl} ml`} ({logData.hydration.beverageType || "WATER"})
+                                </span>
+                              </div>
+                            )}
                           </div>
                         )}
 

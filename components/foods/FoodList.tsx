@@ -17,7 +17,7 @@ export function FoodList({ currentUserId }: FoodListProps) {
 
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"active" | "favorites" | "archived" | "all">("active");
+  const [statusFilter, setStatusFilter] = useState<"active" | "ingredients" | "recipes" | "favorites" | "archived" | "all">("active");
 
   const [deletingFood, setDeletingFood] = useState<FoodItem | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -47,7 +47,45 @@ export function FoodList({ currentUserId }: FoodListProps) {
     },
   });
 
-  const foods = data?.foods || [];
+  const rawFoods = data?.foods || [];
+
+  // Categorize foods into ingredients vs prepared recipes
+  const { foods, ingredientsCount, recipesCount } = React.useMemo(() => {
+    const rawFoodsList = data?.foods || [];
+    let ingCount = 0;
+    let recCount = 0;
+
+    for (const f of rawFoodsList) {
+      let meta: any = null;
+      if (f.notes) {
+        try { meta = JSON.parse(f.notes); } catch {}
+      }
+      const isIng = meta?.isIngredient || meta?.type === "RAW_INGREDIENT";
+      const isRec = meta?.isRecipe || meta?.type === "PREPARED_DISH" || f.brand?.toLowerCase().includes("recipe");
+
+      if (isIng) ingCount++;
+      if (isRec) recCount++;
+    }
+
+    const filtered = rawFoodsList.filter((f) => {
+      let meta: any = null;
+      if (f.notes) {
+        try { meta = JSON.parse(f.notes); } catch {}
+      }
+      const isIng = meta?.isIngredient || meta?.type === "RAW_INGREDIENT";
+      const isRec = meta?.isRecipe || meta?.type === "PREPARED_DISH" || f.brand?.toLowerCase().includes("recipe");
+
+      if (statusFilter === "ingredients") {
+        return isIng || (!isRec && !f.brand?.toLowerCase().includes("recipe"));
+      }
+      if (statusFilter === "recipes") {
+        return isRec;
+      }
+      return true;
+    });
+
+    return { foods: filtered, ingredientsCount: ingCount, recipesCount: recCount };
+  }, [data?.foods, statusFilter]);
 
   // Toggle favorite mutation
   const favoriteMutation = useMutation({
@@ -93,10 +131,10 @@ export function FoodList({ currentUserId }: FoodListProps) {
   };
 
   // Compute live counters
-  const totalCount = foods.length;
-  const favoritesCount = foods.filter((f) => f.isFavorite).length;
-  const activeCount = foods.filter((f) => !f.isArchived).length;
-  const archivedCount = foods.filter((f) => f.isArchived).length;
+  const totalCount = rawFoods.length;
+  const favoritesCount = rawFoods.filter((f) => f.isFavorite).length;
+  const activeCount = rawFoods.filter((f) => !f.isArchived).length;
+  const archivedCount = rawFoods.filter((f) => f.isArchived).length;
 
   return (
     <div className="w-full space-y-6 text-left">
@@ -105,22 +143,22 @@ export function FoodList({ currentUserId }: FoodListProps) {
         <div>
           <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-brand-500/15 border border-brand-500/30 text-brand-400 text-xs font-semibold uppercase tracking-wider mb-2">
             <Sparkles className="h-3.5 w-3.5" />
-            Food Library
+            Food &amp; Ingredient Library
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground-primary tracking-tight">
             Food Database
           </h1>
           <p className="text-sm text-foreground-secondary mt-1 font-medium">
-            Manage your personal nutrition library, reference servings, and macros.
+            Manage raw ingredients, custom recipes, and auto-calculated dish nutrition.
           </p>
         </div>
 
         <Link
           href="/foods/add"
-          className="inline-flex items-center justify-center gap-2 py-2.5 px-4 bg-brand-500 hover:bg-brand-600 active:bg-brand-700 text-black font-bold text-sm rounded-xl transition-all duration-200 shadow-brand-glow hover:shadow-brand-glow-lg cursor-pointer shrink-0"
+          className="inline-flex items-center justify-center gap-2 py-2.5 px-5 bg-brand-500 hover:bg-brand-600 active:bg-brand-700 text-black font-extrabold text-sm rounded-2xl transition-all duration-200 shadow-brand-glow hover:shadow-brand-glow-lg cursor-pointer shrink-0"
         >
           <Plus className="h-4 w-4" />
-          <span>Add New Food</span>
+          <span>Add New Food / Ingredient</span>
         </Link>
       </div>
 
@@ -133,6 +171,8 @@ export function FoodList({ currentUserId }: FoodListProps) {
         statusFilter={statusFilter}
         onStatusFilterChange={setStatusFilter}
         totalCount={totalCount}
+        ingredientsCount={ingredientsCount}
+        recipesCount={recipesCount}
         favoritesCount={favoritesCount}
         activeCount={activeCount}
         archivedCount={archivedCount}

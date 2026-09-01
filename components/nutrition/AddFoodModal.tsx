@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   X,
@@ -34,12 +35,17 @@ export function AddFoodModal({
   selectedDate,
   onSuccess,
 }: AddFoodModalProps) {
+  const [mounted, setMounted] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
   const [quantity, setQuantity] = useState<string>("100");
   const [quantityUnit, setQuantityUnit] = useState<string>("g");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Fetch foods from the food database
   const { data: foodsData, isLoading: isFoodsLoading } = useQuery<{ status: string; foods: FoodItem[] }>({
@@ -126,14 +132,15 @@ export function AddFoodModal({
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   const mealTitle = mealTypeDisplayNames[mealType] || mealType;
   const mealIcon = mealTypeIcons[mealType] || "🍽️";
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-2xl bg-background-surface border border-border-default rounded-3xl p-6 shadow-2xl space-y-5 text-left max-h-[90vh] flex flex-col overflow-hidden">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+      <div className="fixed inset-0 bg-black/60 -z-10" onClick={onClose} />
+      <div className="w-full max-w-2xl bg-background-surface border border-border-default rounded-3xl p-6 shadow-2xl space-y-5 text-left max-h-[90vh] flex flex-col overflow-hidden relative z-10">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border-subtle pb-4 shrink-0">
           <div className="flex items-center gap-2.5">
@@ -341,7 +348,8 @@ export function AddFoodModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

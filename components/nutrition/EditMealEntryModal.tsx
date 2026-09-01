@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X, Save, Loader2, AlertCircle, Info, Flame, Dna, Wheat, Droplet } from "lucide-react";
 import { MealEntryItem } from "./MealEntryRow";
 
@@ -17,10 +18,15 @@ export function EditMealEntryModal({
   entry,
   onSuccess,
 }: EditMealEntryModalProps) {
+  const [mounted, setMounted] = useState(false);
   const [quantity, setQuantity] = useState<string>(entry ? String(entry.quantity) : "100");
   const [quantityUnit, setQuantityUnit] = useState<string>(entry ? entry.quantityUnit : "g");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Sync state if entry changes
   React.useEffect(() => {
@@ -86,9 +92,12 @@ export function EditMealEntryModal({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-lg bg-background-surface border border-border-default rounded-3xl p-6 shadow-2xl space-y-5 text-left">
+  if (!isOpen || !entry || !mounted) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+      <div className="fixed inset-0 bg-black/60 -z-10" onClick={onClose} />
+      <div className="w-full max-w-lg bg-background-surface border border-border-default rounded-3xl p-6 shadow-2xl space-y-5 text-left relative z-10">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border-subtle pb-4">
           <div>
@@ -215,7 +224,8 @@ export function EditMealEntryModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

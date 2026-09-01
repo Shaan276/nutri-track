@@ -113,6 +113,23 @@ export function FoodCard({
     Number(food.vitaminD) > 0 ||
     Number(food.vitaminB12) > 0;
 
+  let recipeMetadata: any = null;
+  if (food.notes) {
+    try {
+      recipeMetadata = JSON.parse(food.notes);
+    } catch {
+      // plain text note
+    }
+  }
+
+  const isIngredient = recipeMetadata?.isIngredient || recipeMetadata?.type === "RAW_INGREDIENT";
+  const isRecipe =
+    recipeMetadata?.isRecipe ||
+    recipeMetadata?.type === "PREPARED_DISH" ||
+    food.brand?.toLowerCase().includes("recipe") ||
+    (recipeMetadata?.ingredients && recipeMetadata.ingredients.length > 0);
+  const recipeIngredientsCount = recipeMetadata?.ingredients?.length || 0;
+
   return (
     <div
       className={`group bg-background-surface border ${
@@ -127,7 +144,19 @@ export function FoodCard({
               {categoryDisplayNames[food.category] || food.category}
             </span>
 
-            {food.isSystemFood && (
+            {isIngredient && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold">
+                🥗 Ingredient
+              </span>
+            )}
+
+            {isRecipe && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-bold">
+                🍲 Recipe ({recipeIngredientsCount > 0 ? `${recipeIngredientsCount} items` : "Dish"})
+              </span>
+            )}
+
+            {food.isSystemFood && !isIngredient && !isRecipe && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-[10px] font-semibold">
                 <Sparkles className="h-3 w-3" />
                 Baseline

@@ -9,9 +9,11 @@ interface FoodFiltersProps {
   onSearchChange: (val: string) => void;
   selectedCategory: string;
   onCategoryChange: (val: string) => void;
-  statusFilter: "active" | "favorites" | "archived" | "all";
-  onStatusFilterChange: (val: "active" | "favorites" | "archived" | "all") => void;
+  statusFilter: "active" | "ingredients" | "recipes" | "favorites" | "archived" | "all";
+  onStatusFilterChange: (val: "active" | "ingredients" | "recipes" | "favorites" | "archived" | "all") => void;
   totalCount: number;
+  ingredientsCount?: number;
+  recipesCount?: number;
   favoritesCount: number;
   activeCount: number;
   archivedCount: number;
@@ -25,6 +27,8 @@ export function FoodFilters({
   statusFilter,
   onStatusFilterChange,
   totalCount,
+  ingredientsCount = 0,
+  recipesCount = 0,
   favoritesCount,
   activeCount,
   archivedCount,
@@ -104,7 +108,7 @@ export function FoodFilters({
             }`}
           >
             <Layers className="h-3.5 w-3.5" />
-            <span>Active Foods</span>
+            <span>All Active</span>
             <span
               className={`ml-1 text-[11px] px-1.5 py-0.2 rounded-full ${
                 statusFilter === "active" ? "bg-black/20 text-black font-bold" : "bg-background-elevated text-foreground-muted font-normal"
@@ -112,6 +116,46 @@ export function FoodFilters({
             >
               {activeCount}
             </span>
+          </button>
+
+          <button
+            onClick={() => onStatusFilterChange("ingredients")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+              statusFilter === "ingredients"
+                ? "bg-emerald-500 text-black shadow-sm"
+                : "text-foreground-secondary hover:text-foreground-primary hover:bg-background-elevated"
+            }`}
+          >
+            <span>🥗 Raw Ingredients</span>
+            {ingredientsCount > 0 && (
+              <span
+                className={`ml-1 text-[11px] px-1.5 py-0.2 rounded-full ${
+                  statusFilter === "ingredients" ? "bg-black/20 text-black font-bold" : "bg-background-elevated text-foreground-muted font-normal"
+                }`}
+              >
+                {ingredientsCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => onStatusFilterChange("recipes")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+              statusFilter === "recipes"
+                ? "bg-amber-500 text-black shadow-sm"
+                : "text-foreground-secondary hover:text-foreground-primary hover:bg-background-elevated"
+            }`}
+          >
+            <span>🍲 Prepared Recipes</span>
+            {recipesCount > 0 && (
+              <span
+                className={`ml-1 text-[11px] px-1.5 py-0.2 rounded-full ${
+                  statusFilter === "recipes" ? "bg-black/20 text-black font-bold" : "bg-background-elevated text-foreground-muted font-normal"
+                }`}
+              >
+                {recipesCount}
+              </span>
+            )}
           </button>
 
           <button
